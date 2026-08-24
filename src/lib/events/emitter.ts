@@ -1,0 +1,42 @@
+import { EventEmitter } from 'events';
+
+export type EventPayload = {
+  leadId: string;
+  sourceId?: string;
+  userId?: string;
+  ownerId?: string;
+  teamId?: string | null;
+  assignedById?: string;
+  oldStatus?: string;
+  newStatus?: string;
+  changes?: Record<string, any>;
+  followUpId?: string;
+  title?: string;
+  type?: string;
+};
+
+export interface SystemEvents {
+  'lead.created': (payload: EventPayload) => void;
+  'lead.updated': (payload: EventPayload) => void;
+  'lead.assigned': (payload: EventPayload) => void;
+  'lead.stage_changed': (payload: EventPayload) => void;
+  'lead.status_changed': (payload: EventPayload) => void;
+  'lead.tag_added': (payload: EventPayload) => void;
+  'follow_up.scheduled': (payload: EventPayload) => void;
+  'follow_up.completed': (payload: EventPayload) => void;
+  'follow_up.rescheduled': (payload: EventPayload) => void;
+  'follow_up.overdue': (payload: EventPayload) => void;
+  'task.completed': (payload: EventPayload) => void;
+}
+
+class TypedEventEmitter extends EventEmitter {
+  emit<K extends keyof SystemEvents>(eventName: K, ...args: Parameters<SystemEvents[K]>): boolean {
+    return super.emit(eventName, ...args);
+  }
+
+  on<K extends keyof SystemEvents>(eventName: K, listener: SystemEvents[K]): this {
+    return super.on(eventName, listener);
+  }
+}
+
+export const eventBus = new TypedEventEmitter();

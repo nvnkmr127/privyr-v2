@@ -1,0 +1,93 @@
+import { pgTable, uuid, varchar, timestamp, integer, jsonb, index, numeric } from 'drizzle-orm/pg-core';
+import { relations } from 'drizzle-orm';
+import { users, teams } from './users';
+
+export const leadSources = pgTable('lead_sources', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  type: varchar('type', { length: 255 }), 
+  isActive: integer('is_active').default(1).notNull(), // 1=active, 0=inactive
+  config: jsonb('config').default({}),
+  webhookSecret: varchar('webhook_secret', { length: 255 }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const leadPipelines = pgTable('lead_pipelines', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const leadPipelineStages = pgTable('lead_pipeline_stages', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  pipelineId: uuid('pipeline_id').references(() => leadPipelines.id).notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  orderIndex: integer('order_index').notNull().default(0),
+});
+
+export const assignmentRules = pgTable('assignment_rules', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  sourceId: uuid('source_id').references(() => leadSources.id),
+  teamId: uuid('team_id').references(() => teams.id),
+  userId: uuid('user_id').references(() => users.id),
+  type: varchar('type', { length: 50 }).default('source_direct').notNull(), // 'source_direct', 'source_round_robin'
+  lastAssignedUserId: uuid('last_assigned_user_id').references(() => users.id),
+  priority: integer('priority').default(0).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const leads = pgTable('leads', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  phone: varchar('phone', { length: 255 }),
+  email: varchar('email', { length: 255 }),
+  company: varchar('company', { length: 255 }),
+  sourceId: uuid('source_id').references(() => leadSources.id),
+  ownerId: uuid('owner_id').references(() => users.id),
+  teamId: uuid('team_id').references(() => teams.id),
+  pipelineId: uuid('pipeline_id').references(() => leadPipelines.id),
+  stageId: uuid('stage_id').references(() => leadPipelineStages.id),
+  status: varchar('status', { length: 50 }).notNull().default('new'), // new, active, won, lost, unqualified
+  priority: varchar('priority', { length: 50 }).default('medium'), // low, medium, high
+  score: integer('score').default(0),
+  expectedValue: numeric('expected_value', { precision: 12, scale: 2 }),
+  customData: jsonb('custom_data').default({}),
+  nextFollowUpAt: timestamp('next_follow_up_at'),
+  lastContactedAt: timestamp('last_contacted_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  emailIdx: index('leads_email_idx').on(table.email),
+  ownerIdx: index('leads_owner_idx').on(table.ownerId),
+  pipelineStageIdx: index('leads_pipeline_stage_idx').on(table.pipelineId, table.stageId),
+}));
+
+export const leadStatusHistory = pgTable('lead_status_history', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  leadId: uuid('lead_id').references(() => leads.id).notNull(),
+  oldStatus: varchar('old_status', { length: 50 }),
+  newStatus: varchar('new_status', { length: 50 }).notNull(),
+  changedById: uuid('changed_by_id').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const tags = pgTable('tags', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: varchar('name', { length: 255 }).notNull().unique(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const leadTags = pgTable('lead_tags', {
+  leadId: uuid('lead_id').references(() => leads.id).notNull(),
+  tagId: uuid('tag_id').references(() => tags.id).notNull(),
+}, (table) => ({
+  pk: index('lead_tags_pk').on(table.leadId, table.tagId), // using index as pseudo-PK for simplicity
+}));
+
+export const leadsRelations = relations(leads, ({ one, many }) => ({
+  owner: one(users, { fields: [leads.ownerId], references: [users.id] }),
+  source: one(leadSources, { fields: [leads.sourceId], references: [leadSources.id] }),
+  pipeline: one(leadPipelines, { fields: [leads.pipelineId], references: [leadPipelines.id] }),
+  stage: one(leadPipelineStages, { fields: [leads.stageId], references: [leadPipelineStages.id] }),
+  tags: many(leadTags),
+}));
