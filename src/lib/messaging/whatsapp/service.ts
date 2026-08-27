@@ -124,13 +124,17 @@ export const WhatsAppService = {
 
   // Inbound reply from the lead. Matches by phone (digits), logs it, opens the 24h window.
   // Returns whether it landed on a known lead.
-  async recordInbound(input: { fromPhone: string; providerMessageId: string; body: string }) {
+  async recordInbound(input: { fromPhone: string; providerMessageId: string; body: string; organizationId?: string }) {
     const digits = input.fromPhone.replace(/\D/g, "");
     if (!digits) return { matched: false };
-    // ponytail: exact digit match — no index, and no fuzzy country-code handling.
-    // Normalize leads.phone on write + index it if inbound volume grows.
+
+    const conditions = [sql`regexp_replace(${leads.phone}, '\\D', '', 'g') = ${digits}`];
+    if (input.organizationId) {
+      conditions.push(eq(leads.organizationId, input.organizationId));
+    }
+
     const [lead] = await db.select().from(leads)
-      .where(sql`regexp_replace(${leads.phone}, '\\D', '', 'g') = ${digits}`)
+      .where(and(...conditions))
       .limit(1);
     if (!lead) return { matched: false };
 

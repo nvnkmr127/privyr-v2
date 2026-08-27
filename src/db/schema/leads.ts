@@ -5,6 +5,7 @@ import { organizations } from './organizations';
 
 export const leadSources = pgTable('lead_sources', {
   id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id').references(() => organizations.id),
   name: varchar('name', { length: 255 }).notNull(),
   type: varchar('type', { length: 255 }), 
   isActive: integer('is_active').default(1).notNull(), // 1=active, 0=inactive
@@ -39,7 +40,7 @@ export const assignmentRules = pgTable('assignment_rules', {
 
 export const leads = pgTable('leads', {
   id: uuid('id').defaultRandom().primaryKey(),
-  organizationId: uuid('organization_id').references(() => organizations.id), // tenant; backfilled
+  organizationId: uuid('organization_id').references(() => organizations.id).notNull(), // tenant; backfilled
   name: varchar('name', { length: 255 }).notNull(),
   phone: varchar('phone', { length: 255 }),
   email: varchar('email', { length: 255 }),
@@ -61,8 +62,15 @@ export const leads = pgTable('leads', {
 }, (table) => ({
   orgIdx: index('leads_org_idx').on(table.organizationId),
   emailIdx: index('leads_email_idx').on(table.email),
+  phoneIdx: index('leads_phone_idx').on(table.phone),
   ownerIdx: index('leads_owner_idx').on(table.ownerId),
   pipelineStageIdx: index('leads_pipeline_stage_idx').on(table.pipelineId, table.stageId),
+  orgCreatedIdx: index('leads_org_created_idx').on(table.organizationId, table.createdAt),
+  orgPhoneIdx: index('leads_org_phone_idx').on(table.organizationId, table.phone),
+  orgEmailIdx: index('leads_org_email_idx').on(table.organizationId, table.email),
+  orgOwnerIdx: index('leads_org_owner_idx').on(table.organizationId, table.ownerId),
+  orgStatusIdx: index('leads_org_status_idx').on(table.organizationId, table.status),
+  orgSourceIdx: index('leads_org_source_idx').on(table.organizationId, table.sourceId),
 }));
 
 export const leadStatusHistory = pgTable('lead_status_history', {

@@ -1,15 +1,14 @@
 import { Suspense } from "react";
 import { MetricsCards } from "@/components/dashboard/MetricsCards";
-import { requireAuth } from "@/lib/rbac";
+import { requireOrg } from "@/lib/rbac";
 
 export default async function SalesRepDashboardPage() {
-  const session = await requireAuth();
+  const { userId, organizationId } = await requireOrg();
 
   // Force the ownerId filter to be the current user
   const filters = {
-    ownerId: session.user.id,
-    // Ignore teamId from URL, this is a personal dashboard
-    // Add date parsing logic if needed
+    organizationId,
+    ownerId: userId,
   };
 
   return (

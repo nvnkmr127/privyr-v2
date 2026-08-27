@@ -100,16 +100,15 @@ export class LeadService {
     return deletedLead;
   }
 
-  // assignLead / changeStatus are also called by the background automation engine, which has no
-  // session. organizationId is optional there: when present (UI path) it scopes the write; when
-  // omitted (engine) the write is keyed only by leadId, which is already bound to one org.
-  static async assignLead(leadId: string, ownerId: string, assignedById?: string, organizationId?: string) {
-    const where = organizationId
-      ? and(eq(leads.id, leadId), eq(leads.organizationId, organizationId))
-      : eq(leads.id, leadId);
-    const [updatedLead] = await db.update(leads).set({ ownerId, updatedAt: new Date() }).where(where).returning();
-    if (updatedLead) eventBus.emit('lead.assigned', { leadId, ownerId, assignedById });
-    return updatedLead;
+  // Delegate to canonical AssignmentService
+  static async assignLead(leadId: string, ownerId: string | null, assignedById?: string, organizationId?: string) {
+    const { AssignmentService } = await import("./assignmentService");
+    return AssignmentService.assignLead({
+      leadId,
+      ownerId,
+      assignedById: assignedById ?? "system",
+      organizationId,
+    });
   }
 
   static async changeStatus(leadId: string, newStatus: string, changedById: string, organizationId?: string) {

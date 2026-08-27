@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, jsonb, timestamp, boolean, integer } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, jsonb, timestamp, boolean, integer, index } from 'drizzle-orm/pg-core';
 import { leads } from './leads';
 
 export const automations = pgTable('automations', {
@@ -14,7 +14,9 @@ export const automationTriggers = pgTable('automation_triggers', {
   automationId: uuid('automation_id').references(() => automations.id).notNull(),
   type: varchar('type', { length: 255 }).notNull(),
   config: jsonb('config').default({}),
-});
+}, (table) => ({
+  typeIdx: index('auto_triggers_type_idx').on(table.type, table.automationId),
+}));
 
 export const automationConditions = pgTable('automation_conditions', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -40,4 +42,7 @@ export const automationRuns = pgTable('automation_runs', {
   completedAt: timestamp('completed_at'),
   idempotencyKey: varchar('idempotency_key', { length: 255 }),
   retryCount: integer('retry_count').default(0).notNull(),
-});
+}, (table) => ({
+  idempotencyIdx: index('auto_runs_idempotency_idx').on(table.idempotencyKey),
+  leadIdx: index('auto_runs_lead_idx').on(table.leadId),
+}));

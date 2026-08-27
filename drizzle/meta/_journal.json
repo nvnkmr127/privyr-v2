@@ -29,6 +29,27 @@
       "when": 1787830503547,
       "tag": "0003_flaky_stepford_cuckoos",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1787833485552,
+      "tag": "0004_harsh_loa",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1787834401709,
+      "tag": "0005_supreme_mandrill",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1787835276085,
+      "tag": "0006_lethal_james_howlett",
+      "breakpoints": true
     }
   ]
 }

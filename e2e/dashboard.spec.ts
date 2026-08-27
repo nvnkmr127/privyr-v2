@@ -1,26 +1,41 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Executive Dashboard', () => {
-  // Since we require auth, we'll bypass it for this simple E2E test by mocking the requireAuth function 
-  // or testing a public route. 
-  // For the sake of this test to verify the UI structure, we will assume a dev environment
-  // where the auth middleware is either mocked or we test the visual rendering explicitly.
-  
-  test('should render the dashboard charts', async ({ page }) => {
-    // Navigate to the dashboard
+  test.setTimeout(60000);
+
+  test('should authenticate and render the real executive dashboard', async ({ page }) => {
+    // Navigate to login page
+    await page.goto('/login');
+
+    // Wait for email input to be visible
+    await page.waitForSelector('input[type="email"]', { timeout: 30000 });
+
+    // Fill credentials
+    await page.fill('input[type="email"]', 'admin@privyr.local');
+    await page.fill('input[type="password"]', 'password123');
+    
+    // Submit form and allow auth session to settle
+    await page.click('button[type="submit"]');
+    await page.waitForTimeout(3000);
+
+    // Navigate to Executive Dashboard
     await page.goto('/');
 
-    // Check for the main heading
-    await expect(page.locator('h2', { hasText: 'Executive Dashboard' })).toBeVisible({ timeout: 10000 });
+    // Check main heading
+    await expect(page.locator('h2', { hasText: 'Executive Dashboard' })).toBeVisible({ timeout: 15000 });
 
-    // Check for the Revenue by Source chart container
-    await expect(page.locator('h3', { hasText: 'Revenue by Source' })).toBeVisible();
-    
-    // Check for the Pipeline Distribution chart container
+    // Check KPI Cards
+    await expect(page.locator('div', { hasText: 'Total Leads' }).first()).toBeVisible();
+    await expect(page.locator('div', { hasText: 'Conversion Rate' }).first()).toBeVisible();
+
+    // Check Real Chart Titles
+    await expect(page.locator('h3', { hasText: 'Leads by Source' })).toBeVisible();
     await expect(page.locator('h3', { hasText: 'Pipeline Distribution' })).toBeVisible();
+    await expect(page.locator('h3', { hasText: 'Lead Distribution by Owner' })).toBeVisible();
+    await expect(page.locator('h3', { hasText: 'Recent Activity' })).toBeVisible();
 
-    // Verify the Recharts containers render (Recharts uses specific classnames we can look for, or just check SVG)
+    // Verify Recharts rendering containers
     const charts = page.locator('.recharts-responsive-container');
-    await expect(charts).toHaveCount(2);
+    await expect(charts).toHaveCount(3);
   });
 });

@@ -59,7 +59,7 @@ export function EditLeadDialog({ lead }: EditLeadDialogProps) {
         description: "The lead was successfully updated.",
       });
       setOpen(false);
-    } catch (error) {
+    } catch {
       toast({
         variant: "destructive",
         title: "Error",
@@ -79,7 +79,7 @@ export function EditLeadDialog({ lead }: EditLeadDialogProps) {
         <DialogHeader>
           <DialogTitle>Edit Lead</DialogTitle>
           <DialogDescription>
-            Make changes to the lead's contact information here.
+            Make changes to the lead&apos;s contact information here.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>

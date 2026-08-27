@@ -1,14 +1,14 @@
 import { db } from "@/db";
 import { leads, leadIngestionLogs } from "@/db/schema";
 import { NormalizedLeadPayload } from "../integrations/types";
-import { eq, or } from "drizzle-orm";
+import { eq, or, and } from "drizzle-orm";
 import { eventBus } from "@/lib/events/emitter";
-import { LeadService } from "@/domains/leads/service";
+import { LeadSourceService } from "@/domains/leads/sourceService";
 
 export class IngestionService {
   /**
    * Processes a normalized lead payload.
-   * Handles deduplication and insertion.
+   * Handles deduplication and insertion scoped strictly per organization.
    */
   static async processLead(payload: NormalizedLeadPayload): Promise<{ status: string; leadId: string }> {
     if (!payload.email && !payload.phone) {
@@ -16,20 +16,29 @@ export class IngestionService {
       throw new Error("Email or phone is required");
     }
 
-    const conditions = [];
-    if (payload.email) conditions.push(eq(leads.email, payload.email));
-    if (payload.phone) conditions.push(eq(leads.phone, payload.phone));
-    if (payload.externalId) {
-      // we check customData->>'externalId' if we don't have a dedicated column
-      // but if we don't have raw sql easily accessible, we rely on email/phone.
-      // Assuming email/phone are primary.
+    // 1. Resolve Organization ID
+    let organizationId = payload.organizationId;
+    if (!organizationId && payload.sourceId) {
+      const source = await LeadSourceService.getSource(payload.sourceId);
+      if (source?.organizationId) {
+        organizationId = source.organizationId;
+      }
     }
 
-    // 1. Deduplication
+    if (!organizationId) {
+      await this.logIngestion(null, payload.sourceId, payload, "failed", "Valid Lead Source with Organization is required.");
+      throw new Error("Valid Lead Source with Organization is required");
+    }
+
+    const searchConditions = [];
+    if (payload.email) searchConditions.push(eq(leads.email, payload.email));
+    if (payload.phone) searchConditions.push(eq(leads.phone, payload.phone));
+
+    // 2. Organization-Scoped Deduplication
     const [existingLead] = await db
       .select()
       .from(leads)
-      .where(or(...conditions))
+      .where(and(eq(leads.organizationId, organizationId), or(...searchConditions)))
       .limit(1);
 
     if (existingLead) {
@@ -39,7 +48,7 @@ export class IngestionService {
           customData: { ...(existingLead.customData as Record<string, any>), ...payload.customData, _lastIngestionSource: payload.sourceId },
           updatedAt: new Date(),
         })
-        .where(eq(leads.id, existingLead.id))
+        .where(and(eq(leads.id, existingLead.id), eq(leads.organizationId, organizationId)))
         .returning();
 
       await this.logIngestion(updatedLead.id, payload.sourceId, payload, "deduplicated", null);
@@ -53,8 +62,9 @@ export class IngestionService {
       return { status: "deduplicated", leadId: updatedLead.id };
     }
 
-    // 2. Creation
+    // 3. Creation with organizationId
     const [newLead] = await db.insert(leads).values({
+      organizationId,
       name: payload.name,
       email: payload.email,
       phone: payload.phone,
@@ -70,12 +80,17 @@ export class IngestionService {
       sourceId: payload.sourceId
     });
 
-    // 3. Assignment Rules Engine
+    // 4. Assignment Rules Engine
+    const { AssignmentService } = await import("@/domains/leads/assignmentService");
     if (payload.ownerId) {
-      await LeadService.assignLead(newLead.id, payload.ownerId);
+      await AssignmentService.assignLead({
+        leadId: newLead.id,
+        ownerId: payload.ownerId,
+        assignedById: "system",
+        organizationId,
+      });
     } else {
-      const { AssignmentService } = await import("@/domains/leads/assignmentService");
-      await AssignmentService.executeAutomaticAssignment(newLead.id, payload.sourceId);
+      await AssignmentService.executeAutomaticAssignment(newLead.id, payload.sourceId, organizationId);
     }
 
     return { status: "success", leadId: newLead.id };

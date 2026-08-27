@@ -4,6 +4,7 @@ export interface NormalizedLeadPayload {
   phone?: string;
   company?: string;
   sourceId: string;
+  organizationId?: string;
   externalId?: string; // ID from the external system (e.g., Meta Lead ID)
   teamId?: string;
   ownerId?: string;

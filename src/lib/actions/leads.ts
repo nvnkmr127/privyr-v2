@@ -146,19 +146,20 @@ export async function addNoteAction(input: z.infer<typeof addNoteSchema>) {
 }
 
 export const assignLeadAction = async (input: { leadId: string, ownerId: string | null, teamId: string | null }) => {
-  const session = await requireAuth();
+  const { userId, organizationId } = await requireOrg();
   
   if (!input.leadId) throw new Error("Lead ID is required");
   if (!input.ownerId && !input.teamId) throw new Error("Must provide ownerId or teamId");
 
   const { AssignmentService } = await import("@/domains/leads/assignmentService");
   
-  const updatedLead = await AssignmentService.assignLead(
-    input.leadId,
-    input.ownerId,
-    input.teamId,
-    session.user.id
-  );
+  const updatedLead = await AssignmentService.assignLead({
+    leadId: input.leadId,
+    ownerId: input.ownerId,
+    teamId: input.teamId,
+    assignedById: userId,
+    organizationId,
+  });
 
   revalidatePath(`/leads/${input.leadId}`);
   revalidatePath("/leads");
@@ -167,19 +168,20 @@ export const assignLeadAction = async (input: { leadId: string, ownerId: string 
 };
 
 export const bulkAssignLeadAction = async (input: { leadIds: string[], ownerId: string | null, teamId: string | null }) => {
-  const session = await requireAuth();
+  const { userId, organizationId } = await requireOrg();
   
   if (!input.leadIds || input.leadIds.length === 0) throw new Error("Lead IDs are required");
   if (!input.ownerId && !input.teamId) throw new Error("Must provide ownerId or teamId");
 
   const { AssignmentService } = await import("@/domains/leads/assignmentService");
   
-  const updatedLeads = await AssignmentService.bulkAssignLeads(
-    input.leadIds,
-    input.ownerId,
-    input.teamId,
-    session.user.id
-  );
+  const updatedLeads = await AssignmentService.bulkAssignLeads({
+    leadIds: input.leadIds,
+    ownerId: input.ownerId,
+    teamId: input.teamId,
+    assignedById: userId,
+    organizationId,
+  });
 
   revalidatePath("/leads");
   

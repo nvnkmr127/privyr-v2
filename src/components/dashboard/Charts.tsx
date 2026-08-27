@@ -4,7 +4,7 @@ import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGri
 
 export function RevenueChart({ data }: { data: any[] }) {
   if (!data || data.length === 0) {
-    return <div className="flex h-full items-center justify-center text-slate-500">No data available</div>;
+    return <div className="flex h-full items-center justify-center text-slate-500 text-sm py-10">No lead source data</div>;
   }
 
   return (
@@ -12,9 +12,27 @@ export function RevenueChart({ data }: { data: any[] }) {
       <BarChart data={data}>
         <CartesianGrid strokeDasharray="3 3" vertical={false} />
         <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-        <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
-        <Tooltip cursor={{fill: 'transparent'}} contentStyle={{borderRadius: '8px'}} />
-        <Bar dataKey="total" fill="currentColor" radius={[4, 4, 0, 0]} className="fill-primary" />
+        <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+        <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '8px' }} />
+        <Bar dataKey="total" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+export function LeadsBySourceChart({ data }: { data: any[] }) {
+  if (!data || data.length === 0) {
+    return <div className="flex h-full items-center justify-center text-slate-500 text-sm py-10">No lead source data</div>;
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={300}>
+      <BarChart data={data}>
+        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+        <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+        <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+        <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '8px' }} />
+        <Bar dataKey="count" fill="#10b981" radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -22,7 +40,7 @@ export function RevenueChart({ data }: { data: any[] }) {
 
 export function LeadsByStageChart({ data }: { data: any[] }) {
   if (!data || data.length === 0) {
-    return <div className="flex h-full items-center justify-center text-slate-500">No data available</div>;
+    return <div className="flex h-full items-center justify-center text-slate-500 text-sm py-10">No pipeline stage data</div>;
   }
 
   return (
@@ -37,9 +55,27 @@ export function LeadsByStageChart({ data }: { data: any[] }) {
         <CartesianGrid strokeDasharray="3 3" vertical={false} />
         <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
         <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-        <Tooltip contentStyle={{borderRadius: '8px'}} />
+        <Tooltip contentStyle={{ borderRadius: '8px' }} />
         <Area type="monotone" dataKey="count" stroke="#3b82f6" fillOpacity={1} fill="url(#colorCount)" />
       </AreaChart>
+    </ResponsiveContainer>
+  );
+}
+
+export function LeadsByOwnerChart({ data }: { data: any[] }) {
+  if (!data || data.length === 0) {
+    return <div className="flex h-full items-center justify-center text-slate-500 text-sm py-10">No owner allocation data</div>;
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={300}>
+      <BarChart data={data} layout="vertical" margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+        <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+        <XAxis type="number" stroke="#888888" fontSize={12} axisLine={false} tickLine={false} />
+        <YAxis type="category" dataKey="name" stroke="#888888" fontSize={12} axisLine={false} tickLine={false} width={100} />
+        <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '8px' }} />
+        <Bar dataKey="count" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
+      </BarChart>
     </ResponsiveContainer>
   );
 }

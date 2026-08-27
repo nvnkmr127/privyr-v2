@@ -41,6 +41,7 @@ describe('IngestionService', () => {
     const payload: NormalizedLeadPayload = {
       name: 'Test User',
       sourceId: 'source-1',
+      organizationId: 'org-1',
       customData: {},
     };
 
@@ -56,6 +57,7 @@ describe('IngestionService', () => {
       name: 'New Lead',
       email: 'new@example.com',
       sourceId: 'source-1',
+      organizationId: 'org-1',
       customData: {},
     };
 
@@ -75,6 +77,7 @@ describe('IngestionService', () => {
       name: 'Existing Lead',
       email: 'existing@example.com',
       sourceId: 'source-1',
+      organizationId: 'org-1',
       customData: { new: 'data' },
     };
 

@@ -4,7 +4,10 @@ import { eq } from "drizzle-orm";
 import crypto from "crypto";
 
 export class LeadSourceService {
-  static async getSources() {
+  static async getSources(organizationId?: string) {
+    if (organizationId) {
+      return db.select().from(leadSources).where(eq(leadSources.organizationId, organizationId));
+    }
     return db.select().from(leadSources);
   }
 
@@ -13,12 +16,13 @@ export class LeadSourceService {
     return source;
   }
 
-  static async createSource(data: { name: string; type: string; config?: any }) {
+  static async createSource(data: { name: string; type: string; organizationId?: string; config?: any }) {
     const webhookSecret = crypto.randomBytes(32).toString("hex");
     
     const [source] = await db.insert(leadSources).values({
       name: data.name,
       type: data.type,
+      organizationId: data.organizationId,
       config: data.config || {},
       webhookSecret,
     }).returning();

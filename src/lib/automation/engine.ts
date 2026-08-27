@@ -7,6 +7,8 @@ import { ActivityService } from "@/domains/activities/service";
 import { WhatsAppService } from "@/lib/messaging/whatsapp/service";
 import { EventPayload } from "@/lib/events/emitter";
 
+import { AssignmentService } from "@/domains/leads/assignmentService";
+
 export class AutomationEngine {
   static async evaluateAndExecute(automationId: string, leadId: string, payload?: EventPayload) {
     // 1. Evaluate Conditions
@@ -100,7 +102,11 @@ export class AutomationEngine {
     switch (type) {
       case 'assign_lead':
         if (!config.userId) throw new Error("Missing userId for assign_lead");
-        await LeadService.assignLead(leadId, config.userId, defaultUserId);
+        await AssignmentService.assignLead({
+          leadId,
+          ownerId: config.userId,
+          assignedById: defaultUserId ?? "automation",
+        });
         break;
       
       case 'change_status':

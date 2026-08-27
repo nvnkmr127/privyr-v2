@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AnalyticsService, AnalyticsFilters } from "@/lib/analytics/service";
 
-export async function MetricsCards({ filters }: { filters?: AnalyticsFilters }) {
+export async function MetricsCards({ filters }: { filters: AnalyticsFilters }) {
   const metrics = await AnalyticsService.getLeadMetrics(filters);
   const followUpMetrics = await AnalyticsService.getFollowUpMetrics(filters);
 
@@ -13,7 +13,9 @@ export async function MetricsCards({ filters }: { filters?: AnalyticsFilters }) 
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{metrics.total}</div>
-          <p className="text-xs text-muted-foreground">{metrics.newLeads} new leads</p>
+          <p className="text-xs text-muted-foreground">
+            {metrics.total === 0 ? "No leads yet" : `${metrics.newLeads} new, ${metrics.activeLeads} active`}
+          </p>
         </CardContent>
       </Card>
       
@@ -22,7 +24,7 @@ export async function MetricsCards({ filters }: { filters?: AnalyticsFilters }) 
           <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{metrics.conversionRate.toFixed(1)}%</div>
+          <div className="text-2xl font-bold">{metrics.total === 0 ? "0%" : `${metrics.conversionRate.toFixed(1)}%`}</div>
           <p className="text-xs text-muted-foreground">{metrics.won} won / {metrics.lost} lost</p>
         </CardContent>
       </Card>
@@ -39,11 +41,16 @@ export async function MetricsCards({ filters }: { filters?: AnalyticsFilters }) 
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Overdue Follow-ups</CardTitle>
+          <CardTitle className="text-sm font-medium">Follow-up Tasks</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-red-500">{followUpMetrics.overdue}</div>
-          <p className="text-xs text-muted-foreground">{followUpMetrics.completionRate.toFixed(1)}% completion rate</p>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-bold text-red-500">{followUpMetrics.overdue}</span>
+            <span className="text-xs text-slate-500">overdue</span>
+            <span className="text-lg font-semibold text-amber-600 ml-2">{followUpMetrics.dueToday}</span>
+            <span className="text-xs text-slate-500">due today</span>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">{followUpMetrics.completionRate.toFixed(1)}% completion rate</p>
         </CardContent>
       </Card>
     </div>

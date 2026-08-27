@@ -4,7 +4,6 @@ import { db } from "@/db";
 import { webhookEvents } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { IngestionService } from "@/lib/leads/ingestion";
-import { WebFormAdapter } from "@/lib/integrations/adapters/WebFormAdapter";
 
 const connection = new Redis(process.env.REDIS_URL || "redis://localhost:6379", { maxRetriesPerRequest: null });
 
@@ -54,6 +53,10 @@ export const ingestionWorker = new Worker<IngestionJobData>(
       }
 
       const normalized = await adapter.normalize(rawPayload, sourceId, rawPayload.teamId, rawPayload.ownerId);
+      if (rawPayload.organizationId) {
+        normalized.organizationId = rawPayload.organizationId;
+      }
+
       const result = await IngestionService.processLead(normalized);
 
       await db.update(webhookEvents)

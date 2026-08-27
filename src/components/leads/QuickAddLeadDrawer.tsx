@@ -47,7 +47,7 @@ export function QuickAddLeadDrawer({ children }: { children?: React.ReactNode })
       });
       setOpen(false);
       form.reset();
-    } catch (error) {
+    } catch {
       toast({
         variant: "destructive",
         title: "Uh oh! Something went wrong.",

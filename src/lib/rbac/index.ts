@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth/next";
+import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/db";
 import { roles } from "@/db/schema";
@@ -7,7 +8,7 @@ import { eq } from "drizzle-orm";
 export async function requireAuth() {
   const session = await getServerSession(authOptions);
   if (!session?.user) {
-    throw new Error("Unauthorized");
+    redirect("/login");
   }
   return session;
 }
@@ -18,7 +19,7 @@ export async function requireOrg() {
   const session = await requireAuth();
   const organizationId = session.user.organizationId;
   if (!organizationId) {
-    throw new Error("No organization on session");
+    redirect("/login");
   }
   return { userId: session.user.id, organizationId, roleId: session.user.roleId };
 }

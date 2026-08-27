@@ -22,7 +22,7 @@ export async function POST(
     let rawBody;
     try {
       rawBody = JSON.parse(rawText);
-    } catch (e) {
+    } catch {
       return NextResponse.json({ success: false, error: "Invalid JSON format" }, { status: 400 });
     }
     
@@ -56,7 +56,7 @@ export async function POST(
 
     const { LeadSourceService } = await import("@/domains/leads/sourceService");
     const source = await LeadSourceService.getSource(sourceId);
-    if (!source || !source.isActive) {
+    if (!source || !source.isActive || !source.organizationId) {
       return NextResponse.json({ success: false, error: "Invalid or inactive source" }, { status: 403 });
     }
 
@@ -95,11 +95,11 @@ export async function POST(
       }
     }
 
-    // 1. Store the webhook event immediately. Fold the resolved sourceId into the payload so
+    // 1. Store the webhook event immediately. Fold the resolved sourceId and organizationId into the payload so
     // the ingestion worker finds it even when it arrived via the query string, not the body.
     const [event] = await db.insert(webhookEvents).values({
       provider,
-      payload: { ...body, sourceId },
+      payload: { ...body, sourceId, organizationId: source.organizationId },
       idempotencyKey,
     }).returning();
 

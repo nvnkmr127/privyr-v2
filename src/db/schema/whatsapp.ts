@@ -18,4 +18,5 @@ export const whatsappMessages = pgTable('whatsapp_messages', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
   leadIdx: index('wa_messages_lead_idx').on(table.leadId),
+  providerMsgIdx: index('wa_messages_provider_msg_idx').on(table.providerMessageId),
 }));

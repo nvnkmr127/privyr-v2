@@ -120,7 +120,12 @@ async function migrateLeads(connection: mysql.Connection) {
       }
 
       const [newLead] = await db.insert(leads).values({
-        ...flattened,
+        organizationId: legacyLead.organization_id || '00000000-0000-0000-0000-000000000000',
+        name: flattened.name,
+        email: flattened.email,
+        phone: flattened.phone,
+        expectedValue: flattened.expectedValue,
+        customData: flattened.customData,
         status: flattened.status as any,
       }).returning();
       

@@ -33,7 +33,7 @@ export function AddNoteForm({ leadId }: { leadId: string }) {
         description: "Your note was successfully added to the timeline.",
       });
       form.reset();
-    } catch (error) {
+    } catch {
       toast({
         variant: "destructive",
         title: "Error",

@@ -14,6 +14,7 @@ export const activities = pgTable('activities', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
   leadIdx: index('activities_lead_idx').on(table.leadId),
+  leadCreatedIdx: index('activities_lead_created_idx').on(table.leadId, table.createdAt),
 }));
 
 export const followUps = pgTable('follow_ups', {
@@ -29,7 +30,10 @@ export const followUps = pgTable('follow_ups', {
   completedAt: timestamp('completed_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
+}, (table) => ({
+  userDueIdx: index('follow_ups_user_due_idx').on(table.userId, table.status, table.dueAt),
+  leadIdx: index('follow_ups_lead_idx').on(table.leadId),
+}));
 
 export const reminders = pgTable('reminders', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -37,4 +41,6 @@ export const reminders = pgTable('reminders', {
   remindAt: timestamp('remind_at').notNull(),
   sentAt: timestamp('sent_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-});
+}, (table) => ({
+  followUpIdx: index('reminders_follow_up_idx').on(table.followUpId),
+}));
