@@ -5,6 +5,13 @@ import { and, desc, eq, isNull, inArray } from "drizzle-orm";
 export class NotificationService {
   static async create(data: { userId: string; type: string; title: string; body?: string; leadId?: string }) {
     const [row] = await db.insert(notifications).values(data).returning();
+    // Best-effort browser push for closed-tab delivery; the in-app bell is the source of truth.
+    const { PushService } = await import("@/lib/push/service");
+    void PushService.sendToUser(data.userId, {
+      title: data.title,
+      body: data.body,
+      url: data.leadId ? `/leads/${data.leadId}` : "/",
+    });
     return row;
   }
 

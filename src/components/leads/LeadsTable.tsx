@@ -103,7 +103,9 @@ export function LeadsTable({ leads }: { leads: Lead[] }) {
                 <TableCell>
                   <Badge variant={lead.status === "new" ? "default" : "secondary"}>{lead.status}</Badge>
                 </TableCell>
-                <TableCell>{new Date(lead.createdAt).toLocaleDateString()}</TableCell>
+                {/* Date formatting is locale-dependent; server (en-US) and browser (e.g. en-GB)
+                    can differ, so let the client value win instead of erroring on hydration. */}
+                <TableCell suppressHydrationWarning>{new Date(lead.createdAt).toLocaleDateString()}</TableCell>
                 <TableCell className="text-right">
                   <Link href={`/leads/${lead.id}`}><Button variant="ghost" size="sm">View</Button></Link>
                 </TableCell>

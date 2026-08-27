@@ -14,7 +14,7 @@ export default function SettingsPage() {
           <div className="bg-slate-200 p-2 rounded text-sm font-medium">General</div>
           <Link href="/settings/sources" className="block p-2 rounded text-sm text-slate-500 hover:bg-slate-100 cursor-pointer">Lead Sources</Link>
           <Link href="/settings/templates" className="block p-2 rounded text-sm text-slate-500 hover:bg-slate-100 cursor-pointer">Message Templates</Link>
-          <div className="p-2 rounded text-sm text-slate-500 hover:bg-slate-100 cursor-pointer">Users & Roles</div>
+          <Link href="/settings/users" className="block p-2 rounded text-sm text-slate-500 hover:bg-slate-100 cursor-pointer">Users & Roles</Link>
           <div className="p-2 rounded text-sm text-slate-500 hover:bg-slate-100 cursor-pointer">Teams</div>
           <div className="p-2 rounded text-sm text-slate-500 hover:bg-slate-100 cursor-pointer">Pipelines</div>
         </div>

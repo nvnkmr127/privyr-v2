@@ -20,7 +20,7 @@ const routes = [
   { label: 'Pipeline (Kanban)', icon: Kanban, href: '/leads/kanban', group: 'CRM' },
   { label: 'Follow-ups', icon: CheckSquare, href: '/follow-ups', group: 'Productivity' },
   { label: 'Automations', icon: Zap, href: '/automations', group: 'Productivity' },
-  { label: 'Sources', icon: Network, href: '/sources', group: 'Settings' },
+  { label: 'Sources', icon: Network, href: '/settings/sources', group: 'Settings' },
   { label: 'Settings', icon: Settings, href: '/settings', group: 'Settings' },
 ];
 

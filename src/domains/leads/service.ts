@@ -1,24 +1,29 @@
 import { db } from "@/db";
-import { leads, leadStatusHistory } from "@/db/schema"; // Assume leadActivities is mapped from activities in index
+import { leads, leadStatusHistory } from "@/db/schema";
 import { eq, ilike, and, or, desc } from "drizzle-orm";
 import { eventBus } from "@/lib/events/emitter";
 
+// TENANT SCOPING: every method takes organizationId (sourced from requireOrg() at the action/page
+// boundary, never from user input) and every query filters by it. This is the isolation contract.
 export class LeadService {
-  static async createLead(data: { name: string; email?: string; phone?: string; company?: string; ownerId?: string; teamId?: string }, createdById: string) {
-    // Deduplication: reject if a lead with the same email OR phone already exists.
-    // Account-wide, matching IngestionService so manual and webhook adds behave identically.
+  static async createLead(
+    data: { name: string; email?: string; phone?: string; company?: string; ownerId?: string; teamId?: string },
+    createdById: string,
+    organizationId: string,
+  ) {
+    // Dedup within THIS org only — same email/phone in another tenant is a different lead.
     if (data.email || data.phone) {
-      const conditions = [];
-      if (data.email) conditions.push(eq(leads.email, data.email));
-      if (data.phone) conditions.push(eq(leads.phone, data.phone));
-
-      const [existing] = await db.select().from(leads).where(or(...conditions)).limit(1);
-      if (existing) {
-        throw new Error("Duplicate lead found with the same email or phone");
-      }
+      const orConds = [];
+      if (data.email) orConds.push(eq(leads.email, data.email));
+      if (data.phone) orConds.push(eq(leads.phone, data.phone));
+      const [existing] = await db.select().from(leads)
+        .where(and(eq(leads.organizationId, organizationId), or(...orConds)))
+        .limit(1);
+      if (existing) throw new Error("Duplicate lead found with the same email or phone");
     }
 
     const [newLead] = await db.insert(leads).values({
+      organizationId,
       name: data.name,
       email: data.email,
       phone: data.phone,
@@ -32,105 +37,97 @@ export class LeadService {
     return newLead;
   }
 
-  static async updateLead(leadId: string, data: Partial<{ name: string; email: string; phone: string; company: string }>, updatedById: string) {
+  static async updateLead(
+    leadId: string,
+    data: Partial<{ name: string; email: string; phone: string; company: string }>,
+    updatedById: string,
+    organizationId: string,
+  ) {
     const [updatedLead] = await db.update(leads)
       .set({ ...data, updatedAt: new Date() })
-      .where(eq(leads.id, leadId))
+      .where(and(eq(leads.id, leadId), eq(leads.organizationId, organizationId)))
       .returning();
-
-    if (updatedLead) {
-      eventBus.emit('lead.updated', { leadId, userId: updatedById, changes: data });
-    }
+    if (updatedLead) eventBus.emit('lead.updated', { leadId, userId: updatedById, changes: data });
     return updatedLead;
   }
 
-  static async getLead(leadId: string) {
+  static async updateCustomData(leadId: string, customData: Record<string, unknown>, organizationId: string) {
+    const [updated] = await db.update(leads)
+      .set({ customData, updatedAt: new Date() })
+      .where(and(eq(leads.id, leadId), eq(leads.organizationId, organizationId)))
+      .returning();
+    return updated;
+  }
+
+  static async getLead(leadId: string, organizationId: string) {
+    const [lead] = await db.select().from(leads)
+      .where(and(eq(leads.id, leadId), eq(leads.organizationId, organizationId)))
+      .limit(1);
+    return lead;
+  }
+
+  // Unscoped fetch for trusted internal callers only (event handlers, background workers) that
+  // act on a lead by id from an internal event, not a user request. Never call from a UI path.
+  static async getLeadById(leadId: string) {
     const [lead] = await db.select().from(leads).where(eq(leads.id, leadId)).limit(1);
     return lead;
   }
 
-  static async listLeads(params: { search?: string; status?: string; ownerId?: string; page?: number; limit?: number }) {
+  static async listLeads(params: {
+    organizationId: string;
+    search?: string; status?: string; ownerId?: string; page?: number; limit?: number;
+  }) {
     const page = params.page || 1;
     const limit = params.limit || 50;
     const offset = (page - 1) * limit;
 
-    const conditions = [];
-    if (params.search) {
-      conditions.push(ilike(leads.name, `%${params.search}%`));
-    }
-    if (params.status) {
-      conditions.push(eq(leads.status, params.status));
-    }
-    if (params.ownerId) {
-      conditions.push(eq(leads.ownerId, params.ownerId));
-    }
+    const conditions = [eq(leads.organizationId, params.organizationId)];
+    if (params.search) conditions.push(ilike(leads.name, `%${params.search}%`));
+    if (params.status) conditions.push(eq(leads.status, params.status));
+    if (params.ownerId) conditions.push(eq(leads.ownerId, params.ownerId));
+    const where = and(...conditions);
 
-    const queryConditions = conditions.length > 0 ? and(...conditions) : undefined;
-
-    const data = await db.select().from(leads)
-      .where(queryConditions)
-      .orderBy(desc(leads.createdAt))
-      .limit(limit)
-      .offset(offset);
-
-    // Simple count (in production you might want a separate optimized count query)
-    const countData = await db.select({ id: leads.id }).from(leads).where(queryConditions);
-    const total = countData.length;
-
-    return { data, total, page, limit };
+    const data = await db.select().from(leads).where(where)
+      .orderBy(desc(leads.createdAt)).limit(limit).offset(offset);
+    const countData = await db.select({ id: leads.id }).from(leads).where(where);
+    return { data, total: countData.length, page, limit };
   }
 
-  static async deleteLead(leadId: string, deletedById: string) {
-    // Hard delete for now, as soft delete isn't in schema
-    const [deletedLead] = await db.delete(leads).where(eq(leads.id, leadId)).returning();
-    if (deletedLead) {
-      // eventBus.emit('lead.deleted', ...); if it existed
-    }
+  static async deleteLead(leadId: string, _deletedById: string, organizationId: string) {
+    const [deletedLead] = await db.delete(leads)
+      .where(and(eq(leads.id, leadId), eq(leads.organizationId, organizationId)))
+      .returning();
     return deletedLead;
   }
 
-  static async assignLead(leadId: string, ownerId: string, assignedById?: string) {
-    const [updatedLead] = await db.update(leads)
-      .set({ ownerId, updatedAt: new Date() })
-      .where(eq(leads.id, leadId))
-      .returning();
-
-    if (updatedLead) {
-      eventBus.emit('lead.assigned', { 
-        leadId, 
-        ownerId,
-        assignedById 
-      });
-    }
-
+  // assignLead / changeStatus are also called by the background automation engine, which has no
+  // session. organizationId is optional there: when present (UI path) it scopes the write; when
+  // omitted (engine) the write is keyed only by leadId, which is already bound to one org.
+  static async assignLead(leadId: string, ownerId: string, assignedById?: string, organizationId?: string) {
+    const where = organizationId
+      ? and(eq(leads.id, leadId), eq(leads.organizationId, organizationId))
+      : eq(leads.id, leadId);
+    const [updatedLead] = await db.update(leads).set({ ownerId, updatedAt: new Date() }).where(where).returning();
+    if (updatedLead) eventBus.emit('lead.assigned', { leadId, ownerId, assignedById });
     return updatedLead;
   }
 
-  static async changeStatus(leadId: string, newStatus: string, changedById: string) {
-    const [currentLead] = await db.select({ status: leads.status }).from(leads).where(eq(leads.id, leadId)).limit(1);
-    
-    if (!currentLead) throw new Error("Lead not found");
+  static async changeStatus(leadId: string, newStatus: string, changedById: string, organizationId?: string) {
+    const idWhere = organizationId
+      ? and(eq(leads.id, leadId), eq(leads.organizationId, organizationId))
+      : eq(leads.id, leadId);
 
-    if (currentLead.status === newStatus) return currentLead; // No change
+    const [currentLead] = await db.select({ status: leads.status }).from(leads).where(idWhere).limit(1);
+    if (!currentLead) throw new Error("Lead not found");
+    if (currentLead.status === newStatus) return currentLead;
 
     const [updatedLead] = await db.update(leads)
-      .set({ status: newStatus, updatedAt: new Date() })
-      .where(eq(leads.id, leadId))
-      .returning();
+      .set({ status: newStatus, updatedAt: new Date() }).where(idWhere).returning();
 
     await db.insert(leadStatusHistory).values({
-      leadId,
-      oldStatus: currentLead.status,
-      newStatus,
-      changedById,
+      leadId, oldStatus: currentLead.status, newStatus, changedById,
     });
-
-    eventBus.emit('lead.status_changed', { 
-      leadId, 
-      oldStatus: currentLead.status, 
-      newStatus 
-    });
-
+    eventBus.emit('lead.status_changed', { leadId, oldStatus: currentLead.status, newStatus });
     return updatedLead;
   }
 }

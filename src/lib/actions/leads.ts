@@ -1,6 +1,6 @@
 "use server";
 
-import { requireAuth } from "@/lib/rbac";
+import { requireAuth, requireOrg } from "@/lib/rbac";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { LeadService } from "@/domains/leads/service";
@@ -13,8 +13,8 @@ const createLeadSchema = z.object({
 });
 
 export async function createLeadAction(input: z.infer<typeof createLeadSchema>) {
-  const session = await requireAuth();
-  
+  const { userId, organizationId } = await requireOrg();
+
   const parsed = createLeadSchema.safeParse(input);
   if (!parsed.success) {
     throw new Error("Invalid input");
@@ -28,7 +28,7 @@ export async function createLeadAction(input: z.infer<typeof createLeadSchema>) 
     company: parsed.data.company || undefined,
   };
 
-  const lead = await LeadService.createLead(data, session.user.id);
+  const lead = await LeadService.createLead(data, userId, organizationId);
 
   revalidatePath('/leads');
   return lead;
@@ -43,8 +43,8 @@ const updateLeadSchema = z.object({
 });
 
 export async function updateLeadAction(input: z.infer<typeof updateLeadSchema>) {
-  const session = await requireAuth();
-  
+  const { userId, organizationId } = await requireOrg();
+
   const parsed = updateLeadSchema.safeParse(input);
   if (!parsed.success) {
     throw new Error("Invalid input");
@@ -60,17 +60,24 @@ export async function updateLeadAction(input: z.infer<typeof updateLeadSchema>) 
     company: data.company || undefined,
   };
 
-  const lead = await LeadService.updateLead(id, cleanData, session.user.id);
+  const lead = await LeadService.updateLead(id, cleanData, userId, organizationId);
 
   revalidatePath('/leads');
   revalidatePath(`/leads/${id}`);
   return lead;
 }
 
+export async function updateCustomDataAction(leadId: string, data: Record<string, string>) {
+  const { organizationId } = await requireOrg();
+  const updated = await LeadService.updateCustomData(leadId, data, organizationId);
+  revalidatePath(`/leads/${leadId}`);
+  return updated;
+}
+
 export async function deleteLeadAction(id: string) {
-  const session = await requireAuth();
-  
-  const deleted = await LeadService.deleteLead(id, session.user.id);
+  const { userId, organizationId } = await requireOrg();
+
+  const deleted = await LeadService.deleteLead(id, userId, organizationId);
 
   if (deleted) {
     revalidatePath('/leads');
@@ -81,9 +88,9 @@ export async function deleteLeadAction(id: string) {
 import { ActivityService } from "@/domains/activities/service";
 
 export async function changeLeadStatusAction(id: string, status: string) {
-  const session = await requireAuth();
-  
-  const lead = await LeadService.changeStatus(id, status, session.user.id);
+  const { userId, organizationId } = await requireOrg();
+
+  const lead = await LeadService.changeStatus(id, status, userId, organizationId);
 
   revalidatePath('/leads');
   revalidatePath(`/leads/${id}`);
@@ -96,8 +103,8 @@ const bulkChangeStatusSchema = z.object({
 });
 
 export async function bulkChangeLeadStatusAction(input: z.infer<typeof bulkChangeStatusSchema>) {
-  const session = await requireAuth();
-  
+  const { userId, organizationId } = await requireOrg();
+
   const parsed = bulkChangeStatusSchema.safeParse(input);
   if (!parsed.success) {
     throw new Error("Invalid input");
@@ -106,7 +113,7 @@ export async function bulkChangeLeadStatusAction(input: z.infer<typeof bulkChang
   // Basic sequential bulk operation. A real system might optimize this to a single query if event logs aren't strictly required.
   const results = [];
   for (const id of parsed.data.leadIds) {
-    const lead = await LeadService.changeStatus(id, parsed.data.status, session.user.id);
+    const lead = await LeadService.changeStatus(id, parsed.data.status, userId, organizationId);
     results.push(lead);
   }
 

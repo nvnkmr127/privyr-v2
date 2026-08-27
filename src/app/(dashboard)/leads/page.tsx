@@ -2,6 +2,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Users, Plus, Upload } from "lucide-react";
 import { LeadService } from "@/domains/leads/service";
+import { requireOrg } from "@/lib/rbac";
 import { QuickAddLeadDrawer } from "@/components/leads/QuickAddLeadDrawer";
 import { ImportCsvDialog } from "@/components/leads/ImportCsvDialog";
 import { LeadsFilterBar } from "@/components/leads/LeadsFilterBar";
@@ -12,7 +13,8 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
   const search = typeof params.search === 'string' ? params.search : undefined;
   const status = typeof params.status === 'string' ? params.status : undefined;
 
-  const { data: leads, total } = await LeadService.listLeads({ search, status });
+  const { organizationId } = await requireOrg();
+  const { data: leads, total } = await LeadService.listLeads({ organizationId, search, status });
 
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">

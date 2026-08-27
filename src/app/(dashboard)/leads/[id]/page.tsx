@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, User, Phone, Mail, Building } from "lucide-react";
 import Link from "next/link";
 import { LeadService } from "@/domains/leads/service";
+import { requireOrg } from "@/lib/rbac";
 import { ActivityService } from "@/domains/activities/service";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
@@ -13,12 +14,17 @@ import { WhatsAppThread } from "@/components/leads/WhatsAppThread";
 import { WhatsAppService } from "@/lib/messaging/whatsapp/service";
 import { LeadStatusControl } from "@/components/leads/LeadStatusControl";
 import { LeadAssignControl } from "@/components/leads/LeadAssignControl";
+import { LeadTags } from "@/components/leads/LeadTags";
+import { LeadCustomFields } from "@/components/leads/LeadCustomFields";
+import { TagService } from "@/domains/tags/service";
 
 export default async function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const lead = await LeadService.getLead(id);
+  const { organizationId } = await requireOrg();
+  const lead = await LeadService.getLead(id, organizationId);
   const activities = await ActivityService.getLeadActivities(id);
   const waMessages = await WhatsAppService.listForLead(id);
+  const leadTags = await TagService.getForLead(id);
 
   if (!lead) {
     notFound();
@@ -60,6 +66,11 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
               </div>
 
               <div>
+                <span className="text-slate-500 block mb-1">Tags</span>
+                <LeadTags leadId={lead.id} initialTags={leadTags} />
+              </div>
+
+              <div>
                 <span className="text-slate-500 block mb-1">Name</span>
                 <p className="font-medium text-base">{lead.name}</p>
               </div>
@@ -94,6 +105,11 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
                 </div>
               )}
             </div>
+          </div>
+
+          <div className="border rounded-xl p-6 bg-white shadow-sm">
+            <h3 className="font-semibold text-lg mb-4">Details</h3>
+            <LeadCustomFields leadId={lead.id} initialData={(lead.customData as Record<string, unknown>) ?? {}} />
           </div>
         </div>
 

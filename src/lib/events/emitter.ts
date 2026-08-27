@@ -39,4 +39,8 @@ class TypedEventEmitter extends EventEmitter {
   }
 }
 
-export const eventBus = new TypedEventEmitter();
+// Store the bus on globalThis so every server bundle (server actions, route handlers,
+// instrumentation) shares ONE emitter. Without this, Next duplicates the module and
+// listeners registered in one bundle never see emits from another.
+const globalForEvents = globalThis as unknown as { __eventBus?: TypedEventEmitter };
+export const eventBus = globalForEvents.__eventBus ?? (globalForEvents.__eventBus = new TypedEventEmitter());

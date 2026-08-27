@@ -38,7 +38,12 @@ import { ActivityService } from "@/domains/activities/service";
 import { NotificationService } from "@/domains/notifications/service";
 import { LeadService } from "@/domains/leads/service";
 
-// Bind events to the dispatcher and activity logger
+// Bind events to the dispatcher and activity logger — exactly once per process, even if
+// this module is evaluated in more than one bundle.
+const __handlerGuard = globalThis as unknown as { __eventHandlersBound?: boolean };
+if (!__handlerGuard.__eventHandlersBound) {
+  __handlerGuard.__eventHandlersBound = true;
+
 eventBus.on('lead.created', async (p) => {
   dispatchTrigger('lead.created', p);
   await ActivityService.addActivity({ leadId: p.leadId, userId: p.userId, type: 'note', content: 'Lead was created manually.' });
@@ -55,7 +60,7 @@ eventBus.on('lead.assigned', async (p) => {
 
   // The "New Lead Alert": ping the owner, unless they assigned it to themselves.
   if (p.ownerId && p.ownerId !== p.assignedById) {
-    const lead = await LeadService.getLead(p.leadId);
+    const lead = await LeadService.getLeadById(p.leadId);
     await NotificationService.create({
       userId: p.ownerId,
       type: 'new_lead',
@@ -94,3 +99,5 @@ eventBus.on('task.completed', async (p) => {
   dispatchTrigger('task.completed', p);
   await ActivityService.addActivity({ leadId: p.leadId, userId: p.userId, type: 'note', content: `Task completed: ${p.title}` });
 });
+
+}

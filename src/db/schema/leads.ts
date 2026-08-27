@@ -1,6 +1,7 @@
 import { pgTable, uuid, varchar, timestamp, integer, jsonb, index, numeric } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import { users, teams } from './users';
+import { organizations } from './organizations';
 
 export const leadSources = pgTable('lead_sources', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -38,6 +39,7 @@ export const assignmentRules = pgTable('assignment_rules', {
 
 export const leads = pgTable('leads', {
   id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id').references(() => organizations.id), // tenant; backfilled
   name: varchar('name', { length: 255 }).notNull(),
   phone: varchar('phone', { length: 255 }),
   email: varchar('email', { length: 255 }),
@@ -57,6 +59,7 @@ export const leads = pgTable('leads', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
+  orgIdx: index('leads_org_idx').on(table.organizationId),
   emailIdx: index('leads_email_idx').on(table.email),
   ownerIdx: index('leads_owner_idx').on(table.ownerId),
   pipelineStageIdx: index('leads_pipeline_stage_idx').on(table.pipelineId, table.stageId),
