@@ -1,0 +1,71 @@
+"use client"
+import * as React from "react"
+import Link from "next/link"
+import { Bell } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuLabel,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { listNotificationsAction, unreadCountAction, markNotificationsReadAction } from "@/lib/actions/notifications"
+
+type Notif = { id: string; title: string; body: string | null; leadId: string | null; readAt: Date | null };
+
+export function NotificationBell() {
+  const [count, setCount] = React.useState(0);
+  const [items, setItems] = React.useState<Notif[]>([]);
+
+  // Poll the unread badge — the "New Lead Alert" surfacing. 30s is plenty for a web CRM.
+  React.useEffect(() => {
+    const tick = () => unreadCountAction().then(setCount).catch(() => {});
+    tick();
+    const t = setInterval(tick, 30_000);
+    return () => clearInterval(t);
+  }, []);
+
+  async function onOpen(open: boolean) {
+    if (!open) return;
+    const rows = await listNotificationsAction().catch(() => []);
+    setItems(rows as Notif[]);
+    // Opening the panel clears the badge.
+    if (count > 0) {
+      await markNotificationsReadAction().catch(() => {});
+      setCount(0);
+    }
+  }
+
+  return (
+    <DropdownMenu onOpenChange={onOpen}>
+      <DropdownMenuTrigger asChild>
+        <Button variant="secondary" size="icon" className="rounded-full relative">
+          <Bell className="h-5 w-5" />
+          {count > 0 && (
+            <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-xs font-semibold text-white">
+              {count > 9 ? "9+" : count}
+            </span>
+          )}
+          <span className="sr-only">Notifications</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-80">
+        <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {items.length === 0 ? (
+          <div className="px-3 py-6 text-center text-sm text-slate-500">You&apos;re all caught up.</div>
+        ) : (
+          items.map((n) => {
+            const inner = (
+              <div className={`px-3 py-2 ${n.readAt ? "" : "bg-blue-50"}`}>
+                <div className="text-sm font-medium">{n.title}</div>
+                {n.body && <div className="text-xs text-slate-500 mt-0.5">{n.body}</div>}
+              </div>
+            );
+            return n.leadId
+              ? <Link key={n.id} href={`/leads/${n.leadId}`} className="block hover:bg-slate-50">{inner}</Link>
+              : <div key={n.id}>{inner}</div>;
+          })
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}

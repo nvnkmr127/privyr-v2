@@ -35,6 +35,8 @@ async function dispatchTrigger(eventType: string, payload: EventPayload) {
 }
 
 import { ActivityService } from "@/domains/activities/service";
+import { NotificationService } from "@/domains/notifications/service";
+import { LeadService } from "@/domains/leads/service";
 
 // Bind events to the dispatcher and activity logger
 eventBus.on('lead.created', async (p) => {
@@ -50,6 +52,18 @@ eventBus.on('lead.updated', async (p) => {
 eventBus.on('lead.assigned', async (p) => {
   dispatchTrigger('lead.assigned', p);
   await ActivityService.addActivity({ leadId: p.leadId, userId: p.assignedById, type: 'note', content: `Lead was assigned to user ${p.ownerId}.` });
+
+  // The "New Lead Alert": ping the owner, unless they assigned it to themselves.
+  if (p.ownerId && p.ownerId !== p.assignedById) {
+    const lead = await LeadService.getLead(p.leadId);
+    await NotificationService.create({
+      userId: p.ownerId,
+      type: 'new_lead',
+      title: `New lead: ${lead?.name ?? 'Unknown'}`,
+      body: lead?.phone || lead?.email || undefined,
+      leadId: p.leadId,
+    });
+  }
 });
 
 eventBus.on('lead.status_changed', async (p) => {

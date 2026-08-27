@@ -1,18 +1,19 @@
 import { db } from "@/db";
 import { leads, leadStatusHistory } from "@/db/schema"; // Assume leadActivities is mapped from activities in index
-import { eq, ilike, and, desc } from "drizzle-orm";
+import { eq, ilike, and, or, desc } from "drizzle-orm";
 import { eventBus } from "@/lib/events/emitter";
 
 export class LeadService {
   static async createLead(data: { name: string; email?: string; phone?: string; company?: string; ownerId?: string; teamId?: string }, createdById: string) {
-    // Deduplication check
+    // Deduplication: reject if a lead with the same email OR phone already exists.
+    // Account-wide, matching IngestionService so manual and webhook adds behave identically.
     if (data.email || data.phone) {
       const conditions = [];
       if (data.email) conditions.push(eq(leads.email, data.email));
       if (data.phone) conditions.push(eq(leads.phone, data.phone));
-      
-      const existing = await db.select().from(leads).where(and(eq(leads.ownerId, data.ownerId || createdById), conditions.length > 1 ? conditions[0] : conditions[0])).limit(1); // Simple OR logic omitted for brevity
-      if (existing.length > 0) {
+
+      const [existing] = await db.select().from(leads).where(or(...conditions)).limit(1);
+      if (existing) {
         throw new Error("Duplicate lead found with the same email or phone");
       }
     }

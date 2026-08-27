@@ -4,6 +4,7 @@ import { eq, asc } from "drizzle-orm";
 import { LeadService } from "@/domains/leads/service";
 import { FollowUpService } from "@/domains/follow-ups/service";
 import { ActivityService } from "@/domains/activities/service";
+import { WhatsAppService } from "@/lib/messaging/whatsapp/service";
 import { EventPayload } from "@/lib/events/emitter";
 
 export class AutomationEngine {
@@ -128,6 +129,17 @@ export class AutomationEngine {
           userId: defaultUserId,
           type: 'note',
           content: config.content,
+        });
+        break;
+
+      case 'send_whatsapp':
+        // Instant-reply to a fresh lead: outside the 24h window, so a template is required.
+        if (!config.templateName) throw new Error("Missing templateName for send_whatsapp");
+        await WhatsAppService.send({
+          leadId,
+          userId: defaultUserId,
+          templateName: config.templateName,
+          variables: config.variables,
         });
         break;
 

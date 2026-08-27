@@ -11,6 +11,7 @@ import {
 import { PlusCircle, Search, User } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { QuickAddLeadDrawer } from "@/components/leads/QuickAddLeadDrawer";
+import { NotificationBell } from "@/components/layout/NotificationBell";
 
 export function Header() {
   return (
@@ -35,6 +36,7 @@ export function Header() {
             </Button>
           </QuickAddLeadDrawer>
         </div>
+        <NotificationBell />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="secondary" size="icon" className="rounded-full">

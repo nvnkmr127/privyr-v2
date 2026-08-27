@@ -17,6 +17,17 @@ vi.mock('@/db', () => ({
     values: vi.fn().mockReturnValue({
       returning: vi.fn().mockResolvedValue([{ id: 'new-123' }])
     }),
+    // Assignment runs in a locking transaction; the tx finds no rule, so it no-ops.
+    transaction: vi.fn(async (cb: any) => cb({
+      select: vi.fn().mockReturnThis(),
+      from: vi.fn().mockReturnThis(),
+      where: vi.fn().mockReturnThis(),
+      orderBy: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockReturnThis(),
+      for: vi.fn().mockResolvedValue([]),
+      update: vi.fn().mockReturnThis(),
+      set: vi.fn().mockReturnThis(),
+    })),
   },
 }));
 

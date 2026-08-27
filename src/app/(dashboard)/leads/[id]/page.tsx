@@ -8,11 +8,17 @@ import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { EditLeadDialog } from "@/components/leads/EditLeadDialog";
 import { AddNoteForm } from "@/components/leads/AddNoteForm";
+import { WhatsAppSendBox } from "@/components/leads/WhatsAppSendBox";
+import { WhatsAppThread } from "@/components/leads/WhatsAppThread";
+import { WhatsAppService } from "@/lib/messaging/whatsapp/service";
+import { LeadStatusControl } from "@/components/leads/LeadStatusControl";
+import { LeadAssignControl } from "@/components/leads/LeadAssignControl";
 
 export default async function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const lead = await LeadService.getLead(id);
   const activities = await ActivityService.getLeadActivities(id);
+  const waMessages = await WhatsAppService.listForLead(id);
 
   if (!lead) {
     notFound();
@@ -43,6 +49,16 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
               <EditLeadDialog lead={lead} />
             </div>
             <div className="space-y-4 text-sm">
+              <div>
+                <span className="text-slate-500 block mb-1">Status</span>
+                <LeadStatusControl leadId={lead.id} status={lead.status} />
+              </div>
+
+              <div>
+                <span className="text-slate-500 block mb-1">Owner</span>
+                <LeadAssignControl leadId={lead.id} ownerId={lead.ownerId} />
+              </div>
+
               <div>
                 <span className="text-slate-500 block mb-1">Name</span>
                 <p className="font-medium text-base">{lead.name}</p>
@@ -86,9 +102,14 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
           <Tabs defaultValue="activity" className="w-full">
             <TabsList className="w-full justify-start border-b rounded-none h-12 bg-transparent p-0">
               <TabsTrigger value="activity" className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:shadow-none">Activity</TabsTrigger>
+              <TabsTrigger value="whatsapp" className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:shadow-none">WhatsApp</TabsTrigger>
               <TabsTrigger value="notes" className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:shadow-none">Notes</TabsTrigger>
               <TabsTrigger value="emails" className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:shadow-none">Emails</TabsTrigger>
             </TabsList>
+            <TabsContent value="whatsapp" className="p-4 pt-6 space-y-4">
+              <WhatsAppThread messages={waMessages} />
+              <WhatsAppSendBox leadId={lead.id} hasPhone={!!lead.phone} />
+            </TabsContent>
             <TabsContent value="activity" className="p-4 pt-6 space-y-4">
               {activities.length === 0 ? (
                 <div className="text-center py-10 text-slate-500">No activity logged yet.</div>

@@ -1,6 +1,9 @@
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 
+// Every dashboard page is authed and DB-backed — render per request, never prerender at build.
+export const dynamic = "force-dynamic";
+
 export default function DashboardLayout({
   children,
 }: {

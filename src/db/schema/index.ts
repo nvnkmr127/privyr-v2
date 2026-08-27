@@ -3,4 +3,7 @@ export * from './leads';
 export * from './activities';
 export * from './automations';
 export * from './integrations';
+export * from './templates';
+export * from './whatsapp';
+export * from './notifications';
 export * from './legacy';

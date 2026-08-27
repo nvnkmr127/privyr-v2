@@ -1,3 +1,5 @@
+"use server";
+
 import { z } from "zod";
 import { requireAuth } from "@/lib/rbac";
 import { ingestionQueue } from "@/lib/jobs/workers/ingestionWorker";

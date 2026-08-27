@@ -55,5 +55,10 @@ export const ActionConfigSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('add_note'),
     content: z.string().min(1),
+  }),
+  z.object({
+    type: z.literal('send_whatsapp'),
+    templateName: z.string().min(1), // Watxio-approved template name
+    variables: z.array(z.string()).optional(), // fills {{1}},{{2}}...; values may use lead tokens
   })
 ]);

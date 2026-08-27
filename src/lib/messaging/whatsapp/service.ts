@@ -1,0 +1,151 @@
+import { db } from "@/db";
+import { leads, whatsappMessages } from "@/db/schema";
+import { and, desc, eq, gt, sql } from "drizzle-orm";
+import { WatxioClient } from "./client";
+import { renderTemplate, type LeadLike } from "../deeplink";
+import { ActivityService } from "@/domains/activities/service";
+
+export interface SendWhatsAppInput {
+  leadId: string;
+  userId?: string; // null when sent by an automation
+  // Free-form text — used only if the lead is inside the 24h window.
+  body?: string;
+  // Approved template — required outside the window (e.g. first contact with a new lead).
+  templateName?: string;
+  variables?: string[]; // template {{1}},{{2}}... — values may contain lead tokens like {{first_name}}
+}
+
+// A new lead has never messaged us, so we're outside the 24h window and must send a template.
+// The window opens only when the lead has an inbound WhatsApp message in the last 24h.
+// (Inbound isn't recorded yet in this slice, so this correctly returns false until it is.)
+async function insideWindow(leadId: string): Promise<boolean> {
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const [row] = await db
+    .select({ id: whatsappMessages.id })
+    .from(whatsappMessages)
+    .where(and(
+      eq(whatsappMessages.leadId, leadId),
+      eq(whatsappMessages.direction, "inbound"),
+      gt(whatsappMessages.createdAt, since),
+    ))
+    .orderBy(desc(whatsappMessages.createdAt))
+    .limit(1);
+  return !!row;
+}
+
+// Pure decision: given the window state and what the caller supplied, what do we send?
+// Template wins outside the window (and when no free text given); free text needs the window open.
+export function chooseSend(
+  canFreeform: boolean,
+  opts: { body?: string; templateName?: string },
+): { mode: "template" | "text" } | { error: string } {
+  const useTemplate = !!opts.templateName && (!canFreeform || !opts.body);
+  if (useTemplate) return { mode: "template" };
+  if (!canFreeform) return { error: "Outside 24h window: an approved templateName is required to message this lead" };
+  if (!opts.body) return { error: "Nothing to send: provide body or templateName" };
+  return { mode: "text" };
+}
+
+export const WhatsAppService = {
+  // Full thread for a lead, oldest first — drives the conversation view.
+  async listForLead(leadId: string) {
+    return db.select().from(whatsappMessages)
+      .where(eq(whatsappMessages.leadId, leadId))
+      .orderBy(whatsappMessages.createdAt);
+  },
+
+  async send(input: SendWhatsAppInput) {
+    const [lead] = await db.select().from(leads).where(eq(leads.id, input.leadId)).limit(1);
+    if (!lead) throw new Error(`Lead ${input.leadId} not found`);
+    if (!lead.phone) throw new Error(`Lead ${input.leadId} has no phone number`);
+
+    const leadLike: LeadLike = lead;
+    const canFreeform = await insideWindow(input.leadId);
+
+    const decision = chooseSend(canFreeform, input);
+    if ("error" in decision) throw new Error(decision.error);
+    const useTemplate = decision.mode === "template";
+
+    // Render token placeholders ({{first_name}} etc.) against the lead.
+    const renderedBody = input.body ? renderTemplate(input.body, leadLike) : null;
+    const renderedVars = (input.variables ?? []).map((v) => renderTemplate(v, leadLike));
+
+    // Log first as queued so a crash mid-send still leaves a trace.
+    const [msg] = await db.insert(whatsappMessages).values({
+      leadId: input.leadId,
+      userId: input.userId,
+      direction: "outbound",
+      templateName: useTemplate ? input.templateName : null,
+      body: useTemplate ? `[template:${input.templateName}] ${renderedVars.join(" | ")}` : renderedBody,
+      status: "queued",
+    }).returning();
+
+    try {
+      const result = useTemplate
+        ? await WatxioClient.sendTemplate(lead.phone, input.templateName!, renderedVars)
+        : await WatxioClient.sendText(lead.phone, renderedBody!);
+
+      await db.update(whatsappMessages)
+        .set({ status: result.status, providerMessageId: result.providerMessageId, updatedAt: new Date() })
+        .where(eq(whatsappMessages.id, msg.id));
+
+      await db.update(leads)
+        .set({ lastContactedAt: new Date(), updatedAt: new Date() })
+        .where(eq(leads.id, input.leadId));
+
+      await ActivityService.addActivity({
+        leadId: input.leadId,
+        userId: input.userId,
+        type: "message",
+        content: `[whatsapp] ${msg.body}`,
+      });
+
+      return { messageId: msg.id, providerMessageId: result.providerMessageId };
+    } catch (err: any) {
+      await db.update(whatsappMessages)
+        .set({ status: "failed", error: err.message ?? String(err), updatedAt: new Date() })
+        .where(eq(whatsappMessages.id, msg.id));
+      throw err;
+    }
+  },
+
+  // Delivery receipt from Watxio: advance an outbound message's status.
+  // Guarded so an out-of-order webhook can't flip "read" back to "delivered".
+  async updateStatus(providerMessageId: string, status: string) {
+    const rank: Record<string, number> = { queued: 0, sent: 1, delivered: 2, read: 3, failed: 3 };
+    const [row] = await db.select().from(whatsappMessages)
+      .where(eq(whatsappMessages.providerMessageId, providerMessageId)).limit(1);
+    if (!row) return; // status for a message we didn't send / already gone
+    if ((rank[status] ?? -1) <= (rank[row.status] ?? -1) && status !== "failed") return;
+    await db.update(whatsappMessages)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(whatsappMessages.id, row.id));
+  },
+
+  // Inbound reply from the lead. Matches by phone (digits), logs it, opens the 24h window.
+  // Returns whether it landed on a known lead.
+  async recordInbound(input: { fromPhone: string; providerMessageId: string; body: string }) {
+    const digits = input.fromPhone.replace(/\D/g, "");
+    if (!digits) return { matched: false };
+    // ponytail: exact digit match — no index, and no fuzzy country-code handling.
+    // Normalize leads.phone on write + index it if inbound volume grows.
+    const [lead] = await db.select().from(leads)
+      .where(sql`regexp_replace(${leads.phone}, '\\D', '', 'g') = ${digits}`)
+      .limit(1);
+    if (!lead) return { matched: false };
+
+    await db.insert(whatsappMessages).values({
+      leadId: lead.id,
+      direction: "inbound",
+      providerMessageId: input.providerMessageId,
+      body: input.body,
+      status: "received",
+    });
+    await ActivityService.addActivity({
+      leadId: lead.id,
+      type: "message",
+      content: `[whatsapp ← lead] ${input.body}`,
+    });
+    return { matched: true, leadId: lead.id };
+  },
+};

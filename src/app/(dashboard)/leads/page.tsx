@@ -1,11 +1,11 @@
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
-import { Users, Plus } from "lucide-react";
+import { Users, Plus, Upload } from "lucide-react";
 import { LeadService } from "@/domains/leads/service";
 import { QuickAddLeadDrawer } from "@/components/leads/QuickAddLeadDrawer";
-import Link from "next/link";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { ImportCsvDialog } from "@/components/leads/ImportCsvDialog";
+import { LeadsFilterBar } from "@/components/leads/LeadsFilterBar";
+import { LeadsTable } from "@/components/leads/LeadsTable";
 
 export default async function LeadsPage({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
   const params = await searchParams;
@@ -19,6 +19,11 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight">Leads</h2>
         <div className="flex items-center space-x-2">
+          <ImportCsvDialog>
+            <Button variant="outline">
+              <Upload className="mr-2 h-4 w-4" /> Import CSV
+            </Button>
+          </ImportCsvDialog>
           <QuickAddLeadDrawer>
             <Button>
               <Plus className="mr-2 h-4 w-4" /> Add Lead
@@ -27,46 +32,23 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
         </div>
       </div>
       
+      {(total > 0 || search || status) && (
+        <LeadsFilterBar search={search} status={status} />
+      )}
+
       {leads.length === 0 ? (
         <EmptyState
           icon={<Users className="h-10 w-10" />}
           title="No leads found"
           description="Get started by creating a new lead manually or importing from a CSV."
-          action={<Button variant="outline">Import CSV</Button>}
+          action={
+            <ImportCsvDialog>
+              <Button variant="outline"><Upload className="mr-2 h-4 w-4" /> Import CSV</Button>
+            </ImportCsvDialog>
+          }
         />
       ) : (
-        <div className="border rounded-md">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead className="text-right">Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {leads.map((lead) => (
-                <TableRow key={lead.id}>
-                  <TableCell className="font-medium">{lead.name}</TableCell>
-                  <TableCell>{lead.email || "-"}</TableCell>
-                  <TableCell>{lead.phone || "-"}</TableCell>
-                  <TableCell>
-                    <Badge variant={lead.status === 'new' ? 'default' : 'secondary'}>{lead.status}</Badge>
-                  </TableCell>
-                  <TableCell>{lead.createdAt.toLocaleDateString()}</TableCell>
-                  <TableCell className="text-right">
-                    <Link href={`/leads/${lead.id}`}>
-                      <Button variant="ghost" size="sm">View</Button>
-                    </Link>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <LeadsTable leads={leads} />
       )}
     </div>
   );

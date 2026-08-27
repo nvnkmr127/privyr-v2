@@ -95,10 +95,11 @@ export async function POST(
       }
     }
 
-    // 1. Store the webhook event immediately
+    // 1. Store the webhook event immediately. Fold the resolved sourceId into the payload so
+    // the ingestion worker finds it even when it arrived via the query string, not the body.
     const [event] = await db.insert(webhookEvents).values({
       provider,
-      payload: body,
+      payload: { ...body, sourceId },
       idempotencyKey,
     }).returning();
 
