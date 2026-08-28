@@ -1,4 +1,4 @@
-import { Worker, Job } from "bullmq";
+import { Worker, Queue, Job } from "bullmq";
 import Redis from "ioredis";
 import { ScoringService } from "@/domains/leads/scoringService";
 
@@ -41,4 +41,13 @@ export function createScoreDecayWorker(redisUrl?: string) {
   });
 
   return worker;
+}
+
+// Producer: a daily repeating job that recalculates scores across all orgs. Without this the
+// worker has nothing to consume. Call once at startup alongside createScoreDecayWorker().
+export async function scheduleScoreDecayScan(redisUrl?: string) {
+  const connection = new Redis(redisUrl || process.env.REDIS_URL || "redis://localhost:6379", { maxRetriesPerRequest: null });
+  const queue = new Queue(SCORE_DECAY_QUEUE_NAME, { connection });
+  await queue.upsertJobScheduler("score-decay-daily", { every: 24 * 60 * 60 * 1000 }, { name: "decay", opts: { removeOnComplete: true, removeOnFail: 20 } });
+  return queue;
 }

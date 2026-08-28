@@ -1,0 +1,45 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+vi.mock("@/lib/events/handlers", () => ({}));
+vi.mock("@/lib/jobs/workers/reminderWorker", () => ({ reminderWorker: {} }));
+vi.mock("@/lib/jobs/workers/automationWorker", () => ({ automationWorker: {} }));
+vi.mock("@/lib/jobs/workers/escalationWorker", () => ({
+  createEscalationWorker: vi.fn(),
+  scheduleEscalationScan: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("@/lib/jobs/workers/scoreDecayWorker", () => ({
+  createScoreDecayWorker: vi.fn(),
+  scheduleScoreDecayScan: vi.fn().mockResolvedValue(undefined),
+}));
+
+describe("Instrumentation worker registration", () => {
+  const originalEnv = process.env.NEXT_RUNTIME;
+
+  beforeEach(() => {
+    process.env.NEXT_RUNTIME = "nodejs";
+    vi.clearAllMocks();
+  });
+
+  it("should register background workers and repeatable job schedulers in nodejs runtime", async () => {
+    const { register } = await import("./instrumentation");
+    const { createEscalationWorker, scheduleEscalationScan } = await import("@/lib/jobs/workers/escalationWorker");
+    const { createScoreDecayWorker, scheduleScoreDecayScan } = await import("@/lib/jobs/workers/scoreDecayWorker");
+
+    await register();
+
+    expect(createEscalationWorker).toHaveBeenCalledTimes(1);
+    expect(scheduleEscalationScan).toHaveBeenCalledTimes(1);
+    expect(createScoreDecayWorker).toHaveBeenCalledTimes(1);
+    expect(scheduleScoreDecayScan).toHaveBeenCalledTimes(1);
+  });
+
+  it("should skip worker registration if not nodejs runtime", async () => {
+    process.env.NEXT_RUNTIME = "edge";
+    const { register } = await import("./instrumentation");
+    const { createEscalationWorker } = await import("@/lib/jobs/workers/escalationWorker");
+
+    await register();
+
+    expect(createEscalationWorker).not.toHaveBeenCalled();
+  });
+});

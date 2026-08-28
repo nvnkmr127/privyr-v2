@@ -2,14 +2,17 @@ import { Queue, Worker, Job } from "bullmq";
 import Redis from "ioredis";
 import { db } from "@/db";
 import { automationRuns } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, lt } from "drizzle-orm";
 import { AutomationEngine } from "@/lib/automation/engine";
 import { EventPayload } from "@/lib/events/emitter";
 
 const connection = new Redis(process.env.REDIS_URL || "redis://localhost:6379", { maxRetriesPerRequest: null });
 
 export const AUTOMATION_QUEUE_NAME = "automations";
-export const automationQueue = new Queue(AUTOMATION_QUEUE_NAME, { connection });
+export const automationQueue = new Queue(AUTOMATION_QUEUE_NAME, {
+  connection,
+  defaultJobOptions: { removeOnComplete: true, removeOnFail: 100 },
+});
 
 export interface AutomationJobData {
   automationId: string;
@@ -25,13 +28,13 @@ export const automationWorker = new Worker<AutomationJobData>(
     const { automationId, leadId, idempotencyKey, payload } = job.data;
 
     // 1. Check Idempotency (Prevent double runs)
-    const [existingRun] = await db
+    let [existingRun] = await db
       .select()
       .from(automationRuns)
       .where(eq(automationRuns.idempotencyKey, idempotencyKey))
       .limit(1);
 
-    if (existingRun && existingRun.status === 'completed') {
+    if (existingRun && (existingRun.status === 'completed' || existingRun.status === 'skipped')) {
       return { status: 'skipped', reason: 'already_run' };
     }
 
@@ -43,12 +46,31 @@ export const automationWorker = new Worker<AutomationJobData>(
         leadId,
         idempotencyKey,
         status: 'running',
-      }).returning();
-      runId = newRun.id;
+      }).onConflictDoNothing().returning();
+
+      if (!newRun) {
+        // Race condition: another worker inserted the record concurrently
+        const [concurrentRun] = await db
+          .select()
+          .from(automationRuns)
+          .where(eq(automationRuns.idempotencyKey, idempotencyKey))
+          .limit(1);
+        
+        if (concurrentRun && (concurrentRun.status === 'completed' || concurrentRun.status === 'skipped')) {
+          return { status: 'skipped', reason: 'already_run' };
+        }
+        runId = concurrentRun?.id;
+      } else {
+        runId = newRun.id;
+      }
     } else {
       await db.update(automationRuns)
         .set({ status: 'running', retryCount: existingRun.retryCount + 1 })
         .where(eq(automationRuns.id, runId!));
+    }
+
+    if (!runId) {
+      return { status: 'skipped', reason: 'concurrent_execution' };
     }
 
     try {
@@ -58,13 +80,13 @@ export const automationWorker = new Worker<AutomationJobData>(
       if (result.skipped) {
         await db.update(automationRuns)
           .set({ status: 'skipped', error: 'Conditions not met', completedAt: new Date() })
-          .where(eq(automationRuns.id, runId!));
+          .where(eq(automationRuns.id, runId));
         return { status: 'skipped', reason: 'conditions_not_met' };
       }
 
       await db.update(automationRuns)
         .set({ status: 'completed', completedAt: new Date() })
-        .where(eq(automationRuns.id, runId!));
+        .where(eq(automationRuns.id, runId));
 
       return { status: 'completed', executedActions: result.executedCount };
 
@@ -75,10 +97,19 @@ export const automationWorker = new Worker<AutomationJobData>(
           error: error.stack || error.message,
           completedAt: new Date() 
         })
-        .where(eq(automationRuns.id, runId!));
+        .where(eq(automationRuns.id, runId));
         
       throw error; // Let BullMQ handle the retry based on its config
     }
   },
   { connection, concurrency: 3 }
 );
+
+/**
+ * Retention cleanup for automation_runs table to prevent unbounded DB growth.
+ */
+export async function pruneOldAutomationRuns(retentionDays = 30) {
+  const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
+  return db.delete(automationRuns).where(lt(automationRuns.startedAt, cutoff));
+}
+

@@ -6,6 +6,7 @@ export const PERMISSIONS = {
   "settings.manage": "Edit organization settings",
   "sources.manage": "Manage lead sources & webhooks",
   "templates.manage": "Manage message templates",
+  "automations.manage": "Manage automations",
   "leads.delete": "Delete leads",
   "leads.merge": "Merge duplicate leads",
   "audit.view": "View the audit log",

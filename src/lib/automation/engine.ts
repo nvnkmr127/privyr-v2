@@ -97,7 +97,19 @@ export class AutomationEngine {
   }
 
   private static async executeAction(leadId: string, type: string, config: any, payload?: EventPayload) {
-    const defaultUserId = payload?.userId || payload?.ownerId; // Fallback actor
+    const rawUserId = payload?.userId || payload?.ownerId;
+    const isUuid = (str?: string | null): str is string =>
+      Boolean(str && typeof str === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str));
+
+    let actorUserId: string | undefined = isUuid(rawUserId) ? rawUserId : undefined;
+
+    // Fall back to lead owner if payload has no user ID
+    if (!actorUserId) {
+      const [lead] = await db.select({ ownerId: leads.ownerId }).from(leads).where(eq(leads.id, leadId)).limit(1);
+      if (lead && isUuid(lead.ownerId)) {
+        actorUserId = lead.ownerId;
+      }
+    }
 
     switch (type) {
       case 'assign_lead':
@@ -105,26 +117,29 @@ export class AutomationEngine {
         await AssignmentService.assignLead({
           leadId,
           ownerId: config.userId,
-          assignedById: defaultUserId ?? "automation",
+          assignedById: actorUserId ?? "automation",
         });
         break;
       
       case 'change_status':
         if (!config.status) throw new Error("Missing status for change_status");
-        if (!defaultUserId) throw new Error("Missing actor userId for change_status");
-        await LeadService.changeStatus(leadId, config.status, defaultUserId);
+        await LeadService.changeStatus(leadId, config.status, actorUserId);
         break;
 
       case 'create_task':
       case 'schedule_follow_up':
         if (!config.title || !config.dueAt) throw new Error(`Missing required fields for ${type}`);
+        const assignedUser = isUuid(config.userId) ? config.userId : actorUserId;
+        if (!assignedUser) {
+          throw new Error(`Cannot create ${type}: no valid user specified or available for assignment`);
+        }
         await FollowUpService.createFollowUp({
           leadId,
           type: type === 'create_task' ? 'task' : 'follow_up',
           title: config.title,
           description: config.description,
           dueAt: new Date(config.dueAt),
-          userId: config.userId || defaultUserId || "", // Requires a user
+          userId: assignedUser,
         });
         break;
 
@@ -132,7 +147,7 @@ export class AutomationEngine {
         if (!config.content) throw new Error("Missing content for add_note");
         await ActivityService.addActivity({
           leadId,
-          userId: defaultUserId,
+          userId: actorUserId,
           type: 'note',
           content: config.content,
         });
@@ -143,7 +158,7 @@ export class AutomationEngine {
         if (!config.templateName) throw new Error("Missing templateName for send_whatsapp");
         await WhatsAppService.send({
           leadId,
-          userId: defaultUserId,
+          userId: actorUserId,
           templateName: config.templateName,
           variables: config.variables,
         });

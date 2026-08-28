@@ -1,17 +1,21 @@
 import { pgTable, uuid, varchar, jsonb, timestamp, boolean, integer, index } from 'drizzle-orm/pg-core';
 import { leads } from './leads';
+import { organizations } from './organizations';
 
 export const automations = pgTable('automations', {
   id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
   name: varchar('name', { length: 255 }).notNull(),
   isActive: boolean('is_active').default(true).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
+}, (table) => ({
+  orgIdx: index('automations_org_idx').on(table.organizationId),
+}));
 
 export const automationTriggers = pgTable('automation_triggers', {
   id: uuid('id').defaultRandom().primaryKey(),
-  automationId: uuid('automation_id').references(() => automations.id).notNull(),
+  automationId: uuid('automation_id').references(() => automations.id, { onDelete: 'cascade' }).notNull(),
   type: varchar('type', { length: 255 }).notNull(),
   config: jsonb('config').default({}),
 }, (table) => ({
@@ -20,13 +24,13 @@ export const automationTriggers = pgTable('automation_triggers', {
 
 export const automationConditions = pgTable('automation_conditions', {
   id: uuid('id').defaultRandom().primaryKey(),
-  automationId: uuid('automation_id').references(() => automations.id).notNull(),
+  automationId: uuid('automation_id').references(() => automations.id, { onDelete: 'cascade' }).notNull(),
   config: jsonb('config').default({}),
 });
 
 export const automationActions = pgTable('automation_actions', {
   id: uuid('id').defaultRandom().primaryKey(),
-  automationId: uuid('automation_id').references(() => automations.id).notNull(),
+  automationId: uuid('automation_id').references(() => automations.id, { onDelete: 'cascade' }).notNull(),
   type: varchar('type', { length: 255 }).notNull(),
   config: jsonb('config').default({}),
   orderIndex: integer('order_index').default(0),
@@ -34,13 +38,13 @@ export const automationActions = pgTable('automation_actions', {
 
 export const automationRuns = pgTable('automation_runs', {
   id: uuid('id').defaultRandom().primaryKey(),
-  automationId: uuid('automation_id').references(() => automations.id).notNull(),
-  leadId: uuid('lead_id').references(() => leads.id),
-  status: varchar('status', { length: 50 }).notNull(), // pending, success, failed
+  automationId: uuid('automation_id').references(() => automations.id, { onDelete: 'cascade' }).notNull(),
+  leadId: uuid('lead_id').references(() => leads.id, { onDelete: 'cascade' }),
+  status: varchar('status', { length: 50 }).notNull(), // pending, running, completed, skipped, failed
   error: varchar('error', { length: 255 }),
   startedAt: timestamp('started_at').defaultNow().notNull(),
   completedAt: timestamp('completed_at'),
-  idempotencyKey: varchar('idempotency_key', { length: 255 }),
+  idempotencyKey: varchar('idempotency_key', { length: 255 }).unique(),
   retryCount: integer('retry_count').default(0).notNull(),
 }, (table) => ({
   idempotencyIdx: index('auto_runs_idempotency_idx').on(table.idempotencyKey),

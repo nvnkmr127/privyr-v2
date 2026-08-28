@@ -3,6 +3,7 @@ import { FacebookLeadMappingService } from "@/domains/leads/facebookLeadMappingS
 import { db } from "@/db";
 import { webhookEvents } from "@/db/schema";
 import { ingestionQueue } from "@/lib/jobs/workers/ingestionWorker";
+import { verifyMetaSignature } from "@/lib/webhooks/signature";
 
 const FB_VERIFY_TOKEN = process.env.FACEBOOK_VERIFY_TOKEN || "privyr_fb_webhook_secret";
 
@@ -29,6 +30,18 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const rawText = await req.text();
+
+    // Verify Meta's payload signature when an app secret is configured. Rejects spoofed
+    // lead injection. Unset secret = verification skipped (dev), same pattern as other integrations.
+    const appSecret = process.env.FACEBOOK_APP_SECRET;
+    if (appSecret) {
+      if (!verifyMetaSignature(rawText, req.headers.get("x-hub-signature-256"), appSecret)) {
+        return NextResponse.json({ success: false, error: "Invalid signature" }, { status: 401 });
+      }
+    } else {
+      console.warn("[FACEBOOK_WEBHOOK] FACEBOOK_APP_SECRET unset — signature verification skipped");
+    }
+
     let body: any;
 
     try {

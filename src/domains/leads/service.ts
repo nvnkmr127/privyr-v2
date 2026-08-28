@@ -376,7 +376,7 @@ export class LeadService {
     });
   }
 
-  static async changeStatus(leadId: string, newStatus: string, changedById: string, organizationId?: string) {
+  static async changeStatus(leadId: string, newStatus: string, changedById?: string | null, organizationId?: string) {
     const idWhere = organizationId
       ? and(eq(leads.id, leadId), eq(leads.organizationId, organizationId))
       : eq(leads.id, leadId);
@@ -388,8 +388,12 @@ export class LeadService {
     const [updatedLead] = await db.update(leads)
       .set({ status: newStatus, updatedAt: new Date() }).where(idWhere).returning();
 
+    const validChangedById = (changedById && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(changedById))
+      ? changedById
+      : null;
+
     await db.insert(leadStatusHistory).values({
-      leadId, oldStatus: currentLead.status, newStatus, changedById,
+      leadId, oldStatus: currentLead.status, newStatus, changedById: validChangedById,
     });
     eventBus.emit('lead.status_changed', { leadId, oldStatus: currentLead.status, newStatus });
     return updatedLead;

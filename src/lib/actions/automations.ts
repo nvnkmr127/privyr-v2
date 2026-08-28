@@ -2,14 +2,31 @@
 
 import { db } from "@/db";
 import { automations, automationTriggers, automationConditions, automationActions } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import { requireOrg, requirePermission } from "@/lib/rbac";
 
-export async function createAutomation(data: any) {
-  // Simplified for MVP. Needs proper schema validation with Zod.
-  const { name, isActive, trigger, conditions, actions } = data;
+const automationSchema = z.object({
+  name: z.string().min(1).max(255),
+  isActive: z.boolean().optional(),
+  trigger: z.object({
+    type: z.string().min(1),
+    config: z.record(z.string(), z.unknown()).optional(),
+  }).optional(),
+  conditions: z.unknown().optional(),
+  actions: z.array(z.object({
+    type: z.string().min(1),
+    config: z.record(z.string(), z.unknown()).optional(),
+  })).optional(),
+});
+
+export async function createAutomation(data: unknown) {
+  const { organizationId } = await requirePermission("automations.manage");
+  const { name, isActive, trigger, conditions, actions } = automationSchema.parse(data);
 
   const [newAutomation] = await db.insert(automations).values({
+    organizationId,
     name,
     isActive: isActive ?? true,
   }).returning();
@@ -25,7 +42,7 @@ export async function createAutomation(data: any) {
   if (conditions) {
     await db.insert(automationConditions).values({
       automationId: newAutomation.id,
-      config: conditions,
+      config: conditions as Record<string, unknown>,
     });
   }
 
@@ -45,14 +62,17 @@ export async function createAutomation(data: any) {
 }
 
 export async function getAutomations() {
-  const list = await db.select().from(automations);
-  // Fetch triggers/actions for each...
-  // For UI list view, we just need basic info.
-  return list;
+  // Read = any org member, scoped to their org. Mutations below require automations.manage.
+  const { organizationId } = await requireOrg();
+  return db.select().from(automations).where(eq(automations.organizationId, organizationId));
 }
 
 export async function getAutomation(id: string) {
-  const [automation] = await db.select().from(automations).where(eq(automations.id, id));
+  const { organizationId } = await requireOrg();
+  const [automation] = await db
+    .select()
+    .from(automations)
+    .where(and(eq(automations.id, id), eq(automations.organizationId, organizationId)));
   if (!automation) return null;
 
   const [trigger] = await db.select().from(automationTriggers).where(eq(automationTriggers.automationId, id));
@@ -68,16 +88,23 @@ export async function getAutomation(id: string) {
 }
 
 export async function toggleAutomation(id: string, isActive: boolean) {
-  await db.update(automations).set({ isActive }).where(eq(automations.id, id));
+  const { organizationId } = await requirePermission("automations.manage");
+  await db.update(automations).set({ isActive })
+    .where(and(eq(automations.id, id), eq(automations.organizationId, organizationId)));
   revalidatePath("/automations");
 }
 
 export async function deleteAutomation(id: string) {
-  // Delete triggers, conditions, actions first
+  const { organizationId } = await requirePermission("automations.manage");
+  // Scope the delete: only owner-org automations. Children are removed once the parent is gone.
+  const [owned] = await db.select({ id: automations.id }).from(automations)
+    .where(and(eq(automations.id, id), eq(automations.organizationId, organizationId)));
+  if (!owned) throw new Error("Not found");
+
   await db.delete(automationTriggers).where(eq(automationTriggers.automationId, id));
   await db.delete(automationConditions).where(eq(automationConditions.automationId, id));
   await db.delete(automationActions).where(eq(automationActions.automationId, id));
   await db.delete(automations).where(eq(automations.id, id));
-  
+
   revalidatePath("/automations");
 }

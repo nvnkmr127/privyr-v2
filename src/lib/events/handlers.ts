@@ -1,13 +1,21 @@
 import { eventBus, EventPayload } from "./emitter";
 import { db } from "@/db";
-import { automations, automationTriggers } from "@/db/schema";
+import { automations, automationTriggers, leads } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { automationQueue } from "@/lib/jobs/workers/automationWorker";
 
 async function dispatchTrigger(eventType: string, payload: EventPayload) {
   if (!payload.leadId) return;
 
-  // Find active automations listening to this trigger type
+  // The lead is the tenancy source of truth — only automations of the lead's own org may fire.
+  const [lead] = await db
+    .select({ organizationId: leads.organizationId })
+    .from(leads)
+    .where(eq(leads.id, payload.leadId))
+    .limit(1);
+  if (!lead) return;
+
+  // Find active automations of this org listening to this trigger type.
   const activeTriggers = await db
     .select({
       automationId: automationTriggers.automationId,
@@ -17,20 +25,23 @@ async function dispatchTrigger(eventType: string, payload: EventPayload) {
     .where(
       and(
         eq(automations.isActive, true),
-        eq(automationTriggers.type, eventType)
+        eq(automationTriggers.type, eventType),
+        eq(automations.organizationId, lead.organizationId)
       )
     );
 
   for (const trigger of activeTriggers) {
     const idempotencyKey = `${trigger.automationId}-${payload.leadId}-${eventType}`;
-    
+
+    // jobId = idempotencyKey: BullMQ drops a duplicate enqueue of the same (automation, lead, event),
+    // so an automation runs at most once per lead per trigger even if the event double-fires.
     await automationQueue.add(`auto-${idempotencyKey}`, {
       automationId: trigger.automationId,
       leadId: payload.leadId,
       triggerType: eventType,
       idempotencyKey,
       payload,
-    });
+    }, { jobId: idempotencyKey });
   }
 }
 
