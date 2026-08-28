@@ -44,11 +44,11 @@ export function ApiKeysManager({ initial }: { initial: ApiKey[] }) {
 
   return (
     <div className="space-y-4">
-      <div className="border rounded-xl p-6 bg-white shadow-sm space-y-3">
-        <div className="flex items-center gap-2"><Key className="h-5 w-5 text-indigo-600" /><h3 className="font-semibold">API Keys</h3></div>
-        <p className="text-sm text-slate-500">
-          Authenticate with <code className="text-xs bg-slate-100 px-1 rounded">Authorization: Bearer &lt;key&gt;</code> against
-          {" "}<code className="text-xs bg-slate-100 px-1 rounded">/api/v1/leads</code>.
+      <div className="border rounded-xl p-6 bg-card shadow-sm space-y-3">
+        <div className="flex items-center gap-2"><Key className="h-5 w-5 text-muted-foreground" /><h3 className="font-semibold">API Keys</h3></div>
+        <p className="text-sm text-muted-foreground">
+          Authenticate with <code className="text-xs bg-muted px-1 rounded">Authorization: Bearer &lt;key&gt;</code> against
+          {" "}<code className="text-xs bg-muted px-1 rounded">/api/v1/leads</code>.
         </p>
         <div className="flex gap-2 max-w-md">
           <Input placeholder="Key name (e.g. Zapier)" value={name} onChange={(e) => setName(e.target.value)}
@@ -57,28 +57,28 @@ export function ApiKeysManager({ initial }: { initial: ApiKey[] }) {
         </div>
 
         {newKey && (
-          <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 space-y-2">
-            <div className="text-sm font-medium text-amber-900">Copy your key now — it won’t be shown again.</div>
+          <div className="rounded-lg border border-border bg-muted p-3 space-y-2">
+            <div className="text-sm font-medium text-foreground">Copy your key now — it won’t be shown again.</div>
             <div className="flex items-center gap-2">
-              <code className="flex-1 text-xs font-mono bg-white border rounded px-2 py-1.5 break-all">{newKey}</code>
+              <code className="flex-1 text-xs font-mono bg-card border rounded px-2 py-1.5 break-all">{newKey}</code>
               <Button size="sm" variant="outline" className="gap-1" onClick={() => { navigator.clipboard?.writeText(newKey); toast({ title: "Copied" }); }}>
                 <Copy className="h-3.5 w-3.5" /> Copy
               </Button>
             </div>
-            <button className="text-xs text-amber-700 underline" onClick={() => setNewKey(null)}>Done</button>
+            <button className="text-xs text-muted-foreground underline" onClick={() => setNewKey(null)}>Done</button>
           </div>
         )}
       </div>
 
-      <div className="border rounded-xl bg-white shadow-sm divide-y">
-        {keys.length === 0 && <div className="p-6 text-sm text-slate-400">No API keys yet.</div>}
+      <div className="border rounded-xl bg-card shadow-sm divide-y">
+        {keys.length === 0 && <div className="p-6 text-sm text-muted-foreground">No API keys yet.</div>}
         {keys.map((k) => (
           <div key={k.id} className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3 text-sm">
               <span className="font-medium">{k.name}</span>
-              <code className="text-xs text-slate-400">{k.prefix}…</code>
+              <code className="text-xs text-muted-foreground">{k.prefix}…</code>
               {k.revokedAt ? <Badge variant="secondary">Revoked</Badge> : <Badge>Active</Badge>}
-              {k.lastUsedAt && <span className="text-xs text-slate-400">last used {new Date(k.lastUsedAt).toLocaleDateString()}</span>}
+              {k.lastUsedAt && <span className="text-xs text-muted-foreground">last used {new Date(k.lastUsedAt).toLocaleDateString()}</span>}
             </div>
             {!k.revokedAt && <Button size="sm" variant="outline" onClick={() => revoke(k)}>Revoke</Button>}
           </div>

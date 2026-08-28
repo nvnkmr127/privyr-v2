@@ -54,9 +54,9 @@ const PLATFORMS: IntegrationPlatformCard[] = [
     description: "Instant lead pulling from Meta Graph API with automatic form field mapping & Page OAuth refresh.",
     icon: FacebookIcon,
     badge: "Official Meta API",
-    brandColor: "bg-blue-50 border-blue-200 text-blue-700",
+    brandColor: "bg-muted border-border text-muted-foreground",
     buttonText: "Connect Facebook Lead Ads",
-    buttonBg: "bg-blue-600 hover:bg-blue-700 text-white",
+    buttonBg: "bg-secondary hover:bg-accent text-foreground",
     docsUrl: "https://developers.facebook.com/docs/marketing-api/guides/lead-ads",
   },
   {
@@ -66,9 +66,9 @@ const PLATFORMS: IntegrationPlatformCard[] = [
     description: "Real-time webhook ingestion for Google Ads campaign forms with keyword & column normalization.",
     icon: Globe,
     badge: "Google Ads Webhook",
-    brandColor: "bg-red-50 border-red-200 text-red-700",
+    brandColor: "bg-muted border-border text-foreground",
     buttonText: "Connect Google Lead Ads",
-    buttonBg: "bg-red-600 hover:bg-red-700 text-white",
+    buttonBg: "bg-destructive hover:bg-accent text-foreground",
     docsUrl: "https://support.google.com/google-ads/answer/9360341",
   },
   {
@@ -78,9 +78,9 @@ const PLATFORMS: IntegrationPlatformCard[] = [
     description: "Inbound B2B lead sync for LinkedIn sponsored content & lead generation campaigns.",
     icon: LinkedInIcon,
     badge: "B2B Lead Sync",
-    brandColor: "bg-sky-50 border-sky-200 text-sky-700",
+    brandColor: "bg-muted border-border text-muted-foreground",
     buttonText: "Connect LinkedIn Lead Gen",
-    buttonBg: "bg-sky-700 hover:bg-sky-800 text-white",
+    buttonBg: "bg-secondary hover:bg-accent text-foreground",
     docsUrl: "https://www.linkedin.com/help/linkedin/answer/a420556",
   },
   {
@@ -90,9 +90,9 @@ const PLATFORMS: IntegrationPlatformCard[] = [
     description: "Capture inbound messages as leads with automated instant reply & round-robin assignment.",
     icon: MessageSquare,
     badge: "WhatsApp Cloud API",
-    brandColor: "bg-emerald-50 border-emerald-200 text-emerald-700",
+    brandColor: "bg-muted border-border text-muted-foreground",
     buttonText: "Connect WhatsApp Business",
-    buttonBg: "bg-emerald-600 hover:bg-emerald-700 text-white",
+    buttonBg: "bg-secondary hover:bg-accent text-foreground",
     docsUrl: "https://developers.facebook.com/docs/whatsapp/cloud-api",
   },
   {
@@ -102,9 +102,9 @@ const PLATFORMS: IntegrationPlatformCard[] = [
     description: "Connect WordPress, Elementor, Webflow, or custom HTML forms using signed REST Webhooks.",
     icon: Sparkles,
     badge: "Universal REST Webhook",
-    brandColor: "bg-purple-50 border-purple-200 text-purple-700",
+    brandColor: "bg-muted border-border text-muted-foreground",
     buttonText: "Generate Webhook Endpoint",
-    buttonBg: "bg-purple-600 hover:bg-purple-700 text-white",
+    buttonBg: "bg-secondary hover:bg-accent text-foreground",
     docsUrl: "/docs/webhooks",
   },
 ];
@@ -210,23 +210,23 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
   return (
     <div className="space-y-8">
       {/* Header & Security Badge */}
-      <div className="flex items-center justify-between bg-slate-900 text-white p-6 rounded-2xl shadow-md">
+      <div className="flex items-center justify-between bg-secondary text-foreground p-6 rounded-2xl shadow-md">
         <div>
           <h3 className="text-xl font-bold flex items-center gap-2">
-            <ShieldCheck className="h-6 w-6 text-emerald-400" /> Multi-Source Lead Integration Hub
+            <ShieldCheck className="h-6 w-6 text-muted-foreground" /> Multi-Source Lead Integration Hub
           </h3>
-          <p className="text-sm text-slate-300 mt-1">
+          <p className="text-sm text-foreground mt-1">
             Connect ad accounts & webhooks. Leads are instantly pulled, mapped, and allocated to your tenant users.
           </p>
         </div>
-        <Badge variant="outline" className="text-emerald-400 border-emerald-400/30 bg-emerald-950/40 py-1.5 px-3">
+        <Badge variant="outline" className="text-muted-foreground border-border/30 bg-secondary/40 py-1.5 px-3">
           10,000 req/sec Zero Breakdown Queue
         </Badge>
       </div>
 
       {/* Platform Cards Section */}
       <div>
-        <h4 className="text-base font-semibold text-slate-900 mb-4">Available Integration Platforms</h4>
+        <h4 className="text-base font-semibold text-foreground mb-4">Available Integration Platforms</h4>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {PLATFORMS.map((platform) => {
             const IconComponent = platform.icon;
@@ -235,7 +235,7 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
             return (
               <div
                 key={platform.id}
-                className="border rounded-2xl p-5 bg-white shadow-sm hover:shadow-md transition flex flex-col justify-between space-y-4"
+                className="border rounded-2xl p-5 bg-card shadow-sm hover:shadow-md transition flex flex-col justify-between space-y-4"
               >
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
@@ -247,11 +247,11 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
                     </Badge>
                   </div>
                   <div>
-                    <h5 className="font-bold text-slate-900 flex items-center gap-2">
+                    <h5 className="font-bold text-foreground flex items-center gap-2">
                       {platform.name}
-                      {isConnected && <CheckCircle2 className="h-4 w-4 text-emerald-600 inline" />}
+                      {isConnected && <CheckCircle2 className="h-4 w-4 text-muted-foreground inline" />}
                     </h5>
-                    <p className="text-xs text-slate-500 mt-1 leading-relaxed">{platform.description}</p>
+                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{platform.description}</p>
                   </div>
                 </div>
 
@@ -268,7 +268,7 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
                     href={platform.docsUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-xs text-slate-400 hover:text-slate-600 flex items-center justify-center gap-1 py-1"
+                    className="text-xs text-muted-foreground hover:text-muted-foreground flex items-center justify-center gap-1 py-1"
                   >
                     Setup Guide & API Documentation <ExternalLink className="h-3 w-3" />
                   </a>
@@ -281,20 +281,20 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
 
       {/* Connected Sources & Webhook Endpoints */}
       <div className="space-y-4">
-        <h4 className="text-base font-semibold text-slate-900">Active Tenant Connected Endpoints ({sources.length})</h4>
+        <h4 className="text-base font-semibold text-foreground">Active Tenant Connected Endpoints ({sources.length})</h4>
         {sources.length === 0 ? (
-          <div className="text-center py-12 border rounded-2xl bg-white text-slate-500 space-y-2">
-            <Globe className="h-8 w-8 mx-auto text-slate-300" />
-            <p className="font-medium text-slate-700">No active sources connected yet.</p>
-            <p className="text-xs text-slate-400">Click any platform button above to activate instant lead pulling.</p>
+          <div className="text-center py-12 border rounded-2xl bg-card text-muted-foreground space-y-2">
+            <Globe className="h-8 w-8 mx-auto text-foreground" />
+            <p className="font-medium text-muted-foreground">No active sources connected yet.</p>
+            <p className="text-xs text-muted-foreground">Click any platform button above to activate instant lead pulling.</p>
           </div>
         ) : (
           <div className="space-y-4">
             {sources.map((s) => (
-              <div key={s.id} className="border rounded-2xl p-5 bg-white shadow-sm space-y-3">
+              <div key={s.id} className="border rounded-2xl p-5 bg-card shadow-sm space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <span className="font-bold text-slate-900">{s.name}</span>
+                    <span className="font-bold text-foreground">{s.name}</span>
                     <Badge variant="secondary" className="capitalize">
                       {s.type?.replace(/_/g, " ")}
                     </Badge>
@@ -309,9 +309,9 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
 
                 <div className="space-y-2 text-sm pt-1">
                   <div>
-                    <span className="text-xs font-semibold text-slate-500 block mb-1">Instant Webhook Endpoint URL</span>
+                    <span className="text-xs font-semibold text-muted-foreground block mb-1">Instant Webhook Endpoint URL</span>
                     <div className="flex items-center gap-2">
-                      <code className="flex-1 truncate bg-slate-50 border rounded-xl px-3 py-2 text-xs font-mono text-slate-800">
+                      <code className="flex-1 truncate bg-muted border rounded-xl px-3 py-2 text-xs font-mono text-foreground">
                         {webhookUrl(s)}
                       </code>
                       <Button variant="ghost" size="icon" onClick={() => copy(webhookUrl(s), "Webhook URL")}>
@@ -321,11 +321,11 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
                   </div>
                   {s.webhookSecret && (
                     <div>
-                      <span className="text-xs font-semibold text-slate-500 block mb-1">
+                      <span className="text-xs font-semibold text-muted-foreground block mb-1">
                         HMAC SHA-256 Signing Secret (Header <code>x-hub-signature-256</code>)
                       </span>
                       <div className="flex items-center gap-2">
-                        <code className="flex-1 truncate bg-slate-50 border rounded-xl px-3 py-2 text-xs font-mono text-slate-800">
+                        <code className="flex-1 truncate bg-muted border rounded-xl px-3 py-2 text-xs font-mono text-foreground">
                           {s.webhookSecret}
                         </code>
                         <Button variant="ghost" size="icon" onClick={() => copy(s.webhookSecret!, "Secret")}>

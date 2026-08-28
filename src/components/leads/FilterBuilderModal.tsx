@@ -159,15 +159,15 @@ export function FilterBuilderModal({
       <DialogContent className="max-w-2xl w-[95vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <SlidersHorizontal className="h-5 w-5 text-slate-600" />
+            <SlidersHorizontal className="h-5 w-5 text-muted-foreground" />
             Filter Leads
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-3">
-          <div className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border">
-            <span className="text-sm font-medium text-slate-700">Match condition logic:</span>
-            <div className="flex items-center space-x-1 border rounded-md p-0.5 bg-white">
+          <div className="flex items-center justify-between bg-muted p-3 rounded-lg border">
+            <span className="text-sm font-medium text-muted-foreground">Match condition logic:</span>
+            <div className="flex items-center space-x-1 border rounded-md p-0.5 bg-card">
               <Button
                 type="button"
                 variant={logic === "AND" ? "default" : "ghost"}
@@ -191,7 +191,7 @@ export function FilterBuilderModal({
 
           {rules.length === 0 ? (
             <div className="py-8 text-center border border-dashed rounded-lg">
-              <p className="text-sm text-slate-500 mb-3">No filters applied.</p>
+              <p className="text-sm text-muted-foreground mb-3">No filters applied.</p>
               <Button type="button" variant="outline" size="sm" onClick={addRule}>
                 <Plus className="mr-2 h-4 w-4" /> Add your first filter
               </Button>
@@ -206,14 +206,14 @@ export function FilterBuilderModal({
                 return (
                   <div
                     key={idx}
-                    className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-3 rounded-lg border bg-slate-50/50"
+                    className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-3 rounded-lg border bg-muted/50"
                   >
                     <div className="w-full sm:w-40">
                       <Select
                         value={rule.field}
                         onValueChange={(val) => updateRule(idx, { field: val })}
                       >
-                        <SelectTrigger className="bg-white">
+                        <SelectTrigger className="bg-card">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -231,7 +231,7 @@ export function FilterBuilderModal({
                         value={rule.operator}
                         onValueChange={(val: any) => updateRule(idx, { operator: val })}
                       >
-                        <SelectTrigger className="bg-white">
+                        <SelectTrigger className="bg-card">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -251,7 +251,7 @@ export function FilterBuilderModal({
                             value={String(rule.value || "")}
                             onValueChange={(val) => updateRule(idx, { value: val })}
                           >
-                            <SelectTrigger className="bg-white">
+                            <SelectTrigger className="bg-card">
                               <SelectValue placeholder="Select value..." />
                             </SelectTrigger>
                             <SelectContent>
@@ -267,7 +267,7 @@ export function FilterBuilderModal({
                             value={String(rule.value || "")}
                             onValueChange={(val) => updateRule(idx, { value: val })}
                           >
-                            <SelectTrigger className="bg-white">
+                            <SelectTrigger className="bg-card">
                               <SelectValue placeholder="Select user..." />
                             </SelectTrigger>
                             <SelectContent>
@@ -284,7 +284,7 @@ export function FilterBuilderModal({
                             value={String(rule.value || "")}
                             onValueChange={(val) => updateRule(idx, { value: val })}
                           >
-                            <SelectTrigger className="bg-white">
+                            <SelectTrigger className="bg-card">
                               <SelectValue placeholder="Select source..." />
                             </SelectTrigger>
                             <SelectContent>
@@ -300,7 +300,7 @@ export function FilterBuilderModal({
                             value={String(rule.value || "")}
                             onValueChange={(val) => updateRule(idx, { value: val })}
                           >
-                            <SelectTrigger className="bg-white">
+                            <SelectTrigger className="bg-card">
                               <SelectValue placeholder="Select tag..." />
                             </SelectTrigger>
                             <SelectContent>
@@ -314,7 +314,7 @@ export function FilterBuilderModal({
                         ) : fieldDef.type === "date" ? (
                           <Input
                             type="date"
-                            className="bg-white"
+                            className="bg-card"
                             value={String(rule.value || "")}
                             onChange={(e) => updateRule(idx, { value: e.target.value })}
                           />
@@ -322,7 +322,7 @@ export function FilterBuilderModal({
                           <Input
                             type={fieldDef.type === "number" ? "number" : "text"}
                             placeholder="Enter value..."
-                            className="bg-white"
+                            className="bg-card"
                             value={String(rule.value || "")}
                             onChange={(e) => updateRule(idx, { value: e.target.value })}
                           />
@@ -334,7 +334,7 @@ export function FilterBuilderModal({
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="text-slate-400 hover:text-red-600 shrink-0"
+                      className="text-muted-foreground hover:text-foreground shrink-0"
                       onClick={() => removeRule(idx)}
                     >
                       <Trash2 className="h-4 w-4" />

@@ -15,7 +15,7 @@ export default async function LeadSourcesPage() {
         </Link>
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Lead Sources</h2>
-          <p className="text-sm text-slate-500">Connect ad platforms and webhooks that feed leads into your CRM.</p>
+          <p className="text-sm text-muted-foreground">Connect ad platforms and webhooks that feed leads into your CRM.</p>
         </div>
       </div>
       <SourcesManager initialSources={sources} />

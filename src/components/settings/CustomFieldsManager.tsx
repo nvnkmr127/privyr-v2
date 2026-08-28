@@ -62,7 +62,7 @@ export function CustomFieldsManager({ initial }: { initial: Field[] }) {
 
   return (
     <div className="space-y-4">
-      <div className="border rounded-xl p-6 bg-white shadow-sm space-y-3">
+      <div className="border rounded-xl p-6 bg-card shadow-sm space-y-3">
         <h3 className="font-semibold">Add a custom field</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Input placeholder="Field label (e.g. Budget)" value={label} onChange={(e) => setLabel(e.target.value)} />
@@ -85,20 +85,20 @@ export function CustomFieldsManager({ initial }: { initial: Field[] }) {
         </div>
       </div>
 
-      <div className="border rounded-xl bg-white shadow-sm divide-y">
-        {fields.length === 0 && <div className="p-6 text-sm text-slate-400">No custom fields yet.</div>}
+      <div className="border rounded-xl bg-card shadow-sm divide-y">
+        {fields.length === 0 && <div className="p-6 text-sm text-muted-foreground">No custom fields yet.</div>}
         {fields.map((f) => (
           <div key={f.id} className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3">
               <span className="font-medium">{f.label}</span>
-              <span className="text-xs font-mono text-slate-400">{f.key}</span>
+              <span className="text-xs font-mono text-muted-foreground">{f.key}</span>
               <Badge variant="secondary" className="capitalize">{f.type}</Badge>
               {f.required && <Badge>Required</Badge>}
               {f.type === "select" && f.options?.length ? (
-                <span className="text-xs text-slate-500">{f.options.join(", ")}</span>
+                <span className="text-xs text-muted-foreground">{f.options.join(", ")}</span>
               ) : null}
             </div>
-            <Button variant="ghost" size="icon" onClick={() => remove(f)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => remove(f)}><Trash2 className="h-4 w-4 text-foreground" /></Button>
           </div>
         ))}
       </div>

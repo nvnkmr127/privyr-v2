@@ -23,11 +23,11 @@ export default async function SalesRepDashboardPage() {
         </Suspense>
 
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="border rounded-xl p-6 bg-slate-50 flex items-center justify-center min-h-[300px]">
-             <p className="text-slate-500">My Pipeline by Stage (Chart)</p>
+          <div className="border rounded-xl p-6 bg-muted flex items-center justify-center min-h-[300px]">
+             <p className="text-muted-foreground">My Pipeline by Stage (Chart)</p>
           </div>
-          <div className="border rounded-xl p-6 bg-slate-50 flex items-center justify-center min-h-[300px]">
-             <p className="text-slate-500">My Follow-ups Activity (Chart)</p>
+          <div className="border rounded-xl p-6 bg-muted flex items-center justify-center min-h-[300px]">
+             <p className="text-muted-foreground">My Follow-ups Activity (Chart)</p>
           </div>
         </div>
       </div>

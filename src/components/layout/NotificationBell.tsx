@@ -40,7 +40,7 @@ export function NotificationBell() {
         <Button variant="secondary" size="icon" className="rounded-full relative">
           <Bell className="h-5 w-5" />
           {count > 0 && (
-            <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-xs font-semibold text-white">
+            <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-xs font-semibold text-foreground">
               {count > 9 ? "9+" : count}
             </span>
           )}
@@ -51,17 +51,17 @@ export function NotificationBell() {
         <DropdownMenuLabel>Notifications</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {items.length === 0 ? (
-          <div className="px-3 py-6 text-center text-sm text-slate-500">You&apos;re all caught up.</div>
+          <div className="px-3 py-6 text-center text-sm text-muted-foreground">You&apos;re all caught up.</div>
         ) : (
           items.map((n) => {
             const inner = (
-              <div className={`px-3 py-2 ${n.readAt ? "" : "bg-blue-50"}`}>
+              <div className={`px-3 py-2 ${n.readAt ? "" : "bg-muted"}`}>
                 <div className="text-sm font-medium">{n.title}</div>
-                {n.body && <div className="text-xs text-slate-500 mt-0.5">{n.body}</div>}
+                {n.body && <div className="text-xs text-muted-foreground mt-0.5">{n.body}</div>}
               </div>
             );
             return n.leadId
-              ? <Link key={n.id} href={`/leads/${n.leadId}`} className="block hover:bg-slate-50">{inner}</Link>
+              ? <Link key={n.id} href={`/leads/${n.leadId}`} className="block hover:bg-accent">{inner}</Link>
               : <div key={n.id}>{inner}</div>;
           })
         )}

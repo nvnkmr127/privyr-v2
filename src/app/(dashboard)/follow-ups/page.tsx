@@ -30,7 +30,7 @@ export default async function FollowUpsDashboard() {
     <div className="p-8 max-w-6xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">My Follow-ups</h1>
-        <a href="/follow-ups/calendar" className="text-sm font-medium text-blue-600 hover:underline">Calendar view →</a>
+        <a href="/follow-ups/calendar" className="text-sm font-medium text-muted-foreground hover:underline">Calendar view →</a>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -39,31 +39,31 @@ export default async function FollowUpsDashboard() {
           <CardContent><p className="text-2xl font-bold">{upcoming.filter(f => new Date(f.followUp.dueAt).toDateString() === now.toDateString()).length}</p></CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-red-500">Overdue</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold text-red-500">{overdue.length}</p></CardContent>
+          <CardHeader className="pb-2"><CardTitle className="text-foreground">Overdue</CardTitle></CardHeader>
+          <CardContent><p className="text-2xl font-bold text-foreground">{overdue.length}</p></CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2"><CardTitle>Upcoming</CardTitle></CardHeader>
           <CardContent><p className="text-2xl font-bold">{upcoming.length}</p></CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-green-500">Completed</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold text-green-500">{completed.length}</p></CardContent>
+          <CardHeader className="pb-2"><CardTitle className="text-muted-foreground">Completed</CardTitle></CardHeader>
+          <CardContent><p className="text-2xl font-bold text-muted-foreground">{completed.length}</p></CardContent>
         </Card>
       </div>
 
       <div className="space-y-4">
         <h2 className="text-xl font-semibold border-b pb-2">Pending Actions</h2>
         {overdue.length > 0 && (
-          <div className="bg-red-50 p-4 rounded-md space-y-2 border border-red-100">
-            <h3 className="font-semibold text-red-800">Overdue</h3>
+          <div className="bg-muted p-4 rounded-md space-y-2 border border-border">
+            <h3 className="font-semibold text-foreground">Overdue</h3>
             {overdue.map((f) => (
-              <div key={f.followUp.id} className="flex justify-between items-center bg-white p-3 rounded shadow-sm border border-red-200">
+              <div key={f.followUp.id} className="flex justify-between items-center bg-card p-3 rounded shadow-sm border border-border">
                 <div>
                   <p className="font-medium">{f.followUp.title} ({f.followUp.type})</p>
-                  <p className="text-sm text-slate-500">Lead: {f.lead.name}</p>
+                  <p className="text-sm text-muted-foreground">Lead: {f.lead.name}</p>
                 </div>
-                <div className="text-sm font-semibold text-red-600">
+                <div className="text-sm font-semibold text-foreground">
                   {format(new Date(f.followUp.dueAt), 'MMM d, h:mm a')}
                 </div>
               </div>
@@ -72,15 +72,15 @@ export default async function FollowUpsDashboard() {
         )}
 
         {upcoming.length > 0 && (
-          <div className="bg-slate-50 p-4 rounded-md space-y-2 border border-slate-100">
-            <h3 className="font-semibold text-slate-800">Upcoming</h3>
+          <div className="bg-muted p-4 rounded-md space-y-2 border border-border">
+            <h3 className="font-semibold text-foreground">Upcoming</h3>
             {upcoming.map((f) => (
-              <div key={f.followUp.id} className="flex justify-between items-center bg-white p-3 rounded shadow-sm border border-slate-200">
+              <div key={f.followUp.id} className="flex justify-between items-center bg-card p-3 rounded shadow-sm border border-border">
                 <div>
                   <p className="font-medium">{f.followUp.title} ({f.followUp.type})</p>
-                  <p className="text-sm text-slate-500">Lead: {f.lead.name}</p>
+                  <p className="text-sm text-muted-foreground">Lead: {f.lead.name}</p>
                 </div>
-                <div className="text-sm font-semibold text-slate-600">
+                <div className="text-sm font-semibold text-muted-foreground">
                   {format(new Date(f.followUp.dueAt), 'MMM d, h:mm a')}
                 </div>
               </div>
@@ -89,7 +89,7 @@ export default async function FollowUpsDashboard() {
         )}
 
         {upcoming.length === 0 && overdue.length === 0 && (
-          <p className="text-slate-500 italic">No pending follow-ups.</p>
+          <p className="text-muted-foreground italic">No pending follow-ups.</p>
         )}
       </div>
     </div>

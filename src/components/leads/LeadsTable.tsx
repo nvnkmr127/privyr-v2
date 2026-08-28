@@ -123,7 +123,7 @@ export function LeadsTable({
   return (
     <div className="space-y-3">
       {selected.size > 0 && (
-        <div className="flex flex-wrap items-center gap-3 rounded-md border bg-slate-50 p-3">
+        <div className="flex flex-wrap items-center gap-3 rounded-md border bg-muted p-3">
           <span className="text-sm font-medium">{selected.size} selected</span>
           <Select
             disabled={busy}
@@ -131,7 +131,7 @@ export function LeadsTable({
               run(() => bulkAssignLeadAction({ leadIds: ids(), ownerId: userId, teamId: null }), "Leads assigned")
             }
           >
-            <SelectTrigger className="w-48 bg-white">
+            <SelectTrigger className="w-48 bg-card">
               <SelectValue placeholder="Assign to…" />
             </SelectTrigger>
             <SelectContent>
@@ -148,7 +148,7 @@ export function LeadsTable({
               run(() => bulkChangeLeadStatusAction({ leadIds: ids(), status }), "Status updated")
             }
           >
-            <SelectTrigger className="w-44 bg-white">
+            <SelectTrigger className="w-44 bg-card">
               <SelectValue placeholder="Set status…" />
             </SelectTrigger>
             <SelectContent>
@@ -164,7 +164,7 @@ export function LeadsTable({
               placeholder="Add tag..."
               value={tagName}
               onChange={(e) => setTagName(e.target.value)}
-              className="w-36 h-9 bg-white text-sm"
+              className="w-36 h-9 bg-card text-sm"
               disabled={busy}
             />
             <Button
@@ -193,7 +193,7 @@ export function LeadsTable({
         </div>
       )}
 
-      <div className="border rounded-md bg-white">
+      <div className="border rounded-md bg-card">
         <Table>
           <TableHeader>
             <TableRow>
@@ -248,11 +248,11 @@ export function LeadsTable({
         </Table>
 
         {/* Pagination Bar */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 border-t bg-slate-50 text-xs text-slate-600">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 border-t bg-muted text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
             <span>Rows per page:</span>
             <Select value={String(pageSize)} onValueChange={changePageSize}>
-              <SelectTrigger className="h-7 w-16 bg-white text-xs">
+              <SelectTrigger className="h-7 w-16 bg-card text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -275,7 +275,7 @@ export function LeadsTable({
               type="button"
               variant="outline"
               size="icon"
-              className="h-7 w-7 bg-white"
+              className="h-7 w-7 bg-card"
               disabled={page <= 1}
               onClick={() => goToPage(page - 1)}
               aria-label="Previous Page"
@@ -286,7 +286,7 @@ export function LeadsTable({
               type="button"
               variant="outline"
               size="icon"
-              className="h-7 w-7 bg-white"
+              className="h-7 w-7 bg-card"
               disabled={page >= totalPages}
               onClick={() => goToPage(page + 1)}
               aria-label="Next Page"

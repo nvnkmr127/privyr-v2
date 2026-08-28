@@ -50,9 +50,9 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
           <CommandGroup heading="Leads">
             {results.map((l) => (
               <CommandItem key={l.id} value={l.id} onSelect={() => go(`/leads/${l.id}`)}>
-                <Search className="mr-2 h-4 w-4 text-slate-400" />
+                <Search className="mr-2 h-4 w-4 text-muted-foreground" />
                 <span className="font-medium">{l.name}</span>
-                <span className="ml-2 text-xs text-slate-400">{l.email || l.phone || l.company}</span>
+                <span className="ml-2 text-xs text-muted-foreground">{l.email || l.phone || l.company}</span>
               </CommandItem>
             ))}
           </CommandGroup>
@@ -60,7 +60,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
         <CommandGroup heading="Go to">
           {NAV.map((n) => (
             <CommandItem key={n.href} value={`nav ${n.label}`} onSelect={() => go(n.href)}>
-              <n.icon className="mr-2 h-4 w-4 text-slate-400" />{n.label}
+              <n.icon className="mr-2 h-4 w-4 text-muted-foreground" />{n.label}
             </CommandItem>
           ))}
         </CommandGroup>

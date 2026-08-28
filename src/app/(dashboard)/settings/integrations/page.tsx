@@ -19,7 +19,7 @@ export default async function IntegrationsPage() {
         <Link href="/settings"><Button variant="ghost" size="icon"><ArrowLeft className="h-5 w-5" /></Button></Link>
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Integrations</h2>
-          <p className="text-sm text-slate-500">Connect external services to your account.</p>
+          <p className="text-sm text-muted-foreground">Connect external services to your account.</p>
         </div>
       </div>
       <GoogleConnect connected={connected} configured={googleConfigured()} />

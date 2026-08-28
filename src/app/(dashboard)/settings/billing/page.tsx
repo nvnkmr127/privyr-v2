@@ -19,7 +19,7 @@ export default async function BillingPage() {
         <Link href="/settings"><Button variant="ghost" size="icon"><ArrowLeft className="h-5 w-5" /></Button></Link>
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Billing & Plan</h2>
-          <p className="text-sm text-slate-500">Manage your subscription. Payments are processed by Razorpay.</p>
+          <p className="text-sm text-muted-foreground">Manage your subscription. Payments are processed by Razorpay.</p>
         </div>
       </div>
       <BillingManager

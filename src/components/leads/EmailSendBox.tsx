@@ -13,7 +13,7 @@ export function EmailSendBox({ leadId, email }: { leadId: string; email: string 
   const [body, setBody] = React.useState("");
   const [sending, setSending] = React.useState(false);
 
-  if (!email) return <div className="text-sm text-slate-500">This lead has no email address.</div>;
+  if (!email) return <div className="text-sm text-muted-foreground">This lead has no email address.</div>;
 
   async function send() {
     if (!subject.trim() || !body.trim()) return;
@@ -31,7 +31,7 @@ export function EmailSendBox({ leadId, email }: { leadId: string; email: string 
 
   return (
     <div className="space-y-3">
-      <div className="text-sm text-slate-500">To: <span className="font-medium text-slate-700">{email}</span></div>
+      <div className="text-sm text-muted-foreground">To: <span className="font-medium text-muted-foreground">{email}</span></div>
       <Input placeholder="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
       <textarea
         placeholder="Write your message…" value={body} onChange={(e) => setBody(e.target.value)} rows={6}

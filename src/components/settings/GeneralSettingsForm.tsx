@@ -102,12 +102,12 @@ export function GeneralSettingsForm({ organization }: { organization?: Org | nul
 
       <form onSubmit={handleSave} className="space-y-6">
         {/* Company information */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6 space-y-6">
-          <div className="flex items-center gap-3 border-b border-gray-100 dark:border-gray-800 pb-4">
-            <Building className="h-5 w-5 text-blue-600" />
+        <div className="bg-card dark:bg-secondary rounded-xl border border-border dark:border-border p-6 space-y-6">
+          <div className="flex items-center gap-3 border-b border-border dark:border-border pb-4">
+            <Building className="h-5 w-5 text-muted-foreground" />
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Company Information</h3>
-              <p className="text-xs text-gray-500">Your organization identity and contact details.</p>
+              <h3 className="text-lg font-semibold text-foreground dark:text-foreground">Company Information</h3>
+              <p className="text-xs text-muted-foreground">Your organization identity and contact details.</p>
             </div>
           </div>
 
@@ -154,16 +154,16 @@ export function GeneralSettingsForm({ organization }: { organization?: Org | nul
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 pt-2 border-t border-gray-100 dark:border-gray-800">
+          <div className="grid grid-cols-2 gap-4 pt-2 border-t border-border dark:border-border">
             <div className="space-y-1">
-              <Label className="text-xs text-gray-500">Workspace Slug</Label>
-              <div className="text-sm font-mono bg-gray-50 dark:bg-gray-800 px-3 py-2 rounded-md text-gray-700 dark:text-gray-300">
+              <Label className="text-xs text-muted-foreground">Workspace Slug</Label>
+              <div className="text-sm font-mono bg-muted dark:bg-secondary px-3 py-2 rounded-md text-muted-foreground dark:text-foreground">
                 {organization?.slug ?? "org-default"}
               </div>
             </div>
             <div className="space-y-1">
-              <Label className="text-xs text-gray-500">Subscription Plan</Label>
-              <div className="text-sm font-medium capitalize bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 px-3 py-2 rounded-md">
+              <Label className="text-xs text-muted-foreground">Subscription Plan</Label>
+              <div className="text-sm font-medium capitalize bg-muted dark:bg-secondary text-muted-foreground dark:text-foreground px-3 py-2 rounded-md">
                 {organization?.plan ?? "free"} Plan
               </div>
             </div>
@@ -171,12 +171,12 @@ export function GeneralSettingsForm({ organization }: { organization?: Org | nul
         </div>
 
         {/* Localisation */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6 space-y-6">
-          <div className="flex items-center gap-3 border-b border-gray-100 dark:border-gray-800 pb-4">
-            <Globe className="h-5 w-5 text-emerald-600" />
+        <div className="bg-card dark:bg-secondary rounded-xl border border-border dark:border-border p-6 space-y-6">
+          <div className="flex items-center gap-3 border-b border-border dark:border-border pb-4">
+            <Globe className="h-5 w-5 text-muted-foreground" />
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Localisation</h3>
-              <p className="text-xs text-gray-500">Timezone, language, currency, and date formatting for your workspace.</p>
+              <h3 className="text-lg font-semibold text-foreground dark:text-foreground">Localisation</h3>
+              <p className="text-xs text-muted-foreground">Timezone, language, currency, and date formatting for your workspace.</p>
             </div>
           </div>
 
@@ -208,27 +208,27 @@ export function GeneralSettingsForm({ organization }: { organization?: Org | nul
         </div>
 
         {/* Required lead information */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6 space-y-4">
-          <div className="flex items-center gap-3 border-b border-gray-100 dark:border-gray-800 pb-4">
-            <Sliders className="h-5 w-5 text-amber-600" />
+        <div className="bg-card dark:bg-secondary rounded-xl border border-border dark:border-border p-6 space-y-4">
+          <div className="flex items-center gap-3 border-b border-border dark:border-border pb-4">
+            <Sliders className="h-5 w-5 text-muted-foreground" />
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Required Lead Information</h3>
-              <p className="text-xs text-gray-500">Fields that must be filled in when a lead is created.</p>
+              <h3 className="text-lg font-semibold text-foreground dark:text-foreground">Required Lead Information</h3>
+              <p className="text-xs text-muted-foreground">Fields that must be filled in when a lead is created.</p>
             </div>
           </div>
           <div className="space-y-2 max-w-xs">
             <Label htmlFor="slaHours">SLA escalation (hours)</Label>
             <Input id="slaHours" type="number" min={0} value={f.slaHours}
               onChange={(e) => set("slaHours", e.target.value)} placeholder="e.g. 24 — blank to disable" />
-            <p className="text-xs text-gray-500">A new lead unactioned this long alerts its owner. Blank = off.</p>
+            <p className="text-xs text-muted-foreground">A new lead unactioned this long alerts its owner. Blank = off.</p>
           </div>
-          <div className="flex flex-wrap gap-4 pt-2 border-t border-gray-100 dark:border-gray-800">
-            <label className="flex items-center gap-2 text-sm text-gray-400">
-              <input type="checkbox" checked disabled className="h-4 w-4 rounded border-gray-300" />
+          <div className="flex flex-wrap gap-4 pt-2 border-t border-border dark:border-border">
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              <input type="checkbox" checked disabled className="h-4 w-4 rounded border-border" />
               Name (always required)
             </label>
             {LEAD_FIELDS.map(({ key, label }) => (
-              <label key={key} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+              <label key={key} className="flex items-center gap-2 text-sm text-muted-foreground dark:text-foreground">
                 <input
                   type="checkbox"
                   checked={requiredFields.includes(key)}
@@ -237,7 +237,7 @@ export function GeneralSettingsForm({ organization }: { organization?: Org | nul
                       e.target.checked ? [...prev, key] : prev.filter((k) => k !== key),
                     )
                   }
-                  className="h-4 w-4 rounded border-gray-300"
+                  className="h-4 w-4 rounded border-border"
                 />
                 {label}
               </label>
@@ -253,12 +253,12 @@ export function GeneralSettingsForm({ organization }: { organization?: Org | nul
       </form>
 
       {/* Core Lead & Workflow Configuration Card */}
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6 space-y-4">
-        <div className="flex items-center gap-3 border-b border-gray-100 dark:border-gray-800 pb-4">
-          <Sliders className="h-5 w-5 text-indigo-600" />
+      <div className="bg-card dark:bg-secondary rounded-xl border border-border dark:border-border p-6 space-y-4">
+        <div className="flex items-center gap-3 border-b border-border dark:border-border pb-4">
+          <Sliders className="h-5 w-5 text-muted-foreground" />
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Lead & Pipeline Management</h3>
-            <p className="text-xs text-gray-500">Configure status taxonomies, sources, team roles, and message templates.</p>
+            <h3 className="text-lg font-semibold text-foreground dark:text-foreground">Lead & Pipeline Management</h3>
+            <p className="text-xs text-muted-foreground">Configure status taxonomies, sources, team roles, and message templates.</p>
           </div>
         </div>
 
@@ -266,14 +266,14 @@ export function GeneralSettingsForm({ organization }: { organization?: Org | nul
           <button
             type="button"
             onClick={() => setStatusModalOpen(true)}
-            className="flex items-start gap-3 p-4 rounded-lg border border-gray-200 dark:border-gray-800 hover:border-blue-500 dark:hover:border-blue-500 bg-gray-50 dark:bg-gray-900 text-left transition-all group"
+            className="flex items-start gap-3 p-4 rounded-lg border border-border dark:border-border hover:border-border dark:hover:border-border bg-muted dark:bg-secondary text-left transition-all group"
           >
-            <Tag className="h-5 w-5 text-blue-600 mt-0.5" />
+            <Tag className="h-5 w-5 text-muted-foreground mt-0.5" />
             <div>
-              <div className="font-semibold text-sm group-hover:text-blue-600 text-gray-900 dark:text-gray-100">
+              <div className="font-semibold text-sm group-hover:text-muted-foreground text-foreground dark:text-foreground">
                 Lead Status Schema & Analytics
               </div>
-              <div className="text-xs text-gray-500 mt-0.5">
+              <div className="text-xs text-muted-foreground mt-0.5">
                 Custom status badges, category workflows, and stage duration metrics.
               </div>
             </div>
@@ -281,14 +281,14 @@ export function GeneralSettingsForm({ organization }: { organization?: Org | nul
 
           <Link
             href="/settings/sources"
-            className="flex items-start gap-3 p-4 rounded-lg border border-gray-200 dark:border-gray-800 hover:border-emerald-500 dark:hover:border-emerald-500 bg-gray-50 dark:bg-gray-900 text-left transition-all group"
+            className="flex items-start gap-3 p-4 rounded-lg border border-border dark:border-border hover:border-border dark:hover:border-border bg-muted dark:bg-secondary text-left transition-all group"
           >
-            <Database className="h-5 w-5 text-emerald-600 mt-0.5" />
+            <Database className="h-5 w-5 text-muted-foreground mt-0.5" />
             <div>
-              <div className="font-semibold text-sm group-hover:text-emerald-600 text-gray-900 dark:text-gray-100">
+              <div className="font-semibold text-sm group-hover:text-muted-foreground text-foreground dark:text-foreground">
                 Lead Sources & Webhooks
               </div>
-              <div className="text-xs text-gray-500 mt-0.5">
+              <div className="text-xs text-muted-foreground mt-0.5">
                 Manage Meta Lead Ads, custom webforms, and integration API secrets.
               </div>
             </div>
@@ -296,14 +296,14 @@ export function GeneralSettingsForm({ organization }: { organization?: Org | nul
 
           <Link
             href="/settings/templates"
-            className="flex items-start gap-3 p-4 rounded-lg border border-gray-200 dark:border-gray-800 hover:border-violet-500 dark:hover:border-violet-500 bg-gray-50 dark:bg-gray-900 text-left transition-all group"
+            className="flex items-start gap-3 p-4 rounded-lg border border-border dark:border-border hover:border-border dark:hover:border-border bg-muted dark:bg-secondary text-left transition-all group"
           >
-            <MessageSquare className="h-5 w-5 text-violet-600 mt-0.5" />
+            <MessageSquare className="h-5 w-5 text-muted-foreground mt-0.5" />
             <div>
-              <div className="font-semibold text-sm group-hover:text-violet-600 text-gray-900 dark:text-gray-100">
+              <div className="font-semibold text-sm group-hover:text-muted-foreground text-foreground dark:text-foreground">
                 WhatsApp Message Templates
               </div>
-              <div className="text-xs text-gray-500 mt-0.5">
+              <div className="text-xs text-muted-foreground mt-0.5">
                 Define pre-approved outreach message templates and auto-replies.
               </div>
             </div>
@@ -311,14 +311,14 @@ export function GeneralSettingsForm({ organization }: { organization?: Org | nul
 
           <Link
             href="/settings/users"
-            className="flex items-start gap-3 p-4 rounded-lg border border-gray-200 dark:border-gray-800 hover:border-amber-500 dark:hover:border-amber-500 bg-gray-50 dark:bg-gray-900 text-left transition-all group"
+            className="flex items-start gap-3 p-4 rounded-lg border border-border dark:border-border hover:border-border dark:hover:border-border bg-muted dark:bg-secondary text-left transition-all group"
           >
-            <Users className="h-5 w-5 text-amber-600 mt-0.5" />
+            <Users className="h-5 w-5 text-muted-foreground mt-0.5" />
             <div>
-              <div className="font-semibold text-sm group-hover:text-amber-600 text-gray-900 dark:text-gray-100">
+              <div className="font-semibold text-sm group-hover:text-muted-foreground text-foreground dark:text-foreground">
                 Users, Roles & Teams
               </div>
-              <div className="text-xs text-gray-500 mt-0.5">
+              <div className="text-xs text-muted-foreground mt-0.5">
                 Invite team members, assign RBAC roles, and set sales capacity limits.
               </div>
             </div>

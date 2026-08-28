@@ -90,18 +90,18 @@ export function BillingManager({
   return (
     <div className="space-y-6">
       {!configured && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+        <div className="rounded-lg border border-border bg-muted p-4 text-sm text-foreground">
           Billing is not configured yet. Add <code>RAZORPAY_KEY_ID</code>, <code>RAZORPAY_KEY_SECRET</code>,
           {" "}<code>RAZORPAY_WEBHOOK_SECRET</code>, and a plan id per tier to enable upgrades.
         </div>
       )}
 
-      <div className="rounded-xl border bg-white shadow-sm p-6">
+      <div className="rounded-xl border bg-card shadow-sm p-6">
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-sm text-slate-500">Current plan</div>
+            <div className="text-sm text-muted-foreground">Current plan</div>
             <div className="text-2xl font-bold capitalize">{current} <Badge variant={planStatus === "active" ? "default" : "secondary"}>{planStatus}</Badge></div>
-            {currentPeriodEnd && <div className="text-xs text-slate-400 mt-1">Renews {new Date(currentPeriodEnd).toLocaleDateString()}</div>}
+            {currentPeriodEnd && <div className="text-xs text-muted-foreground mt-1">Renews {new Date(currentPeriodEnd).toLocaleDateString()}</div>}
           </div>
           {current !== "free" && <Button variant="outline" onClick={cancel} disabled={busy === "cancel"}>Cancel plan</Button>}
         </div>
@@ -112,11 +112,11 @@ export function BillingManager({
           const isCurrent = name === current;
           const paid = name !== "free";
           return (
-            <div key={name} className={`rounded-xl border p-5 space-y-3 ${isCurrent ? "border-blue-500 ring-1 ring-blue-500" : "bg-white"}`}>
+            <div key={name} className={`rounded-xl border p-5 space-y-3 ${isCurrent ? "border-border ring-1 ring-ring" : "bg-card"}`}>
               <div className="font-semibold capitalize text-lg">{name}</div>
-              <ul className="text-sm text-slate-600 space-y-1">
-                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-emerald-600" /> {fmt(l.seats)} seats</li>
-                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-emerald-600" /> {fmt(l.leads)} leads</li>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-muted-foreground" /> {fmt(l.seats)} seats</li>
+                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-muted-foreground" /> {fmt(l.leads)} leads</li>
               </ul>
               {isCurrent ? (
                 <Button className="w-full" disabled variant="secondary">Current plan</Button>

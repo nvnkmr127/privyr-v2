@@ -15,7 +15,7 @@ export default async function DuplicatesPage() {
         <Link href="/leads"><Button variant="ghost" size="icon"><ArrowLeft className="h-5 w-5" /></Button></Link>
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Duplicate Leads</h2>
-          <p className="text-sm text-slate-500">Leads sharing an email or phone. Merge keeps the first and moves all history onto it.</p>
+          <p className="text-sm text-muted-foreground">Leads sharing an email or phone. Merge keeps the first and moves all history onto it.</p>
         </div>
       </div>
       <DuplicatesManager initial={groups as any} />

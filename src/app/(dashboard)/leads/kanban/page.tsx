@@ -15,7 +15,7 @@ export default async function KanbanPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Pipeline Board</h2>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-muted-foreground">
             Drag and drop leads to update stage status.
           </p>
         </div>

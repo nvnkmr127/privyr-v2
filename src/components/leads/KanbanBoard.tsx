@@ -149,13 +149,13 @@ export function KanbanBoard({
             }}
             onDragLeave={() => setOverCol((c) => (c === col.key ? null : c))}
             onDrop={() => drop(col.key)}
-            className={`flex w-72 shrink-0 flex-col rounded-xl border bg-slate-50 ${
-              overCol === col.key ? "ring-2 ring-blue-400" : ""
+            className={`flex w-72 shrink-0 flex-col rounded-xl border bg-muted ${
+              overCol === col.key ? "ring-2 ring-ring" : ""
             }`}
           >
-            <div className="flex items-center justify-between px-3 py-2.5 border-b bg-white rounded-t-xl">
-              <span className="text-sm font-semibold text-slate-800">{col.label}</span>
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+            <div className="flex items-center justify-between px-3 py-2.5 border-b bg-card rounded-t-xl">
+              <span className="text-sm font-semibold text-foreground">{col.label}</span>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
                 {stage.total}
               </span>
             </div>
@@ -174,17 +174,17 @@ export function KanbanBoard({
                     setDragFromCol(null);
                     setOverCol(null);
                   }}
-                  className="rounded-lg border bg-white p-3 shadow-sm hover:shadow transition-shadow cursor-grab active:cursor-grabbing"
+                  className="rounded-lg border bg-card p-3 shadow-sm hover:shadow transition-shadow cursor-grab active:cursor-grabbing"
                 >
-                  <Link href={`/leads/${c.id}`} className="font-medium text-sm hover:underline text-slate-900">
+                  <Link href={`/leads/${c.id}`} className="font-medium text-sm hover:underline text-foreground">
                     {c.name}
                   </Link>
-                  <div className="mt-1 text-xs text-slate-500 truncate">{c.email || c.phone || "—"}</div>
+                  <div className="mt-1 text-xs text-muted-foreground truncate">{c.email || c.phone || "—"}</div>
                 </div>
               ))}
 
               {stage.data.length === 0 && (
-                <div className="py-8 text-center text-xs text-slate-400 border border-dashed rounded-lg">
+                <div className="py-8 text-center text-xs text-muted-foreground border border-dashed rounded-lg">
                   Drop leads here
                 </div>
               )}
@@ -195,7 +195,7 @@ export function KanbanBoard({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="w-full text-xs text-slate-600 hover:text-slate-900 h-8"
+                    className="w-full text-xs text-muted-foreground hover:text-foreground h-8"
                     disabled={stage.loading}
                     onClick={() => loadMore(col.key)}
                   >

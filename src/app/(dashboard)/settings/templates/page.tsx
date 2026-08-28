@@ -15,7 +15,7 @@ export default async function TemplatesPage() {
         </Link>
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Message Templates</h2>
-          <p className="text-sm text-slate-500">Canned messages for one-tap sending and automations. Tokens are filled per lead.</p>
+          <p className="text-sm text-muted-foreground">Canned messages for one-tap sending and automations. Tokens are filled per lead.</p>
         </div>
       </div>
       <TemplatesManager initialTemplates={templates} />

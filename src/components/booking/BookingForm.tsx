@@ -29,7 +29,7 @@ export function BookingForm({ slug }: { slug: string }) {
   }
 
   if (done) {
-    return <div className="rounded-lg border border-emerald-300 bg-emerald-50 p-6 text-emerald-800 text-sm">Thanks! Your meeting request has been sent. We'll be in touch shortly.</div>;
+    return <div className="rounded-lg border border-border bg-muted p-6 text-foreground text-sm">Thanks! Your meeting request has been sent. We'll be in touch shortly.</div>;
   }
 
   return (
@@ -45,7 +45,7 @@ export function BookingForm({ slug }: { slug: string }) {
         <textarea id="message" rows={3} value={f.message} onChange={(e) => set("message", e.target.value)}
           className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
       </div>
-      <p className="text-xs text-slate-400">Provide at least an email or phone so we can confirm.</p>
+      <p className="text-xs text-muted-foreground">Provide at least an email or phone so we can confirm.</p>
       <Button type="submit" className="w-full" disabled={saving || !f.name.trim() || !f.when || (!f.email && !f.phone)}>
         {saving ? "Sending…" : "Request meeting"}
       </Button>

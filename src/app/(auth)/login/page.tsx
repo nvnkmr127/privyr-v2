@@ -47,7 +47,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex h-screen w-full items-center justify-center bg-slate-50">
+    <div className="flex h-screen w-full items-center justify-center bg-muted">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="text-2xl font-bold text-center">Login</CardTitle>
@@ -69,7 +69,7 @@ export default function LoginPage() {
                 {...form.register("email")}
               />
               {form.formState.errors.email && (
-                <p className="text-sm text-red-500">{form.formState.errors.email.message}</p>
+                <p className="text-sm text-foreground">{form.formState.errors.email.message}</p>
               )}
             </div>
             
@@ -81,7 +81,7 @@ export default function LoginPage() {
                 {...form.register("password")}
               />
               {form.formState.errors.password && (
-                <p className="text-sm text-red-500">{form.formState.errors.password.message}</p>
+                <p className="text-sm text-foreground">{form.formState.errors.password.message}</p>
               )}
             </div>
             

@@ -48,24 +48,24 @@ export default async function FollowUpCalendarPage({ searchParams }: { searchPar
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-px bg-slate-200 border border-slate-200 rounded-lg overflow-hidden text-sm">
+      <div className="grid grid-cols-7 gap-px bg-muted border border-border rounded-lg overflow-hidden text-sm">
         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-          <div key={d} className="bg-slate-50 px-2 py-1.5 text-xs font-medium text-slate-500 text-center">{d}</div>
+          <div key={d} className="bg-muted px-2 py-1.5 text-xs font-medium text-muted-foreground text-center">{d}</div>
         ))}
         {days.map((day) => {
           const items = byDay.get(format(day, KEY)) ?? [];
           const dim = !isSameMonth(day, cursor);
           return (
-            <div key={day.toISOString()} className={`bg-white min-h-24 p-1.5 space-y-1 ${dim ? "opacity-40" : ""}`}>
-              <div className={`text-xs font-medium ${isToday(day) ? "text-blue-600" : "text-slate-500"}`}>
-                {isToday(day) ? <span className="bg-blue-600 text-white rounded-full px-1.5 py-0.5">{format(day, "d")}</span> : format(day, "d")}
+            <div key={day.toISOString()} className={`bg-card min-h-24 p-1.5 space-y-1 ${dim ? "opacity-40" : ""}`}>
+              <div className={`text-xs font-medium ${isToday(day) ? "text-muted-foreground" : "text-muted-foreground"}`}>
+                {isToday(day) ? <span className="bg-secondary text-foreground rounded-full px-1.5 py-0.5">{format(day, "d")}</span> : format(day, "d")}
               </div>
               {items.map((it) => {
                 const overdue = it.status === "pending" && new Date(it.dueAt) < new Date();
                 const done = it.status === "completed";
                 return (
                   <Link key={it.id} href={`/leads/${it.leadId}`}
-                    className={`block truncate rounded px-1.5 py-0.5 text-xs ${done ? "bg-slate-100 text-slate-400 line-through" : overdue ? "bg-red-100 text-red-700" : "bg-blue-50 text-blue-700"}`}>
+                    className={`block truncate rounded px-1.5 py-0.5 text-xs ${done ? "bg-muted text-muted-foreground line-through" : overdue ? "bg-muted text-foreground" : "bg-muted text-muted-foreground"}`}>
                     {format(new Date(it.dueAt), "HH:mm")} {it.leadName} — {it.title}
                   </Link>
                 );

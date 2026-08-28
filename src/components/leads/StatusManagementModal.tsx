@@ -117,13 +117,13 @@ export function StatusManagementModal({
         </DialogHeader>
 
         {/* Tab Selection */}
-        <div className="flex border-b border-gray-200 dark:border-gray-800 my-3 gap-4">
+        <div className="flex border-b border-border dark:border-border my-3 gap-4">
           <button
             type="button"
             className={`pb-2 text-sm font-medium border-b-2 transition-colors ${
               activeTab === "statuses"
-                ? "border-blue-600 text-blue-600"
-                : "border-transparent text-gray-500 hover:text-gray-700"
+                ? "border-border text-muted-foreground"
+                : "border-transparent text-muted-foreground hover:text-muted-foreground"
             }`}
             onClick={() => setActiveTab("statuses")}
           >
@@ -133,8 +133,8 @@ export function StatusManagementModal({
             type="button"
             className={`pb-2 text-sm font-medium border-b-2 transition-colors ${
               activeTab === "analytics"
-                ? "border-blue-600 text-blue-600"
-                : "border-transparent text-gray-500 hover:text-gray-700"
+                ? "border-border text-muted-foreground"
+                : "border-transparent text-muted-foreground hover:text-muted-foreground"
             }`}
             onClick={() => setActiveTab("analytics")}
           >
@@ -143,17 +143,17 @@ export function StatusManagementModal({
         </div>
 
         {loading ? (
-          <div className="py-8 text-center text-sm text-gray-500">Loading status configuration...</div>
+          <div className="py-8 text-center text-sm text-muted-foreground">Loading status configuration...</div>
         ) : activeTab === "statuses" ? (
           <div className="space-y-6">
             {/* Status list */}
             <div className="space-y-2">
-              <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Active Statuses</h4>
+              <h4 className="text-sm font-semibold text-muted-foreground dark:text-foreground">Active Statuses</h4>
               <div className="grid grid-cols-1 gap-2">
                 {statuses.map((item) => (
                   <div
                     key={item.key}
-                    className="flex items-center justify-between p-3 rounded-lg border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900"
+                    className="flex items-center justify-between p-3 rounded-lg border border-border dark:border-border bg-muted dark:bg-secondary"
                   >
                     <div className="flex items-center gap-3">
                       <span
@@ -161,11 +161,11 @@ export function StatusManagementModal({
                         style={{ backgroundColor: item.color }}
                       />
                       <div>
-                        <div className="font-medium text-sm text-gray-900 dark:text-gray-100">
+                        <div className="font-medium text-sm text-foreground dark:text-foreground">
                           {item.label}{" "}
-                          <span className="text-xs text-gray-400">({item.key})</span>
+                          <span className="text-xs text-muted-foreground">({item.key})</span>
                         </div>
-                        <div className="text-xs text-gray-500 capitalize">
+                        <div className="text-xs text-muted-foreground capitalize">
                           Category: {item.category.replace("_", " ")}
                         </div>
                       </div>
@@ -173,14 +173,14 @@ export function StatusManagementModal({
 
                     <div className="flex items-center gap-2">
                       {item.isSystemDefault ? (
-                        <span className="text-xs px-2 py-0.5 rounded bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400 font-medium">
+                        <span className="text-xs px-2 py-0.5 rounded bg-muted dark:bg-secondary text-muted-foreground dark:text-muted-foreground font-medium">
                           System Default
                         </span>
                       ) : (
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50 h-8 text-xs"
+                          className="text-foreground hover:text-foreground hover:bg-accent h-8 text-xs"
                           onClick={() => handleDelete(item.key)}
                         >
                           Delete
@@ -193,8 +193,8 @@ export function StatusManagementModal({
             </div>
 
             {/* Add custom status form */}
-            <form onSubmit={handleAddStatus} className="p-4 rounded-lg border border-gray-200 dark:border-gray-800 space-y-4">
-              <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+            <form onSubmit={handleAddStatus} className="p-4 rounded-lg border border-border dark:border-border space-y-4">
+              <h4 className="text-sm font-semibold text-foreground dark:text-foreground">
                 Add / Update Status
               </h4>
               <div className="grid grid-cols-2 gap-3">
@@ -263,24 +263,24 @@ export function StatusManagementModal({
         ) : (
           /* Analytics Tab */
           <div className="space-y-4 py-2">
-            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+            <h4 className="text-sm font-semibold text-muted-foreground dark:text-foreground">
               Average Stage Residence Duration
             </h4>
             <div className="grid grid-cols-1 gap-3">
               {metrics.map((m) => (
                 <div
                   key={m.status}
-                  className="flex items-center justify-between p-3 rounded-lg border border-gray-100 dark:border-gray-800"
+                  className="flex items-center justify-between p-3 rounded-lg border border-border dark:border-border"
                 >
                   <div>
                     <div className="font-semibold text-sm capitalize">{m.status}</div>
-                    <div className="text-xs text-gray-500">{m.leadCount} lead transitions evaluated</div>
+                    <div className="text-xs text-muted-foreground">{m.leadCount} lead transitions evaluated</div>
                   </div>
                   <div className="text-right">
-                    <div className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                    <div className="text-sm font-medium text-muted-foreground dark:text-muted-foreground">
                       {m.averageDurationHours} hrs avg
                     </div>
-                    <div className="text-xs text-gray-400">{m.medianDurationHours} hrs median</div>
+                    <div className="text-xs text-muted-foreground">{m.medianDurationHours} hrs median</div>
                   </div>
                 </div>
               ))}

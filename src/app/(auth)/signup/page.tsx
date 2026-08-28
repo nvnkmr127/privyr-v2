@@ -50,7 +50,7 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="flex min-h-screen w-full items-center justify-center bg-slate-50 py-10">
+    <div className="flex min-h-screen w-full items-center justify-center bg-muted py-10">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="text-2xl font-bold text-center">Create your workspace</CardTitle>
@@ -63,7 +63,7 @@ export default function SignupPage() {
               <Label htmlFor="orgName">Workspace name</Label>
               <Input id="orgName" placeholder="Acme Sales" {...form.register("orgName")} />
               {form.formState.errors.orgName && (
-                <p className="text-sm text-red-500">{form.formState.errors.orgName.message}</p>
+                <p className="text-sm text-foreground">{form.formState.errors.orgName.message}</p>
               )}
             </div>
 
@@ -71,7 +71,7 @@ export default function SignupPage() {
               <Label htmlFor="firstName">Your name</Label>
               <Input id="firstName" placeholder="Jane Doe" {...form.register("firstName")} />
               {form.formState.errors.firstName && (
-                <p className="text-sm text-red-500">{form.formState.errors.firstName.message}</p>
+                <p className="text-sm text-foreground">{form.formState.errors.firstName.message}</p>
               )}
             </div>
 
@@ -79,7 +79,7 @@ export default function SignupPage() {
               <Label htmlFor="email">Work email</Label>
               <Input id="email" type="email" placeholder="m@example.com" {...form.register("email")} />
               {form.formState.errors.email && (
-                <p className="text-sm text-red-500">{form.formState.errors.email.message}</p>
+                <p className="text-sm text-foreground">{form.formState.errors.email.message}</p>
               )}
             </div>
 
@@ -87,7 +87,7 @@ export default function SignupPage() {
               <Label htmlFor="password">Password</Label>
               <Input id="password" type="password" {...form.register("password")} />
               {form.formState.errors.password && (
-                <p className="text-sm text-red-500">{form.formState.errors.password.message}</p>
+                <p className="text-sm text-foreground">{form.formState.errors.password.message}</p>
               )}
             </div>
 
@@ -95,8 +95,8 @@ export default function SignupPage() {
               {form.formState.isSubmitting ? "Creating…" : "Create workspace"}
             </Button>
 
-            <p className="text-center text-sm text-slate-500">
-              Already have an account? <Link href="/login" className="text-blue-600 underline">Log in</Link>
+            <p className="text-center text-sm text-muted-foreground">
+              Already have an account? <Link href="/login" className="text-muted-foreground underline">Log in</Link>
             </p>
           </form>
         </CardContent>

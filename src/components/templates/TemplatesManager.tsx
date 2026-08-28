@@ -61,7 +61,7 @@ export function TemplatesManager({ initialTemplates }: { initialTemplates: Templ
 
   return (
     <div className="space-y-6">
-      <div className="border rounded-xl p-6 bg-white shadow-sm space-y-4">
+      <div className="border rounded-xl p-6 bg-card shadow-sm space-y-4">
         <h3 className="font-semibold">New template</h3>
         <div className="flex flex-col sm:flex-row gap-3">
           <Input placeholder="Template name" value={name} onChange={(e) => setName(e.target.value)} className="flex-1" />
@@ -85,22 +85,22 @@ export function TemplatesManager({ initialTemplates }: { initialTemplates: Templ
       </div>
 
       {templates.length === 0 ? (
-        <div className="text-center py-10 text-slate-500">No templates yet.</div>
+        <div className="text-center py-10 text-muted-foreground">No templates yet.</div>
       ) : (
         <div className="space-y-3">
           {templates.map((t) => (
-            <div key={t.id} className="border rounded-xl p-5 bg-white shadow-sm">
+            <div key={t.id} className="border rounded-xl p-5 bg-card shadow-sm">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-3">
                   <span className="font-medium">{t.name}</span>
                   <Badge variant="secondary">{t.channel}</Badge>
                 </div>
                 <Button variant="ghost" size="icon" onClick={() => remove(t.id)}>
-                  <Trash2 className="h-4 w-4 text-slate-400" />
+                  <Trash2 className="h-4 w-4 text-muted-foreground" />
                 </Button>
               </div>
-              {t.subject && <div className="text-sm text-slate-500 mb-1">Subject: {t.subject}</div>}
-              <div className="text-sm text-slate-700 whitespace-pre-wrap">{t.body}</div>
+              {t.subject && <div className="text-sm text-muted-foreground mb-1">Subject: {t.subject}</div>}
+              <div className="text-sm text-muted-foreground whitespace-pre-wrap">{t.body}</div>
             </div>
           ))}
         </div>

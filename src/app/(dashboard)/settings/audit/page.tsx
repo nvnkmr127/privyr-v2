@@ -20,20 +20,20 @@ export default async function AuditPage() {
         <Link href="/settings"><Button variant="ghost" size="icon"><ArrowLeft className="h-5 w-5" /></Button></Link>
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Audit Log</h2>
-          <p className="text-sm text-slate-500">A record of sensitive actions taken in your workspace.</p>
+          <p className="text-sm text-muted-foreground">A record of sensitive actions taken in your workspace.</p>
         </div>
       </div>
 
-      <div className="border rounded-xl bg-white shadow-sm divide-y text-sm">
-        {logs.length === 0 && <div className="p-6 text-slate-400">No activity recorded yet.</div>}
+      <div className="border rounded-xl bg-card shadow-sm divide-y text-sm">
+        {logs.length === 0 && <div className="p-6 text-muted-foreground">No activity recorded yet.</div>}
         {logs.map((l) => (
           <div key={l.id} className="flex items-center justify-between p-3">
             <div className="flex items-center gap-3">
-              <span className="font-mono text-xs bg-slate-100 px-2 py-1 rounded">{l.action}</span>
-              <span className="text-slate-600">{actorName(l)}</span>
-              {l.entityType && <span className="text-slate-400">{l.entityType}</span>}
+              <span className="font-mono text-xs bg-muted px-2 py-1 rounded">{l.action}</span>
+              <span className="text-muted-foreground">{actorName(l)}</span>
+              {l.entityType && <span className="text-muted-foreground">{l.entityType}</span>}
             </div>
-            <span className="text-xs text-slate-400">{new Date(l.createdAt).toLocaleString()}</span>
+            <span className="text-xs text-muted-foreground">{new Date(l.createdAt).toLocaleString()}</span>
           </div>
         ))}
       </div>

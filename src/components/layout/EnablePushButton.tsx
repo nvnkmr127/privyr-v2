@@ -58,7 +58,7 @@ export function EnablePushButton() {
   return (
     <Button variant="ghost" size="icon" onClick={enable} disabled={busy || enabled}
       title={enabled ? "Push notifications on" : "Enable push notifications"}>
-      {enabled ? <Bell className="h-5 w-5 text-blue-600" /> : <BellOff className="h-5 w-5" />}
+      {enabled ? <Bell className="h-5 w-5 text-muted-foreground" /> : <BellOff className="h-5 w-5" />}
       <span className="sr-only">Enable push</span>
     </Button>
   );

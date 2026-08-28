@@ -40,7 +40,7 @@ export function WhatsAppSendBox({ leadId, hasPhone }: { leadId: string; hasPhone
   }
 
   if (!hasPhone) {
-    return <div className="text-sm text-slate-500">Add a phone number to message this lead on WhatsApp.</div>;
+    return <div className="text-sm text-muted-foreground">Add a phone number to message this lead on WhatsApp.</div>;
   }
 
   return (

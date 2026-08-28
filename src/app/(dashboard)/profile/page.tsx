@@ -17,10 +17,10 @@ export default async function ProfilePage() {
   return (
     <div className="p-8 max-w-4xl mx-auto space-y-6">
       <h1 className="text-3xl font-bold">User Profile</h1>
-      <div className="bg-white p-6 rounded-lg shadow border border-slate-200">
+      <div className="bg-card p-6 rounded-lg shadow border border-border">
         <p><strong>Name:</strong> {session.user?.name}</p>
         <p><strong>Email:</strong> {session.user?.email}</p>
-        <p className="mt-4 text-sm text-slate-500">
+        <p className="mt-4 text-sm text-muted-foreground">
           This is a protected route. Only authenticated users can see this page.
         </p>
       </div>

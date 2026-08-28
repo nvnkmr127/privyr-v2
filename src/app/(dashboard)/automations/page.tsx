@@ -32,7 +32,7 @@ export default async function AutomationsPage() {
             <div key={automation.id} className="border p-4 rounded-lg flex items-center justify-between">
               <div>
                 <h3 className="font-medium">{automation.name}</h3>
-                <p className="text-sm text-gray-500">{automation.isActive ? 'Active' : 'Inactive'}</p>
+                <p className="text-sm text-muted-foreground">{automation.isActive ? 'Active' : 'Inactive'}</p>
               </div>
               <Button variant="ghost" size="icon">
                 <Settings className="h-4 w-4" />

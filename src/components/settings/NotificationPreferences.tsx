@@ -21,17 +21,17 @@ export function NotificationPreferences({ initialOptOut }: { initialOptOut: stri
   }
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow border border-slate-200 space-y-4">
+    <div className="bg-card p-6 rounded-lg shadow border border-border space-y-4">
       <div>
         <h3 className="font-semibold">Email notifications</h3>
-        <p className="text-sm text-slate-500">You'll always see these in the in-app bell. Choose which also email you.</p>
+        <p className="text-sm text-muted-foreground">You'll always see these in the in-app bell. Choose which also email you.</p>
       </div>
       <div className="divide-y">
         {EMAIL_NOTIFICATION_TYPES.map(({ type, label }) => {
           const emailOn = !optOut.includes(type);
           return (
             <label key={type} className="flex items-center justify-between py-2.5 cursor-pointer">
-              <span className="text-sm text-slate-700">{label}</span>
+              <span className="text-sm text-muted-foreground">{label}</span>
               <input type="checkbox" checked={emailOn} onChange={(e) => toggle(type, e.target.checked)} className="h-4 w-4" />
             </label>
           );

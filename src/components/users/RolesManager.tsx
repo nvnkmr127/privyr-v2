@@ -61,12 +61,12 @@ export function RolesManager({ initialRoles }: { initialRoles: Role[] }) {
   }
 
   return (
-    <div className="border rounded-xl p-6 bg-white shadow-sm space-y-4">
+    <div className="border rounded-xl p-6 bg-card shadow-sm space-y-4">
       <div className="flex items-center gap-2">
-        <Shield className="h-5 w-5 text-indigo-600" />
+        <Shield className="h-5 w-5 text-muted-foreground" />
         <h3 className="font-semibold">Roles &amp; Permissions</h3>
       </div>
-      <p className="text-sm text-slate-500">
+      <p className="text-sm text-muted-foreground">
         System roles (<span className="font-medium">admin</span>, <span className="font-medium">member</span>) can’t be edited.
         Create custom roles and choose exactly what they can do. Admin always has every permission.
       </p>
@@ -92,7 +92,7 @@ export function RolesManager({ initialRoles }: { initialRoles: Role[] }) {
                 </div>
                 {!isSystem && (
                   <Button variant="ghost" size="icon" onClick={() => remove(role)} title="Delete role">
-                    <Trash2 className="h-4 w-4 text-red-500" />
+                    <Trash2 className="h-4 w-4 text-foreground" />
                   </Button>
                 )}
               </div>
@@ -100,13 +100,13 @@ export function RolesManager({ initialRoles }: { initialRoles: Role[] }) {
                 {PERM_ENTRIES.map(([key, label]) => {
                   const checked = isAdmin || role.permissions.includes(key);
                   return (
-                    <label key={key} className="flex items-center gap-2 text-sm text-slate-700">
+                    <label key={key} className="flex items-center gap-2 text-sm text-muted-foreground">
                       <input
                         type="checkbox"
                         checked={checked}
                         disabled={isSystem}
                         onChange={() => togglePerm(role, key)}
-                        className="h-4 w-4 rounded border-gray-300"
+                        className="h-4 w-4 rounded border-border"
                       />
                       {label}
                     </label>

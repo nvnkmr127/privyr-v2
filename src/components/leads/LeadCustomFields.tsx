@@ -48,7 +48,7 @@ export function LeadCustomFields({ leadId, initialData }: { leadId: string; init
 
   return (
     <div className="space-y-2">
-      {rows.length === 0 && <div className="text-xs text-slate-400">No extra fields.</div>}
+      {rows.length === 0 && <div className="text-xs text-muted-foreground">No extra fields.</div>}
       {rows.map((row, i) => (
         <div key={i} className="flex items-center gap-2">
           <Input value={row.key} onChange={(e) => set(i, "key", e.target.value)} placeholder="Field"
@@ -57,7 +57,7 @@ export function LeadCustomFields({ leadId, initialData }: { leadId: string; init
             className="h-8 text-xs flex-1" />
           <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"
             onClick={() => setRows((r) => r.filter((_, idx) => idx !== i))} aria-label="Remove field">
-            <X className="h-3.5 w-3.5 text-slate-400" />
+            <X className="h-3.5 w-3.5 text-muted-foreground" />
           </Button>
         </div>
       ))}

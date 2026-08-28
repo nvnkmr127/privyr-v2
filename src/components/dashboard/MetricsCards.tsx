@@ -45,10 +45,10 @@ export async function MetricsCards({ filters }: { filters: AnalyticsFilters }) {
         </CardHeader>
         <CardContent>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-red-500">{followUpMetrics.overdue}</span>
-            <span className="text-xs text-slate-500">overdue</span>
-            <span className="text-lg font-semibold text-amber-600 ml-2">{followUpMetrics.dueToday}</span>
-            <span className="text-xs text-slate-500">due today</span>
+            <span className="text-2xl font-bold text-foreground">{followUpMetrics.overdue}</span>
+            <span className="text-xs text-muted-foreground">overdue</span>
+            <span className="text-lg font-semibold text-muted-foreground ml-2">{followUpMetrics.dueToday}</span>
+            <span className="text-xs text-muted-foreground">due today</span>
           </div>
           <p className="text-xs text-muted-foreground mt-1">{followUpMetrics.completionRate.toFixed(1)}% completion rate</p>
         </CardContent>

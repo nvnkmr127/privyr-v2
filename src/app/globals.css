@@ -2,20 +2,58 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Monochrome, dark-first. Strictly black → white through a neutral gray scale (hue 0, sat 0),
+   so the whole product reads in two colors. All shadcn semantic tokens live here; before this
+   file existed they were undefined and the ui/ primitives rendered with no color. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: 0 0% 4%;          /* #0a0a0a page */
+  --foreground: 0 0% 96%;         /* near-white ink */
+
+  --card: 0 0% 7%;                /* lifted surface */
+  --card-foreground: 0 0% 96%;
+
+  --popover: 0 0% 8%;
+  --popover-foreground: 0 0% 96%;
+
+  --primary: 0 0% 96%;            /* white block, black text — CRED-style primary */
+  --primary-foreground: 0 0% 6%;
+
+  --secondary: 0 0% 13%;
+  --secondary-foreground: 0 0% 96%;
+
+  --muted: 0 0% 12%;
+  --muted-foreground: 0 0% 60%;   /* secondary text */
+
+  --accent: 0 0% 15%;             /* hover fill */
+  --accent-foreground: 0 0% 98%;
+
+  --destructive: 0 0% 17%;        /* monochrome; intent carried by icon + confirm, not hue */
+  --destructive-foreground: 0 0% 98%;
+
+  --border: 0 0% 16%;
+  --input: 0 0% 16%;
+  --ring: 0 0% 45%;
+
+  --radius: 0.75rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  border-color: hsl(var(--border));
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  color: hsl(var(--foreground));
+  background: hsl(var(--background));
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
+
+/* Thin, unobtrusive scrollbars to match the minimalist surface. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) transparent;
+}
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 9999px; }
+*::-webkit-scrollbar-track { background: transparent; }

@@ -48,7 +48,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Left Column: Lead Info */}
         <div className="md:col-span-1 space-y-6">
-          <div className="border rounded-xl p-6 bg-white shadow-sm">
+          <div className="border rounded-xl p-6 bg-card shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-lg flex items-center gap-2">
                 <User className="h-5 w-5" /> Contact Info
@@ -57,30 +57,30 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
             </div>
             <div className="space-y-4 text-sm">
               <div>
-                <span className="text-slate-500 block mb-1">Status</span>
+                <span className="text-muted-foreground block mb-1">Status</span>
                 <LeadStatusControl leadId={lead.id} status={lead.status} />
               </div>
 
               <div>
-                <span className="text-slate-500 block mb-1">Owner</span>
+                <span className="text-muted-foreground block mb-1">Owner</span>
                 <LeadAssignControl leadId={lead.id} ownerId={lead.ownerId} />
               </div>
 
               <div>
-                <span className="text-slate-500 block mb-1">Tags</span>
+                <span className="text-muted-foreground block mb-1">Tags</span>
                 <LeadTags leadId={lead.id} initialTags={leadTags} />
               </div>
 
               <div>
-                <span className="text-slate-500 block mb-1">Name</span>
+                <span className="text-muted-foreground block mb-1">Name</span>
                 <p className="font-medium text-base">{lead.name}</p>
               </div>
               
               {lead.email && (
                 <div className="flex items-start gap-3">
-                  <Mail className="h-4 w-4 text-slate-400 mt-1" />
+                  <Mail className="h-4 w-4 text-muted-foreground mt-1" />
                   <div>
-                    <span className="text-slate-500 block">Email</span>
+                    <span className="text-muted-foreground block">Email</span>
                     <p className="font-medium">{lead.email}</p>
                   </div>
                 </div>
@@ -88,9 +88,9 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
               
               {lead.phone && (
                 <div className="flex items-start gap-3">
-                  <Phone className="h-4 w-4 text-slate-400 mt-1" />
+                  <Phone className="h-4 w-4 text-muted-foreground mt-1" />
                   <div>
-                    <span className="text-slate-500 block">Phone</span>
+                    <span className="text-muted-foreground block">Phone</span>
                     <p className="font-medium">{lead.phone}</p>
                   </div>
                 </div>
@@ -98,9 +98,9 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
 
               {lead.company && (
                 <div className="flex items-start gap-3">
-                  <Building className="h-4 w-4 text-slate-400 mt-1" />
+                  <Building className="h-4 w-4 text-muted-foreground mt-1" />
                   <div>
-                    <span className="text-slate-500 block">Company</span>
+                    <span className="text-muted-foreground block">Company</span>
                     <p className="font-medium">{lead.company}</p>
                   </div>
                 </div>
@@ -108,7 +108,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
             </div>
           </div>
 
-          <div className="border rounded-xl p-6 bg-white shadow-sm">
+          <div className="border rounded-xl p-6 bg-card shadow-sm">
             <h3 className="font-semibold text-lg mb-4">Details</h3>
             <LeadCustomFields leadId={lead.id} initialData={(lead.customData as Record<string, unknown>) ?? {}} />
           </div>
@@ -118,10 +118,10 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
         <div className="md:col-span-2">
           <Tabs defaultValue="activity" className="w-full">
             <TabsList className="w-full justify-start border-b rounded-none h-12 bg-transparent p-0">
-              <TabsTrigger value="activity" className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:shadow-none">Activity</TabsTrigger>
-              <TabsTrigger value="whatsapp" className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:shadow-none">WhatsApp</TabsTrigger>
-              <TabsTrigger value="notes" className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:shadow-none">Notes</TabsTrigger>
-              <TabsTrigger value="emails" className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:shadow-none">Emails</TabsTrigger>
+              <TabsTrigger value="activity" className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-border data-[state=active]:shadow-none">Activity</TabsTrigger>
+              <TabsTrigger value="whatsapp" className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-border data-[state=active]:shadow-none">WhatsApp</TabsTrigger>
+              <TabsTrigger value="notes" className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-border data-[state=active]:shadow-none">Notes</TabsTrigger>
+              <TabsTrigger value="emails" className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-border data-[state=active]:shadow-none">Emails</TabsTrigger>
             </TabsList>
             <TabsContent value="whatsapp" className="p-4 pt-6 space-y-4">
               <WhatsAppThread messages={waMessages} />
@@ -129,14 +129,14 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
             </TabsContent>
             <TabsContent value="activity" className="p-4 pt-6 space-y-4">
               {activities.length === 0 ? (
-                <div className="text-center py-10 text-slate-500">No activity logged yet.</div>
+                <div className="text-center py-10 text-muted-foreground">No activity logged yet.</div>
               ) : (
                 <div className="space-y-4">
                   {activities.map((activity) => (
                     <div key={activity.id} className="border-b pb-4 last:border-0">
                       <div className="text-sm font-medium">{activity.type}</div>
-                      <div className="text-sm text-slate-600 mt-1">{activity.content}</div>
-                      <div className="text-xs text-slate-400 mt-2">
+                      <div className="text-sm text-muted-foreground mt-1">{activity.content}</div>
+                      <div className="text-xs text-muted-foreground mt-2">
                         {activity.createdAt.toLocaleDateString()} {activity.createdAt.toLocaleTimeString()}
                       </div>
                     </div>
@@ -151,12 +151,12 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
               <AddNoteForm leadId={lead.id} />
               <div className="space-y-4">
                 {activities.filter(a => a.type === 'note').length === 0 ? (
-                  <div className="text-center py-10 text-slate-500">No notes added.</div>
+                  <div className="text-center py-10 text-muted-foreground">No notes added.</div>
                 ) : (
                   activities.filter(a => a.type === 'note').map((note) => (
-                    <div key={note.id} className="bg-slate-50 p-4 rounded-lg border">
-                      <div className="text-sm text-slate-800 whitespace-pre-wrap">{note.content}</div>
-                      <div className="text-xs text-slate-400 mt-2">
+                    <div key={note.id} className="bg-muted p-4 rounded-lg border">
+                      <div className="text-sm text-foreground whitespace-pre-wrap">{note.content}</div>
+                      <div className="text-xs text-muted-foreground mt-2">
                         {note.createdAt.toLocaleDateString()} {note.createdAt.toLocaleTimeString()}
                       </div>
                     </div>

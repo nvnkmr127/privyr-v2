@@ -35,7 +35,7 @@ export function AcceptInviteForm({ token, email }: { token: string; email: strin
     <form onSubmit={submit} className="space-y-4">
       <div className="space-y-1">
         <Label>Email</Label>
-        <div className="text-sm bg-slate-100 rounded-md px-3 py-2 text-slate-600">{email}</div>
+        <div className="text-sm bg-muted rounded-md px-3 py-2 text-muted-foreground">{email}</div>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1"><Label htmlFor="fn">First name</Label><Input id="fn" value={firstName} onChange={(e) => setFirstName(e.target.value)} /></div>

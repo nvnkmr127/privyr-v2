@@ -68,7 +68,7 @@ export default async function LeadsPage({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Leads</h2>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-muted-foreground">
             Search, filter, and manage your pipeline leads.
           </p>
         </div>
@@ -104,7 +104,7 @@ export default async function LeadsPage({
       {leads.length === 0 ? (
         hasActiveFilters ? (
           <EmptyState
-            icon={<FilterX className="h-10 w-10 text-slate-400" />}
+            icon={<FilterX className="h-10 w-10 text-muted-foreground" />}
             title="No matching leads"
             description="No leads match the current search or filter criteria."
             action={
@@ -115,7 +115,7 @@ export default async function LeadsPage({
           />
         ) : (
           <EmptyState
-            icon={<Users className="h-10 w-10 text-slate-400" />}
+            icon={<Users className="h-10 w-10 text-muted-foreground" />}
             title="No leads found"
             description="Get started by creating a new lead manually or importing from a CSV."
             action={

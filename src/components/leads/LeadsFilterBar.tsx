@@ -131,7 +131,7 @@ export function LeadsFilterBar({
     <div className="space-y-3">
       {/* Saved Views Pills / Tabs Bar */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-        <span className="text-xs font-semibold uppercase text-slate-400 shrink-0 mr-1 flex items-center gap-1">
+        <span className="text-xs font-semibold uppercase text-muted-foreground shrink-0 mr-1 flex items-center gap-1">
           <Bookmark className="h-3.5 w-3.5" /> Views:
         </span>
         {views.map((v) => {
@@ -143,7 +143,7 @@ export function LeadsFilterBar({
               variant={isActive ? "default" : "outline"}
               size="sm"
               className={`h-7 text-xs rounded-full shrink-0 ${
-                isActive ? "bg-slate-900 text-white" : "text-slate-600 bg-white"
+                isActive ? "bg-secondary text-foreground" : "text-muted-foreground bg-card"
               }`}
               onClick={() => handleSelectView(v)}
             >
@@ -162,7 +162,7 @@ export function LeadsFilterBar({
               placeholder="Search by name, phone, email, or company..."
               value={term}
               onChange={(e) => handleSearch(e.target.value)}
-              className="pl-8 bg-white"
+              className="pl-8 bg-card"
             />
           </div>
 
@@ -188,8 +188,8 @@ export function LeadsFilterBar({
             value={currentSort}
             onValueChange={(sort) => applyParams({ sort })}
           >
-            <SelectTrigger className="w-40 bg-white text-xs">
-              <ArrowUpDown className="mr-1.5 h-3.5 w-3.5 text-slate-500" />
+            <SelectTrigger className="w-40 bg-card text-xs">
+              <ArrowUpDown className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" />
               <SelectValue placeholder="Sort by..." />
             </SelectTrigger>
             <SelectContent>
@@ -206,7 +206,7 @@ export function LeadsFilterBar({
             type="button"
             variant="outline"
             size="icon"
-            className="h-9 w-9 bg-white"
+            className="h-9 w-9 bg-card"
             title={`Sort ${currentOrder === "asc" ? "Ascending" : "Descending"}`}
             onClick={() => applyParams({ order: currentOrder === "asc" ? "desc" : "asc" })}
           >
@@ -218,7 +218,7 @@ export function LeadsFilterBar({
               type="button"
               variant="ghost"
               size="sm"
-              className="text-xs text-blue-600 hover:text-blue-800"
+              className="text-xs text-muted-foreground hover:text-foreground"
               onClick={() => setSaveModalOpen(true)}
             >
               Save View
@@ -230,20 +230,20 @@ export function LeadsFilterBar({
       {/* Active Filter Chips Bar */}
       {(activeCount > 0 || currentSearch) && (
         <div className="flex flex-wrap items-center gap-2 pt-1">
-          <span className="text-xs text-slate-500 font-medium">Active Filters:</span>
+          <span className="text-xs text-muted-foreground font-medium">Active Filters:</span>
 
           {currentSearch && (
-            <Badge variant="secondary" className="gap-1 bg-blue-50 text-blue-700 border-blue-200">
+            <Badge variant="secondary" className="gap-1 bg-muted text-muted-foreground border-border">
               Search: &quot;{currentSearch}&quot;
-              <X className="h-3 w-3 cursor-pointer hover:text-blue-900" onClick={() => handleSearch("")} />
+              <X className="h-3 w-3 cursor-pointer hover:text-foreground" onClick={() => handleSearch("")} />
             </Badge>
           )}
 
           {activeFilterGroup.rules.map((rule, idx) => (
-            <Badge key={idx} variant="secondary" className="gap-1 bg-slate-100 text-slate-800">
+            <Badge key={idx} variant="secondary" className="gap-1 bg-muted text-foreground">
               <span className="capitalize">{rule.field}</span>: {rule.operator} {rule.value ? `&quot;${rule.value}&quot;` : ""}
               <X
-                className="h-3 w-3 cursor-pointer hover:text-slate-900"
+                className="h-3 w-3 cursor-pointer hover:text-foreground"
                 onClick={() => removeSingleRule(idx)}
               />
             </Badge>
@@ -254,7 +254,7 @@ export function LeadsFilterBar({
             type="button"
             variant="ghost"
             size="sm"
-            className="h-6 text-xs text-slate-500 hover:text-red-600 px-2"
+            className="h-6 text-xs text-muted-foreground hover:text-foreground px-2"
             onClick={clearAllFilters}
           >
             Clear all

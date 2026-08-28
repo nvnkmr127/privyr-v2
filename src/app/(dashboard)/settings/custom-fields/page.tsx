@@ -17,7 +17,7 @@ export default async function CustomFieldsPage() {
         <Link href="/settings"><Button variant="ghost" size="icon"><ArrowLeft className="h-5 w-5" /></Button></Link>
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Custom Fields</h2>
-          <p className="text-sm text-slate-500">Extra fields captured on every lead, specific to your business.</p>
+          <p className="text-sm text-muted-foreground">Extra fields captured on every lead, specific to your business.</p>
         </div>
       </div>
       <CustomFieldsManager initial={fields} />

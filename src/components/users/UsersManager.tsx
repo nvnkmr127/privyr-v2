@@ -152,10 +152,10 @@ export function UsersManager({
 
   return (
     <div className="space-y-6">
-      <div className="border rounded-xl p-6 bg-white shadow-sm space-y-3">
+      <div className="border rounded-xl p-6 bg-card shadow-sm space-y-3">
         <h3 className="font-semibold">Teams</h3>
         <div className="flex flex-wrap gap-1.5">
-          {teams.length === 0 && <span className="text-xs text-slate-400">No teams yet</span>}
+          {teams.length === 0 && <span className="text-xs text-muted-foreground">No teams yet</span>}
           {teams.map((t) => <Badge key={t.id} variant="secondary">{t.name}</Badge>)}
         </div>
         <div className="flex gap-2">
@@ -167,9 +167,9 @@ export function UsersManager({
         </div>
       </div>
 
-      <div className="border rounded-xl p-6 bg-white shadow-sm space-y-3">
-        <div className="flex items-center gap-2"><Mail className="h-4 w-4 text-blue-600" /><h3 className="font-semibold">Invite by email</h3></div>
-        <p className="text-sm text-slate-500">They set their own password via a secure link — no need to share one.</p>
+      <div className="border rounded-xl p-6 bg-card shadow-sm space-y-3">
+        <div className="flex items-center gap-2"><Mail className="h-4 w-4 text-muted-foreground" /><h3 className="font-semibold">Invite by email</h3></div>
+        <p className="text-sm text-muted-foreground">They set their own password via a secure link — no need to share one.</p>
         <div className="flex flex-col sm:flex-row gap-2">
           <Input type="email" placeholder="teammate@company.com" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} className="flex-1" />
           <Select value={inviteRole} onValueChange={setInviteRole}>
@@ -185,7 +185,7 @@ export function UsersManager({
         </div>
       </div>
 
-      <div className="border rounded-xl p-6 bg-white shadow-sm space-y-4">
+      <div className="border rounded-xl p-6 bg-card shadow-sm space-y-4">
         <h3 className="font-semibold">Or add a member directly</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Input placeholder="First name" value={form.firstName} onChange={(e) => set("firstName", e.target.value)} />
@@ -208,14 +208,14 @@ export function UsersManager({
         </div>
       </div>
 
-      <div className="border rounded-xl bg-white shadow-sm divide-y">
+      <div className="border rounded-xl bg-card shadow-sm divide-y">
         {users.map((u) => {
           const isSelf = u.id === currentUserId;
           return (
             <div key={u.id} className="flex items-center justify-between p-4">
               <div className="flex items-center gap-3">
                 <span className="font-medium">{[u.firstName, u.lastName].filter(Boolean).join(" ") || "—"}</span>
-                <span className="text-sm text-slate-500">{u.email}</span>
+                <span className="text-sm text-muted-foreground">{u.email}</span>
                 {isSelf && <Badge variant="outline">You</Badge>}
                 <Badge variant={u.isActive ? "default" : "secondary"}>{u.isActive ? "Active" : "Inactive"}</Badge>
               </div>
@@ -239,7 +239,7 @@ export function UsersManager({
                 </Button>
                 <Button variant="ghost" size="icon" onClick={() => remove(u)} disabled={isSelf}
                   title={isSelf ? "You cannot delete yourself" : "Delete user"}>
-                  <Trash2 className="h-4 w-4 text-red-500" />
+                  <Trash2 className="h-4 w-4 text-foreground" />
                 </Button>
               </div>
             </div>

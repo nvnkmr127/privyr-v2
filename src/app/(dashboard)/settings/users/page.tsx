@@ -27,7 +27,7 @@ export default async function UsersPage() {
         </Link>
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Users &amp; Roles</h2>
-          <p className="text-sm text-slate-500">Invite teammates, assign roles, and manage access.</p>
+          <p className="text-sm text-muted-foreground">Invite teammates, assign roles, and manage access.</p>
         </div>
       </div>
 

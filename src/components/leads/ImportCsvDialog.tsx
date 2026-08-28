@@ -56,9 +56,9 @@ export function ImportCsvDialog({ children }: { children: React.ReactNode }) {
         </DialogHeader>
 
         {sources.length === 0 ? (
-          <div className="text-sm text-slate-600 py-2">
+          <div className="text-sm text-muted-foreground py-2">
             You need a lead source first.{" "}
-            <Link href="/settings/sources" className="text-blue-600 underline">Create one</Link>.
+            <Link href="/settings/sources" className="text-muted-foreground underline">Create one</Link>.
           </div>
         ) : (
           <div className="space-y-4 py-2">
@@ -74,7 +74,7 @@ export function ImportCsvDialog({ children }: { children: React.ReactNode }) {
             <div className="space-y-1.5">
               <label className="text-sm font-medium">CSV file</label>
               <input type="file" accept=".csv,text/csv" onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                className="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm" />
+                className="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-sm" />
             </div>
           </div>
         )}

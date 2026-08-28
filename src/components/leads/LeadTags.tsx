@@ -48,11 +48,11 @@ export function LeadTags({ leadId, initialTags }: { leadId: string; initialTags:
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap gap-1.5">
-        {tags.length === 0 && <span className="text-slate-400 text-xs">No tags</span>}
+        {tags.length === 0 && <span className="text-muted-foreground text-xs">No tags</span>}
         {tags.map((t) => (
           <Badge key={t.id} variant="secondary" className="gap-1">
             {t.name}
-            <button onClick={() => remove(t.id)} aria-label={`Remove ${t.name}`} className="hover:text-red-600">
+            <button onClick={() => remove(t.id)} aria-label={`Remove ${t.name}`} className="hover:text-foreground">
               <X className="h-3 w-3" />
             </button>
           </Badge>

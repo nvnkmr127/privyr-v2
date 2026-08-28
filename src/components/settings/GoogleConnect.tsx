@@ -22,16 +22,16 @@ export function GoogleConnect({ connected, configured }: { connected: boolean; c
   }
 
   return (
-    <div className="rounded-xl border bg-white shadow-sm p-6 flex items-center justify-between">
+    <div className="rounded-xl border bg-card shadow-sm p-6 flex items-center justify-between">
       <div className="flex items-center gap-3">
-        <Calendar className="h-6 w-6 text-blue-600" />
+        <Calendar className="h-6 w-6 text-muted-foreground" />
         <div>
           <div className="font-semibold flex items-center gap-2">Google Calendar {isConnected && <Badge>Connected</Badge>}</div>
-          <div className="text-sm text-slate-500">Booking requests create events on your calendar automatically.</div>
+          <div className="text-sm text-muted-foreground">Booking requests create events on your calendar automatically.</div>
         </div>
       </div>
       {!configured ? (
-        <span className="text-xs text-amber-600">Not configured</span>
+        <span className="text-xs text-muted-foreground">Not configured</span>
       ) : isConnected ? (
         <Button variant="outline" onClick={disconnect}>Disconnect</Button>
       ) : (

@@ -33,17 +33,17 @@ export function Header() {
   }, []);
 
   return (
-    <div className="flex h-14 items-center justify-between border-b px-4 lg:px-6 bg-white shrink-0">
+    <div className="flex h-14 items-center justify-between border-b border-border px-4 lg:px-6 bg-background shrink-0">
       <CommandPalette open={searchOpen} onOpenChange={setSearchOpen} />
       <div className="flex items-center flex-1">
         <button
           type="button"
           onClick={() => setSearchOpen(true)}
-          className="relative w-full max-w-md hidden md:flex items-center rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground hover:bg-slate-50"
+          className="relative w-full max-w-md hidden md:flex items-center rounded-md border border-border bg-card px-3 py-2 text-sm text-muted-foreground hover:bg-accent/50 transition-colors"
         >
           <Search className="mr-2 h-4 w-4" />
           Search leads or jump to…
-          <kbd className="ml-auto text-xs bg-slate-100 rounded px-1.5 py-0.5">⌘K</kbd>
+          <kbd className="ml-auto text-xs bg-muted text-muted-foreground rounded px-1.5 py-0.5 font-mono">⌘K</kbd>
         </button>
       </div>
       <div className="flex items-center gap-4">

@@ -33,7 +33,7 @@ export function DuplicatesManager({ initial }: { initial: Group[] }) {
   }
 
   if (groups.length === 0) {
-    return <div className="border rounded-xl bg-white shadow-sm p-8 text-center text-slate-400">No duplicate leads found. 🎉</div>;
+    return <div className="border rounded-xl bg-card shadow-sm p-8 text-center text-muted-foreground">No duplicate leads found. 🎉</div>;
   }
 
   return (
@@ -41,14 +41,14 @@ export function DuplicatesManager({ initial }: { initial: Group[] }) {
       {groups.map((group) => {
         const primary = group.leads[0];
         return (
-          <div key={group.key} className="border rounded-xl bg-white shadow-sm p-4 space-y-2">
-            <div className="text-xs text-slate-400">Matched on {group.key.startsWith("e:") ? "email" : "phone"}</div>
+          <div key={group.key} className="border rounded-xl bg-card shadow-sm p-4 space-y-2">
+            <div className="text-xs text-muted-foreground">Matched on {group.key.startsWith("e:") ? "email" : "phone"}</div>
             {group.leads.map((l, i) => (
               <div key={l.id} className="flex items-center justify-between py-1">
                 <div className="flex items-center gap-3 text-sm">
                   <span className="font-medium">{l.name}</span>
-                  <span className="text-slate-500">{l.email || l.phone}</span>
-                  {i === 0 && <span className="text-xs text-emerald-600 font-medium">keeps (oldest shown first)</span>}
+                  <span className="text-muted-foreground">{l.email || l.phone}</span>
+                  {i === 0 && <span className="text-xs text-muted-foreground font-medium">keeps (oldest shown first)</span>}
                 </div>
                 {i !== 0 && (
                   <Button size="sm" variant="outline" className="gap-1" disabled={busy === l.id}
