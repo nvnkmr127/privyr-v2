@@ -1,17 +1,22 @@
-import { pgTable, uuid, varchar, text, timestamp, boolean } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, timestamp, boolean, jsonb } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import { organizations } from './organizations';
 
+// organizationId null = shared system role (admin/member). Non-null = a custom role owned by that org.
+// permissions is an array of permission keys (see src/lib/permissions.ts); admin implicitly has all.
 export const roles = pgTable('roles', {
   id: uuid('id').defaultRandom().primaryKey(),
-  name: varchar('name', { length: 255 }).notNull().unique(),
+  organizationId: uuid('organization_id').references(() => organizations.id),
+  name: varchar('name', { length: 255 }).notNull(),
   description: text('description'),
+  permissions: jsonb('permissions').$type<string[]>().default([]).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
 export const teams = pgTable('teams', {
   id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id').references(() => organizations.id), // tenant scope; backfilled
   name: varchar('name', { length: 255 }).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -27,6 +32,7 @@ export const users = pgTable('users', {
   roleId: uuid('role_id').references(() => roles.id),
   teamId: uuid('team_id').references(() => teams.id),
   isActive: boolean('is_active').default(true).notNull(),
+  deletedAt: timestamp('deleted_at'), // soft delete — hard delete would orphan lead/activity FKs
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

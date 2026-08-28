@@ -1,8 +1,16 @@
 import { db } from "@/db";
 import { followUps, reminders } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray, type SQL } from "drizzle-orm";
 import { reminderQueue } from "@/lib/jobs/queue";
 import { eventBus } from "@/lib/events/emitter";
+import { orgLeadIds, assertLeadInOrg } from "@/domains/leads/ownership";
+
+// Scope a follow-up id to a tenant via its lead. organizationId omitted = trusted internal caller.
+function scopeById(id: string, organizationId?: string): SQL | undefined {
+  return organizationId
+    ? and(eq(followUps.id, id), inArray(followUps.leadId, orgLeadIds(organizationId)))
+    : eq(followUps.id, id);
+}
 
 export class FollowUpService {
   static async createFollowUp(input: {
@@ -12,7 +20,9 @@ export class FollowUpService {
     description?: string;
     dueAt: Date;
     userId: string;
+    organizationId?: string;
   }) {
+    if (input.organizationId) await assertLeadInOrg(input.leadId, input.organizationId);
     const [followUp] = await db.insert(followUps).values({
       leadId: input.leadId,
       type: input.type,
@@ -50,14 +60,14 @@ export class FollowUpService {
     return followUp;
   }
 
-  static async completeFollowUp(id: string) {
+  static async completeFollowUp(id: string, organizationId?: string) {
     const [updated] = await db.update(followUps)
-      .set({ 
-        status: "completed", 
-        completedAt: new Date(), 
-        updatedAt: new Date() 
+      .set({
+        status: "completed",
+        completedAt: new Date(),
+        updatedAt: new Date()
       })
-      .where(eq(followUps.id, id))
+      .where(scopeById(id, organizationId))
       .returning();
       
     if (updated) {
@@ -83,39 +93,39 @@ export class FollowUpService {
     return updated;
   }
 
-  static async cancelFollowUp(id: string) {
+  static async cancelFollowUp(id: string, organizationId?: string) {
     const [updated] = await db.update(followUps)
-      .set({ 
-        status: "cancelled", 
-        updatedAt: new Date() 
+      .set({
+        status: "cancelled",
+        updatedAt: new Date()
       })
-      .where(eq(followUps.id, id))
+      .where(scopeById(id, organizationId))
       .returning();
 
     return updated;
   }
 
-  static async snoozeFollowUp(id: string, snoozedUntil: Date) {
+  static async snoozeFollowUp(id: string, snoozedUntil: Date, organizationId?: string) {
     const [updated] = await db.update(followUps)
-      .set({ 
-        snoozedUntil, 
+      .set({
+        snoozedUntil,
         status: "pending", // Reset to pending
-        updatedAt: new Date() 
+        updatedAt: new Date()
       })
-      .where(eq(followUps.id, id))
+      .where(scopeById(id, organizationId))
       .returning();
 
     return updated;
   }
 
-  static async rescheduleFollowUp(id: string, dueAt: Date) {
+  static async rescheduleFollowUp(id: string, dueAt: Date, organizationId?: string) {
     const [updated] = await db.update(followUps)
-      .set({ 
-        dueAt, 
+      .set({
+        dueAt,
         snoozedUntil: null, // clear snooze on reschedule
-        updatedAt: new Date() 
+        updatedAt: new Date()
       })
-      .where(eq(followUps.id, id))
+      .where(scopeById(id, organizationId))
       .returning();
 
     if (updated) {
@@ -131,13 +141,13 @@ export class FollowUpService {
     return updated;
   }
 
-  static async assignFollowUp(id: string, userId: string) {
+  static async assignFollowUp(id: string, userId: string, organizationId?: string) {
     const [updated] = await db.update(followUps)
-      .set({ 
-        userId, 
-        updatedAt: new Date() 
+      .set({
+        userId,
+        updatedAt: new Date()
       })
-      .where(eq(followUps.id, id))
+      .where(scopeById(id, organizationId))
       .returning();
 
     return updated;

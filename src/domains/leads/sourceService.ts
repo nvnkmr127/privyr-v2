@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { leadSources } from "@/db/schema/leads";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import crypto from "crypto";
 
 export class LeadSourceService {
@@ -30,12 +30,19 @@ export class LeadSourceService {
     return source;
   }
 
-  static async updateSource(id: string, data: { name?: string; isActive?: number; config?: any }) {
+  static async updateSource(
+    id: string,
+    data: { name?: string; isActive?: number; config?: any },
+    organizationId?: string,
+  ) {
+    const scope = organizationId
+      ? and(eq(leadSources.id, id), eq(leadSources.organizationId, organizationId))
+      : eq(leadSources.id, id);
     const [updated] = await db.update(leadSources)
       .set(data)
-      .where(eq(leadSources.id, id))
+      .where(scope)
       .returning();
-      
+
     return updated;
   }
 }

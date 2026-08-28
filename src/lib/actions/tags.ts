@@ -1,30 +1,30 @@
 "use server";
 
-import { requireAuth } from "@/lib/rbac";
+import { requireOrg } from "@/lib/rbac";
 import { TagService } from "@/domains/tags/service";
 import { revalidatePath } from "next/cache";
 
 export async function listTagsAction() {
-  await requireAuth();
+  await requireOrg();
   return TagService.listAll();
 }
 
 export async function addTagAction(leadId: string, name: string) {
-  await requireAuth();
-  const tag = await TagService.addToLead(leadId, name);
+  const { organizationId } = await requireOrg();
+  const tag = await TagService.addToLead(leadId, name, organizationId);
   revalidatePath(`/leads/${leadId}`);
   return tag;
 }
 
 export async function removeTagAction(leadId: string, tagId: string) {
-  await requireAuth();
-  await TagService.removeFromLead(leadId, tagId);
+  const { organizationId } = await requireOrg();
+  await TagService.removeFromLead(leadId, tagId, organizationId);
   revalidatePath(`/leads/${leadId}`);
 }
 
 export async function bulkAddTagAction(leadIds: string[], tagName: string) {
-  await requireAuth();
-  const tag = await TagService.bulkAddToLeads(leadIds, tagName);
+  const { organizationId } = await requireOrg();
+  const tag = await TagService.bulkAddToLeads(leadIds, tagName, organizationId);
   revalidatePath("/leads");
   return tag;
 }

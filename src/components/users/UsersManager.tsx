@@ -5,9 +5,15 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { createUserAction, setUserActiveAction, setUserTeamAction } from "@/lib/actions/users"
+import {
+  createUserAction,
+  setUserActiveAction,
+  setUserTeamAction,
+  setUserRoleAction,
+  deleteUserAction,
+} from "@/lib/actions/users"
 import { createTeamAction } from "@/lib/actions/teams"
-import { UserPlus, Plus } from "lucide-react"
+import { UserPlus, Plus, Trash2 } from "lucide-react"
 
 type User = {
   id: string;
@@ -15,18 +21,31 @@ type User = {
   firstName: string | null;
   lastName: string | null;
   isActive: boolean;
+  roleId: string | null;
   teamId: string | null;
 };
 type Team = { id: string; name: string };
+type Role = { id: string; name: string };
 
 const NO_TEAM = "__none__"; // Select can't use "" as a value
+const NO_ROLE = "__none__";
 
-export function UsersManager({ initialUsers, initialTeams }: { initialUsers: User[]; initialTeams: Team[] }) {
+export function UsersManager({
+  initialUsers,
+  initialTeams,
+  roles,
+  currentUserId,
+}: {
+  initialUsers: User[];
+  initialTeams: Team[];
+  roles: Role[];
+  currentUserId: string;
+}) {
   const { toast } = useToast();
   const [users, setUsers] = React.useState<User[]>(initialUsers);
   const [teams, setTeams] = React.useState<Team[]>(initialTeams);
   const [teamName, setTeamName] = React.useState("");
-  const [form, setForm] = React.useState({ firstName: "", lastName: "", email: "", password: "" });
+  const [form, setForm] = React.useState({ firstName: "", lastName: "", email: "", password: "", roleId: NO_ROLE });
   const [saving, setSaving] = React.useState(false);
 
   async function createTeam() {
@@ -52,6 +71,18 @@ export function UsersManager({ initialUsers, initialTeams }: { initialUsers: Use
     }
   }
 
+  async function assignRole(u: User, value: string) {
+    const roleId = value === NO_ROLE ? null : value;
+    setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, roleId } : x)));
+    try {
+      await setUserRoleAction(u.id, roleId);
+      toast({ title: "Role updated" });
+    } catch (e: any) {
+      setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, roleId: u.roleId } : x)));
+      toast({ variant: "destructive", title: "Could not update role", description: e?.message });
+    }
+  }
+
   function set(k: keyof typeof form, v: string) {
     setForm((f) => ({ ...f, [k]: v }));
   }
@@ -65,9 +96,10 @@ export function UsersManager({ initialUsers, initialTeams }: { initialUsers: Use
         firstName: form.firstName.trim() || undefined,
         lastName: form.lastName.trim() || undefined,
         password: form.password,
+        roleId: form.roleId === NO_ROLE ? null : form.roleId,
       });
       setUsers((prev) => [...prev, u as User]);
-      setForm({ firstName: "", lastName: "", email: "", password: "" });
+      setForm({ firstName: "", lastName: "", email: "", password: "", roleId: NO_ROLE });
       toast({ title: "User created" });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Could not create user", description: e?.message });
@@ -81,9 +113,22 @@ export function UsersManager({ initialUsers, initialTeams }: { initialUsers: Use
     setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, isActive: next } : x)));
     try {
       await setUserActiveAction(u.id, next);
-    } catch {
+    } catch (e: any) {
       setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, isActive: u.isActive } : x)));
-      toast({ variant: "destructive", title: "Could not update user" });
+      toast({ variant: "destructive", title: "Could not update user", description: e?.message });
+    }
+  }
+
+  async function remove(u: User) {
+    if (!confirm(`Delete ${u.email}? This cannot be undone.`)) return;
+    const prev = users;
+    setUsers((p) => p.filter((x) => x.id !== u.id));
+    try {
+      await deleteUserAction(u.id);
+      toast({ title: "User deleted" });
+    } catch (e: any) {
+      setUsers(prev);
+      toast({ variant: "destructive", title: "Could not delete user", description: e?.message });
     }
   }
 
@@ -112,6 +157,13 @@ export function UsersManager({ initialUsers, initialTeams }: { initialUsers: Use
           <Input type="email" placeholder="Email" value={form.email} onChange={(e) => set("email", e.target.value)} />
           <Input type="password" placeholder="Initial password (min 6)" value={form.password}
             onChange={(e) => set("password", e.target.value)} />
+          <Select value={form.roleId} onValueChange={(v) => set("roleId", v)}>
+            <SelectTrigger><SelectValue placeholder="No role" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_ROLE}>No role</SelectItem>
+              {roles.map((r) => <SelectItem key={r.id} value={r.id} className="capitalize">{r.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
         <div className="flex justify-end">
           <Button onClick={create} disabled={saving || !form.email.trim() || form.password.length < 6} className="gap-2">
@@ -121,27 +173,42 @@ export function UsersManager({ initialUsers, initialTeams }: { initialUsers: Use
       </div>
 
       <div className="border rounded-xl bg-white shadow-sm divide-y">
-        {users.map((u) => (
-          <div key={u.id} className="flex items-center justify-between p-4">
-            <div className="flex items-center gap-3">
-              <span className="font-medium">{[u.firstName, u.lastName].filter(Boolean).join(" ") || "—"}</span>
-              <span className="text-sm text-slate-500">{u.email}</span>
-              <Badge variant={u.isActive ? "default" : "secondary"}>{u.isActive ? "Active" : "Inactive"}</Badge>
+        {users.map((u) => {
+          const isSelf = u.id === currentUserId;
+          return (
+            <div key={u.id} className="flex items-center justify-between p-4">
+              <div className="flex items-center gap-3">
+                <span className="font-medium">{[u.firstName, u.lastName].filter(Boolean).join(" ") || "—"}</span>
+                <span className="text-sm text-slate-500">{u.email}</span>
+                {isSelf && <Badge variant="outline">You</Badge>}
+                <Badge variant={u.isActive ? "default" : "secondary"}>{u.isActive ? "Active" : "Inactive"}</Badge>
+              </div>
+              <div className="flex items-center gap-2">
+                <Select value={u.roleId ?? NO_ROLE} onValueChange={(v) => assignRole(u, v)} disabled={isSelf}>
+                  <SelectTrigger className="w-32 h-9"><SelectValue placeholder="No role" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_ROLE}>No role</SelectItem>
+                    {roles.map((r) => <SelectItem key={r.id} value={r.id} className="capitalize">{r.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Select value={u.teamId ?? NO_TEAM} onValueChange={(v) => assignTeam(u, v)}>
+                  <SelectTrigger className="w-40 h-9"><SelectValue placeholder="No team" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_TEAM}>No team</SelectItem>
+                    {teams.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Button variant="outline" size="sm" onClick={() => toggle(u)} disabled={isSelf}>
+                  {u.isActive ? "Deactivate" : "Activate"}
+                </Button>
+                <Button variant="ghost" size="icon" onClick={() => remove(u)} disabled={isSelf}
+                  title={isSelf ? "You cannot delete yourself" : "Delete user"}>
+                  <Trash2 className="h-4 w-4 text-red-500" />
+                </Button>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Select value={u.teamId ?? NO_TEAM} onValueChange={(v) => assignTeam(u, v)}>
-                <SelectTrigger className="w-40 h-9"><SelectValue placeholder="No team" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NO_TEAM}>No team</SelectItem>
-                  {teams.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Button variant="outline" size="sm" onClick={() => toggle(u)}>
-                {u.isActive ? "Deactivate" : "Activate"}
-              </Button>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

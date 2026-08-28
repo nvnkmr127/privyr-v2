@@ -1,6 +1,7 @@
 import { db } from "@/db";
-import { tags, leadTags } from "@/db/schema";
+import { tags, leadTags, leads } from "@/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
+import { assertLeadInOrg } from "@/domains/leads/ownership";
 
 export class TagService {
   static async listAll() {
@@ -16,9 +17,10 @@ export class TagService {
   }
 
   // Find-or-create the tag by name, then link it to the lead (idempotent both steps).
-  static async addToLead(leadId: string, rawName: string) {
+  static async addToLead(leadId: string, rawName: string, organizationId?: string) {
     const name = rawName.trim();
     if (!name) throw new Error("Tag name required");
+    if (organizationId) await assertLeadInOrg(leadId, organizationId);
 
     let [tag] = await db.select().from(tags).where(eq(tags.name, name)).limit(1);
     if (!tag) {
@@ -38,13 +40,23 @@ export class TagService {
     return { id: tag.id, name: tag.name };
   }
 
-  static async removeFromLead(leadId: string, tagId: string) {
+  static async removeFromLead(leadId: string, tagId: string, organizationId?: string) {
+    if (organizationId) await assertLeadInOrg(leadId, organizationId);
     await db.delete(leadTags).where(and(eq(leadTags.leadId, leadId), eq(leadTags.tagId, tagId)));
   }
 
-  static async bulkAddToLeads(leadIds: string[], rawName: string) {
+  static async bulkAddToLeads(leadIds: string[], rawName: string, organizationId?: string) {
     const name = rawName.trim();
     if (!name || leadIds.length === 0) return [];
+    // Keep only leads the caller's org actually owns.
+    if (organizationId) {
+      const owned = await db
+        .select({ id: leads.id })
+        .from(leads)
+        .where(and(eq(leads.organizationId, organizationId), inArray(leads.id, leadIds)));
+      leadIds = owned.map((l) => l.id);
+      if (leadIds.length === 0) return [];
+    }
     let [tag] = await db.select().from(tags).where(eq(tags.name, name)).limit(1);
     if (!tag) {
       await db.insert(tags).values({ name }).onConflictDoNothing();

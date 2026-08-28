@@ -1,9 +1,11 @@
 "use server";
 
-import { requireAuth, requireOrg } from "@/lib/rbac";
+import { requireOrg, requirePermission } from "@/lib/rbac";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { LeadService } from "@/domains/leads/service";
+import { OrgService } from "@/domains/organizations/service";
+import { assertLeadInOrg } from "@/domains/leads/ownership";
 
 const createLeadSchema = z.object({
   name: z.string().min(1, "Name is required").max(255),
@@ -27,6 +29,14 @@ export async function createLeadAction(input: z.infer<typeof createLeadSchema>) 
     phone: parsed.data.phone || undefined,
     company: parsed.data.company || undefined,
   };
+
+  // Enforce this org's required-field configuration (name is always required by schema).
+  const org = await OrgService.getOrganization(organizationId);
+  const required = (org?.requiredLeadFields ?? ["name"]) as Array<keyof typeof data>;
+  const missing = required.filter((f) => !data[f]);
+  if (missing.length) {
+    throw new Error(`Missing required field(s): ${missing.join(", ")}`);
+  }
 
   const lead = await LeadService.createLead(data, userId, organizationId);
 
@@ -75,7 +85,7 @@ export async function updateCustomDataAction(leadId: string, data: Record<string
 }
 
 export async function deleteLeadAction(id: string) {
-  const { userId, organizationId } = await requireOrg();
+  const { userId, organizationId } = await requirePermission("leads.delete");
 
   const deleted = await LeadService.deleteLead(id, userId, organizationId);
 
@@ -127,16 +137,19 @@ const addNoteSchema = z.object({
 });
 
 export async function addNoteAction(input: z.infer<typeof addNoteSchema>) {
-  const session = await requireAuth();
-  
+  const { userId, organizationId } = await requireOrg();
+
   const parsed = addNoteSchema.safeParse(input);
   if (!parsed.success) {
     throw new Error("Invalid input");
   }
 
+  // The note attaches to a lead — make sure it's one this org owns.
+  await assertLeadInOrg(parsed.data.leadId, organizationId);
+
   const activity = await ActivityService.addActivity({
     leadId: parsed.data.leadId,
-    userId: session.user.id,
+    userId,
     type: 'note',
     content: parsed.data.content,
   });

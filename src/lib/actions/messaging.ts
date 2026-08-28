@@ -1,16 +1,20 @@
 "use server";
 
-import { requireAuth } from "@/lib/rbac";
+import { requireAuth, requireOrg, requirePermission } from "@/lib/rbac";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { messageTemplates } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { and, eq, desc } from "drizzle-orm";
 import { ActivityService } from "@/domains/activities/service";
 
 export async function listTemplates(channel?: string) {
-  await requireAuth();
-  const rows = await db.select().from(messageTemplates).orderBy(desc(messageTemplates.createdAt));
+  const { organizationId } = await requireOrg();
+  const rows = await db
+    .select()
+    .from(messageTemplates)
+    .where(eq(messageTemplates.organizationId, organizationId))
+    .orderBy(desc(messageTemplates.createdAt));
   return channel ? rows.filter((t) => t.channel === channel) : rows;
 }
 
@@ -22,16 +26,18 @@ const createSchema = z.object({
 });
 
 export async function createTemplateAction(input: z.infer<typeof createSchema>) {
-  await requireAuth();
+  const { organizationId } = await requirePermission("templates.manage");
   const data = createSchema.parse(input);
-  const [row] = await db.insert(messageTemplates).values(data).returning();
+  const [row] = await db.insert(messageTemplates).values({ ...data, organizationId }).returning();
   revalidatePath("/templates");
   return row;
 }
 
 export async function deleteTemplateAction(id: string) {
-  await requireAuth();
-  await db.delete(messageTemplates).where(eq(messageTemplates.id, id));
+  const { organizationId } = await requirePermission("templates.manage");
+  await db
+    .delete(messageTemplates)
+    .where(and(eq(messageTemplates.id, id), eq(messageTemplates.organizationId, organizationId)));
   revalidatePath("/templates");
 }
 

@@ -1,6 +1,6 @@
 "use server";
 
-import { requireAuth } from "@/lib/rbac";
+import { requireOrg } from "@/lib/rbac";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { FollowUpService } from "@/domains/follow-ups/service";
@@ -15,13 +15,13 @@ const followUpSchema = z.object({
 });
 
 export async function createFollowUp(input: z.infer<typeof followUpSchema>) {
-  const session = await requireAuth();
-  
+  const { userId: sessionUserId, organizationId } = await requireOrg();
+
   const parsed = followUpSchema.safeParse(input);
   if (!parsed.success) {
     throw new Error("Invalid input");
   }
-  
+
   const { leadId, type, title, description, dueAt, userId } = parsed.data;
 
   const followUp = await FollowUpService.createFollowUp({
@@ -30,7 +30,8 @@ export async function createFollowUp(input: z.infer<typeof followUpSchema>) {
     title,
     description,
     dueAt,
-    userId: userId || session.user.id,
+    userId: userId || sessionUserId,
+    organizationId,
   });
 
   revalidatePath(`/leads/${leadId}`);
@@ -39,8 +40,8 @@ export async function createFollowUp(input: z.infer<typeof followUpSchema>) {
 }
 
 export async function completeFollowUp(id: string) {
-  await requireAuth();
-  const updated = await FollowUpService.completeFollowUp(id);
+  const { organizationId } = await requireOrg();
+  const updated = await FollowUpService.completeFollowUp(id, organizationId);
 
   if (updated) {
     revalidatePath(`/leads/${updated.leadId}`);
@@ -50,8 +51,8 @@ export async function completeFollowUp(id: string) {
 }
 
 export async function cancelFollowUp(id: string) {
-  await requireAuth();
-  const updated = await FollowUpService.cancelFollowUp(id);
+  const { organizationId } = await requireOrg();
+  const updated = await FollowUpService.cancelFollowUp(id, organizationId);
 
   if (updated) {
     revalidatePath(`/leads/${updated.leadId}`);
@@ -61,8 +62,8 @@ export async function cancelFollowUp(id: string) {
 }
 
 export async function snoozeFollowUp(id: string, snoozedUntil: Date) {
-  await requireAuth();
-  const updated = await FollowUpService.snoozeFollowUp(id, snoozedUntil);
+  const { organizationId } = await requireOrg();
+  const updated = await FollowUpService.snoozeFollowUp(id, snoozedUntil, organizationId);
 
   if (updated) {
     revalidatePath(`/leads/${updated.leadId}`);
@@ -72,8 +73,8 @@ export async function snoozeFollowUp(id: string, snoozedUntil: Date) {
 }
 
 export async function rescheduleFollowUp(id: string, dueAt: Date) {
-  await requireAuth();
-  const updated = await FollowUpService.rescheduleFollowUp(id, dueAt);
+  const { organizationId } = await requireOrg();
+  const updated = await FollowUpService.rescheduleFollowUp(id, dueAt, organizationId);
 
   if (updated) {
     revalidatePath(`/leads/${updated.leadId}`);
@@ -83,8 +84,8 @@ export async function rescheduleFollowUp(id: string, dueAt: Date) {
 }
 
 export async function assignFollowUp(id: string, userId: string) {
-  await requireAuth();
-  const updated = await FollowUpService.assignFollowUp(id, userId);
+  const { organizationId } = await requireOrg();
+  const updated = await FollowUpService.assignFollowUp(id, userId, organizationId);
 
   if (updated) {
     revalidatePath(`/leads/${updated.leadId}`);

@@ -57,6 +57,27 @@
       "when": 1787836800835,
       "tag": "0007_lively_monster_badoon",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1787920066971,
+      "tag": "0008_tenant_settings_and_scoping",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1787920484283,
+      "tag": "0009_roles_permissions_and_required_fields",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1787920678948,
+      "tag": "0010_scope_message_templates",
+      "breakpoints": true
     }
   ]
 }

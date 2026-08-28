@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, timestamp, jsonb } from 'drizzle-orm/pg-core';
 
 // The tenant. Every tenant-scoped row carries organization_id; a user belongs to exactly one org.
 export const organizations = pgTable('organizations', {
@@ -6,5 +6,25 @@ export const organizations = pgTable('organizations', {
   name: varchar('name', { length: 255 }).notNull(),
   slug: varchar('slug', { length: 255 }).notNull().unique(),
   plan: varchar('plan', { length: 50 }).default('free').notNull(),
+
+  // Localisation
+  timezone: varchar('timezone', { length: 64 }).default('UTC').notNull(),
+  locale: varchar('locale', { length: 10 }).default('en').notNull(),
+  currency: varchar('currency', { length: 3 }).default('USD').notNull(),
+  dateFormat: varchar('date_format', { length: 20 }).default('MM/DD/YYYY').notNull(),
+
+  // Company information
+  industry: varchar('industry', { length: 120 }),
+  phone: varchar('phone', { length: 30 }),
+  website: varchar('website', { length: 255 }),
+  addressLine1: varchar('address_line1', { length: 255 }),
+  city: varchar('city', { length: 120 }),
+  state: varchar('state', { length: 120 }),
+  postalCode: varchar('postal_code', { length: 20 }),
+  country: varchar('country', { length: 2 }),
+
+  // Which lead fields are required at capture. "name" is always required by the column NOT NULL.
+  requiredLeadFields: jsonb('required_lead_fields').$type<string[]>().default(['name']).notNull(),
+
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });

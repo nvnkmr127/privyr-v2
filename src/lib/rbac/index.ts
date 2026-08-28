@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/db";
 import { roles } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import type { PermissionKey } from "@/lib/permissions";
 
 export async function requireAuth() {
   const session = await getServerSession(authOptions);
@@ -24,13 +25,35 @@ export async function requireOrg() {
   return { userId: session.user.id, organizationId, roleId: session.user.roleId };
 }
 
-// Resolve the current user's role name from the roleId carried in the JWT.
-export async function currentRoleName(): Promise<string | null> {
+// Resolve the current user's role (name + permissions) from the roleId carried in the JWT.
+async function currentRole(): Promise<{ name: string; permissions: string[] } | null> {
   const session = await getServerSession(authOptions);
   const roleId = session?.user?.roleId;
   if (!roleId) return null;
-  const [role] = await db.select({ name: roles.name }).from(roles).where(eq(roles.id, roleId)).limit(1);
-  return role?.name ?? null;
+  const [role] = await db
+    .select({ name: roles.name, permissions: roles.permissions })
+    .from(roles)
+    .where(eq(roles.id, roleId))
+    .limit(1);
+  return role ? { name: role.name, permissions: role.permissions ?? [] } : null;
+}
+
+export async function currentRoleName(): Promise<string | null> {
+  return (await currentRole())?.name ?? null;
+}
+
+// admin implicitly has every permission; other roles must list the key explicitly.
+export async function hasPermission(key: PermissionKey): Promise<boolean> {
+  const role = await currentRole();
+  if (!role) return false;
+  return role.name === "admin" || role.permissions.includes(key);
+}
+
+// Throws "Forbidden" unless the caller holds the permission; returns the tenant scope on success.
+export async function requirePermission(key: PermissionKey) {
+  const { organizationId, userId } = await requireOrg();
+  if (!(await hasPermission(key))) throw new Error("Forbidden");
+  return { organizationId, userId };
 }
 
 // Throws "Forbidden" unless the signed-in user holds one of the allowed roles.

@@ -9,6 +9,6 @@ export async function subscribePushAction(sub: { endpoint: string; keys: { p256d
 }
 
 export async function unsubscribePushAction(endpoint: string) {
-  await requireAuth();
-  await PushService.removeSubscription(endpoint);
+  const session = await requireAuth();
+  await PushService.removeSubscription(endpoint, session.user.id);
 }

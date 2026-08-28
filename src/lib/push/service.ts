@@ -1,7 +1,7 @@
 import webpush from "web-push";
 import { db } from "@/db";
 import { pushSubscriptions } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 let configured = false;
 // Configure VAPID lazily so the app still boots when push isn't set up.
@@ -33,8 +33,11 @@ export const PushService = {
       });
   },
 
-  async removeSubscription(endpoint: string) {
-    await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, endpoint));
+  async removeSubscription(endpoint: string, userId?: string) {
+    const scope = userId
+      ? and(eq(pushSubscriptions.endpoint, endpoint), eq(pushSubscriptions.userId, userId))
+      : eq(pushSubscriptions.endpoint, endpoint);
+    await db.delete(pushSubscriptions).where(scope);
   },
 
   // Fire a push to every device the user has enabled. Never throws — push is best-effort.

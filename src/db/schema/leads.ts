@@ -102,3 +102,16 @@ export const leadsRelations = relations(leads, ({ one, many }) => ({
   stage: one(leadPipelineStages, { fields: [leads.stageId], references: [leadPipelineStages.id] }),
   tags: many(leadTags),
 }));
+
+export const customStatusConfigs = pgTable('custom_status_configs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id').references(() => organizations.id).notNull(),
+  key: varchar('key', { length: 50 }).notNull(),
+  label: varchar('label', { length: 100 }).notNull(),
+  color: varchar('color', { length: 50 }).default('#6B7280').notNull(),
+  category: varchar('category', { length: 50 }).default('open').notNull(), // open, in_progress, won, lost, unqualified
+  orderIndex: integer('order_index').default(0).notNull(),
+  isSystemDefault: integer('is_system_default').default(0).notNull(), // 1=system, 0=custom
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+

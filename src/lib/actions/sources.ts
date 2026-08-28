@@ -1,13 +1,13 @@
 "use server";
 
-import { requireAuth } from "@/lib/rbac";
+import { requireOrg, requirePermission } from "@/lib/rbac";
 import { LeadSourceService } from "@/domains/leads/sourceService";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 export async function listSourcesAction() {
-  await requireAuth();
-  return LeadSourceService.getSources();
+  const { organizationId } = await requireOrg();
+  return LeadSourceService.getSources(organizationId);
 }
 
 const createSchema = z.object({
@@ -17,15 +17,15 @@ const createSchema = z.object({
 });
 
 export async function createSourceAction(input: z.infer<typeof createSchema>) {
-  await requireAuth();
+  const { organizationId } = await requirePermission("sources.manage");
   const data = createSchema.parse(input);
-  const row = await LeadSourceService.createSource(data);
+  const row = await LeadSourceService.createSource({ ...data, organizationId });
   revalidatePath("/settings/sources");
   return row;
 }
 
 export async function toggleSourceAction(id: string, isActive: boolean) {
-  await requireAuth();
-  await LeadSourceService.updateSource(id, { isActive: isActive ? 1 : 0 });
+  const { organizationId } = await requirePermission("sources.manage");
+  await LeadSourceService.updateSource(id, { isActive: isActive ? 1 : 0 }, organizationId);
   revalidatePath("/settings/sources");
 }
