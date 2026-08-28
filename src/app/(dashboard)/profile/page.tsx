@@ -1,6 +1,8 @@
 import { requireAuth } from "@/lib/rbac";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { getEmailOptOutAction } from "@/lib/actions/notificationPrefs";
+import { NotificationPreferences } from "@/components/settings/NotificationPreferences";
 
 export default async function ProfilePage() {
   let session;
@@ -9,6 +11,8 @@ export default async function ProfilePage() {
   } catch {
     redirect("/login");
   }
+
+  const emailOptOut = await getEmailOptOutAction();
 
   return (
     <div className="p-8 max-w-4xl mx-auto space-y-6">
@@ -20,6 +24,8 @@ export default async function ProfilePage() {
           This is a protected route. Only authenticated users can see this page.
         </p>
       </div>
+
+      <NotificationPreferences initialOptOut={emailOptOut} />
       <form action="/api/auth/signout" method="POST">
         <Button variant="outline" type="submit">Logout</Button>
       </form>

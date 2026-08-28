@@ -28,7 +28,10 @@ export default async function FollowUpsDashboard() {
 
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-6">
-      <h1 className="text-3xl font-bold">My Follow-ups</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold">My Follow-ups</h1>
+        <a href="/follow-ups/calendar" className="text-sm font-medium text-blue-600 hover:underline">Calendar view →</a>
+      </div>
       
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>

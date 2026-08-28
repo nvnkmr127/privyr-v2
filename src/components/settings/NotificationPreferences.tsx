@@ -1,0 +1,42 @@
+"use client";
+
+import * as React from "react";
+import { useToast } from "@/hooks/use-toast";
+import { EMAIL_NOTIFICATION_TYPES, setEmailOptOutAction } from "@/lib/actions/notificationPrefs";
+
+export function NotificationPreferences({ initialOptOut }: { initialOptOut: string[] }) {
+  const { toast } = useToast();
+  const [optOut, setOptOut] = React.useState<string[]>(initialOptOut);
+
+  async function toggle(type: string, emailOn: boolean) {
+    const next = emailOn ? optOut.filter((t) => t !== type) : [...optOut, type];
+    const prev = optOut;
+    setOptOut(next);
+    try {
+      await setEmailOptOutAction(next);
+    } catch (e: any) {
+      setOptOut(prev);
+      toast({ variant: "destructive", title: "Could not save", description: e?.message });
+    }
+  }
+
+  return (
+    <div className="bg-white p-6 rounded-lg shadow border border-slate-200 space-y-4">
+      <div>
+        <h3 className="font-semibold">Email notifications</h3>
+        <p className="text-sm text-slate-500">You'll always see these in the in-app bell. Choose which also email you.</p>
+      </div>
+      <div className="divide-y">
+        {EMAIL_NOTIFICATION_TYPES.map(({ type, label }) => {
+          const emailOn = !optOut.includes(type);
+          return (
+            <label key={type} className="flex items-center justify-between py-2.5 cursor-pointer">
+              <span className="text-sm text-slate-700">{label}</span>
+              <input type="checkbox" checked={emailOn} onChange={(e) => toggle(type, e.target.checked)} className="h-4 w-4" />
+            </label>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

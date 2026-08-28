@@ -15,16 +15,17 @@ export class NotificationService {
       body: data.body,
       url: data.leadId ? `/leads/${data.leadId}` : "/",
     });
-    if (EMAIL_TYPES.has(data.type)) void NotificationService.email(data);
+    if (EMAIL_TYPES.has(data.type)) void NotificationService.email({ ...data, type: data.type });
     return row;
   }
 
   // Best-effort email channel — never throws into the caller. Real delivery needs RESEND_API_KEY;
   // otherwise the mailer logs to the console so the flow still works in dev.
-  private static async email(data: { userId: string; title: string; body?: string; leadId?: string }) {
+  private static async email(data: { userId: string; type: string; title: string; body?: string; leadId?: string }) {
     try {
-      const [user] = await db.select({ email: users.email }).from(users).where(eq(users.id, data.userId)).limit(1);
+      const [user] = await db.select({ email: users.email, emailOptOut: users.emailOptOut }).from(users).where(eq(users.id, data.userId)).limit(1);
       if (!user?.email) return;
+      if ((user.emailOptOut ?? []).includes(data.type)) return; // user muted email for this type
       const { sendEmail, appUrl } = await import("@/lib/mail/mailer");
       const link = appUrl(data.leadId ? `/leads/${data.leadId}` : "/");
       await sendEmail({

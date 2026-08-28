@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "email_opt_out" jsonb DEFAULT '[]'::jsonb NOT NULL;

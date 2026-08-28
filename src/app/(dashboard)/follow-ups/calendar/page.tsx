@@ -1,0 +1,79 @@
+import Link from "next/link";
+import { requireAuth } from "@/lib/rbac";
+import { db } from "@/db";
+import { followUps, leads } from "@/db/schema";
+import { and, eq, gte, lte } from "drizzle-orm";
+import {
+  startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval,
+  format, addMonths, subMonths, isSameMonth, isToday, parse,
+} from "date-fns";
+import { ChevronLeft, ChevronRight, List } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+const KEY = "yyyy-MM-dd";
+
+export default async function FollowUpCalendarPage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
+  const session = await requireAuth();
+  const { month } = await searchParams;
+
+  const cursor = month ? parse(month, "yyyy-MM", new Date()) : new Date();
+  const gridStart = startOfWeek(startOfMonth(cursor));
+  const gridEnd = endOfWeek(endOfMonth(cursor));
+  const days = eachDayOfInterval({ start: gridStart, end: gridEnd });
+
+  const rows = await db
+    .select({ id: followUps.id, title: followUps.title, dueAt: followUps.dueAt, status: followUps.status, leadId: followUps.leadId, leadName: leads.name })
+    .from(followUps)
+    .innerJoin(leads, eq(followUps.leadId, leads.id))
+    .where(and(eq(followUps.userId, session.user.id), gte(followUps.dueAt, gridStart), lte(followUps.dueAt, gridEnd)));
+
+  const byDay = new Map<string, typeof rows>();
+  for (const r of rows) {
+    const k = format(new Date(r.dueAt), KEY);
+    byDay.set(k, [...(byDay.get(k) ?? []), r]);
+  }
+
+  const prev = format(subMonths(cursor, 1), "yyyy-MM");
+  const next = format(addMonths(cursor, 1), "yyyy-MM");
+
+  return (
+    <div className="flex-1 p-8 pt-6 space-y-4">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold tracking-tight">{format(cursor, "MMMM yyyy")}</h1>
+        <div className="flex items-center gap-2">
+          <Link href="/follow-ups"><Button variant="outline" size="sm" className="gap-1"><List className="h-4 w-4" /> List</Button></Link>
+          <Link href={`/follow-ups/calendar?month=${prev}`}><Button variant="ghost" size="icon"><ChevronLeft className="h-4 w-4" /></Button></Link>
+          <Link href="/follow-ups/calendar"><Button variant="ghost" size="sm">Today</Button></Link>
+          <Link href={`/follow-ups/calendar?month=${next}`}><Button variant="ghost" size="icon"><ChevronRight className="h-4 w-4" /></Button></Link>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-7 gap-px bg-slate-200 border border-slate-200 rounded-lg overflow-hidden text-sm">
+        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+          <div key={d} className="bg-slate-50 px-2 py-1.5 text-xs font-medium text-slate-500 text-center">{d}</div>
+        ))}
+        {days.map((day) => {
+          const items = byDay.get(format(day, KEY)) ?? [];
+          const dim = !isSameMonth(day, cursor);
+          return (
+            <div key={day.toISOString()} className={`bg-white min-h-24 p-1.5 space-y-1 ${dim ? "opacity-40" : ""}`}>
+              <div className={`text-xs font-medium ${isToday(day) ? "text-blue-600" : "text-slate-500"}`}>
+                {isToday(day) ? <span className="bg-blue-600 text-white rounded-full px-1.5 py-0.5">{format(day, "d")}</span> : format(day, "d")}
+              </div>
+              {items.map((it) => {
+                const overdue = it.status === "pending" && new Date(it.dueAt) < new Date();
+                const done = it.status === "completed";
+                return (
+                  <Link key={it.id} href={`/leads/${it.leadId}`}
+                    className={`block truncate rounded px-1.5 py-0.5 text-xs ${done ? "bg-slate-100 text-slate-400 line-through" : overdue ? "bg-red-100 text-red-700" : "bg-blue-50 text-blue-700"}`}>
+                    {format(new Date(it.dueAt), "HH:mm")} {it.leadName} — {it.title}
+                  </Link>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

@@ -1,4 +1,5 @@
 import { pgTable, uuid, varchar, text, timestamp, boolean, jsonb } from 'drizzle-orm/pg-core';
+// jsonb used for role permissions and user email opt-out list.
 import { relations } from 'drizzle-orm';
 import { organizations } from './organizations';
 
@@ -33,6 +34,7 @@ export const users = pgTable('users', {
   teamId: uuid('team_id').references(() => teams.id),
   isActive: boolean('is_active').default(true).notNull(),
   deletedAt: timestamp('deleted_at'), // soft delete — hard delete would orphan lead/activity FKs
+  emailOptOut: jsonb('email_opt_out').$type<string[]>().default([]).notNull(), // notification types the user muted for email
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
