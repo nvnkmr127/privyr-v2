@@ -468,4 +468,10 @@ export async function mapUniversalLeadAction(provider: "facebook" | "google" | "
   return UniversalLeadMappingService.mapLeadByProvider(provider, payload);
 }
 
+export async function processIframeLeadAction(origin: string, payload: any) {
+  await requireOrg();
+  const { IframePostMessageWorker } = await import("@/domains/leads/iframePostMessageWorker");
+  return IframePostMessageWorker.processIframePostMessage(origin, payload);
+}
+
 

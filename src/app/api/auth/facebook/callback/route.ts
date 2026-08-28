@@ -42,10 +42,40 @@ export async function GET(req: NextRequest) {
       `[META_OAUTH_CALLBACK_SUCCESS] Connected Page ${pageTokenResult.pageId} (Org state: ${state ?? "default"})`
     );
 
-    // Redirect user back to integration settings with success flag
+    // Construct fallback redirect URL
     const redirectUrl = new URL("/settings/integrations?status=facebook_connected", req.url);
     redirectUrl.searchParams.set("pageId", pageTokenResult.pageId);
     redirectUrl.searchParams.set("expiresAt", longLivedResult.expiresAt.toISOString());
+
+    // If popup mode is active, execute postMessage handshake with parent window
+    const isPopup = searchParams.get("popup") === "true";
+    if (isPopup) {
+      const html = `
+        <!DOCTYPE html>
+        <html>
+          <head><title>OAuth Authorization Successful</title></head>
+          <body>
+            <script>
+              if (window.opener) {
+                window.opener.postMessage({
+                  type: "OAUTH_RESPONSE",
+                  provider: "facebook",
+                  status: "success",
+                  data: {
+                    pageId: "${pageTokenResult.pageId}",
+                    expiresAt: "${longLivedResult.expiresAt.toISOString()}"
+                  }
+                }, window.location.origin);
+                window.close();
+              } else {
+                window.location.href = "${redirectUrl.toString()}";
+              }
+            </script>
+          </body>
+        </html>
+      `;
+      return new NextResponse(html, { headers: { "Content-Type": "text/html" } });
+    }
 
     return NextResponse.redirect(redirectUrl);
   } catch (err: any) {

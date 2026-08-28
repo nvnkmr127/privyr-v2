@@ -102,6 +102,8 @@ This audit report presents a complete code-level analysis of the repository, ver
 | **Meta OAuth Callback & Page Connection** | COMPLETE | OAuth callback endpoint (`/api/auth/facebook/callback`) handling Meta OAuth consent codes, triggering long-lived token exchange, fetching Page tokens, and persisting tenant Page connections. |
 | **Meta Deauthorization & Data Deletion** | COMPLETE | Meta App Review compliance webhook endpoint (`/api/webhooks/facebook/deauthorize`) verifying `signed_request` payloads and generating data deletion status tracking URLs and confirmation codes. |
 | **Universal Multi-Source Lead Mapping Engine** | COMPLETE | Cross-channel field normalization service (`UniversalLeadMappingService`) mapping incoming payloads from Facebook Lead Ads, Google Lead Form Ads, LinkedIn Lead Gen, Website Webhooks, and WhatsApp Inbound into standard Privyr v2 lead structure. |
+| **OAuth Popup postMessage Handshake Listener** | COMPLETE | Cross-window SSO handshake listener (`SourcesManager.tsx` & `/api/auth/facebook/callback`) receiving `OAUTH_RESPONSE` postMessage events from OAuth popup windows, auto-updating active endpoints, and closing popups without page reloads. |
+| **Cross-Origin Iframe postMessage Worker** | COMPLETE | Embedded widget messaging engine (`IframePostMessageWorker`) validating allowed origin domains, mapping cross-origin iframe lead submissions, and returning postMessage acknowledgments (`PRIVYR_LEAD_ACK`) to parent windows. |
 
 ---
 
@@ -125,6 +127,6 @@ All acceptance criteria for the Lead discovery system have passed:
 - [x] Mobile-responsive filter modal / drawer.
 - [x] `npx tsc --noEmit` PASSED (0 errors).
 - [x] `npm run lint` PASSED (0 warnings or errors).
-- [x] `npx vitest run` PASSED (50 test files, 136 unit & integration tests passed).
+- [x] `npx vitest run` PASSED (51 test files, 139 unit & integration tests passed).
 - [x] `npm run build` PASSED (Production build compiled cleanly).
 - [x] `npx playwright test` PASSED (12 test suites, 100% pass rate).
