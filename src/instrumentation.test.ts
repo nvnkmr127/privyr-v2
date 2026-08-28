@@ -13,8 +13,6 @@ vi.mock("@/lib/jobs/workers/scoreDecayWorker", () => ({
 }));
 
 describe("Instrumentation worker registration", () => {
-  const originalEnv = process.env.NEXT_RUNTIME;
-
   beforeEach(() => {
     process.env.NEXT_RUNTIME = "nodejs";
     vi.clearAllMocks();

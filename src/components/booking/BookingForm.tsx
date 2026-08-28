@@ -29,7 +29,7 @@ export function BookingForm({ slug }: { slug: string }) {
   }
 
   if (done) {
-    return <div className="rounded-lg border border-border bg-muted p-6 text-foreground text-sm">Thanks! Your meeting request has been sent. We'll be in touch shortly.</div>;
+    return <div className="rounded-lg border border-border bg-muted p-6 text-foreground text-sm">Thanks! Your meeting request has been sent. We&apos;ll be in touch shortly.</div>;
   }
 
   return (

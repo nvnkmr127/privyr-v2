@@ -1,8 +1,25 @@
 import { Worker, Queue, Job } from "bullmq";
 import Redis from "ioredis";
 import { ScoringService } from "@/domains/leads/scoringService";
+import { db } from "@/db";
+import { automationRuns } from "@/db/schema";
+import { and, lt, inArray } from "drizzle-orm";
 
 export const SCORE_DECAY_QUEUE_NAME = "score-decay";
+
+// The automation_runs ledger grows with every trigger and is only ever read for the idempotency
+// check (which the completed row satisfies) — terminal rows older than the window are dead weight.
+// ponytail: piggybacked on the daily scan instead of a second scheduler; raise RETENTION_DAYS or
+// split it out if run volume ever makes the single daily DELETE too heavy.
+const RETENTION_DAYS = 30;
+export async function pruneOldAutomationRuns(retentionDays = RETENTION_DAYS) {
+  const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
+  const deleted = await db
+    .delete(automationRuns)
+    .where(and(lt(automationRuns.startedAt, cutoff), inArray(automationRuns.status, ["completed", "skipped", "failed"])))
+    .returning({ id: automationRuns.id });
+  return deleted.length;
+}
 
 export interface ScoreDecayJobData {
   organizationId?: string;
@@ -19,8 +36,13 @@ export async function processScoreDecayJob(job: Job<ScoreDecayJobData>) {
   }
 
   const count = await ScoringService.recalculateAllScores(job.data?.organizationId);
-  console.log(`[SCORE_DECAY_WORKER] Processed score decay for ${count} leads (Org: ${job.data?.organizationId ?? "all"})`);
-  return { processed: count };
+  // Daily housekeeping slot: trim the automation_runs ledger while we're here (all-orgs pass only).
+  const prunedRuns = await pruneOldAutomationRuns().catch((e) => {
+    console.error("[SCORE_DECAY_WORKER] automation_runs prune failed:", e);
+    return 0;
+  });
+  console.log(`[SCORE_DECAY_WORKER] Processed score decay for ${count} leads (Org: ${job.data?.organizationId ?? "all"}); pruned ${prunedRuns} old automation runs`);
+  return { processed: count, prunedRuns };
 }
 
 export function createScoreDecayWorker(redisUrl?: string) {

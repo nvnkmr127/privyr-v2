@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { auditLogs, users } from "@/db/schema";
-import { and, desc, eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 
 export class AuditService {
   // Best-effort: an audit write must never break the action it records.

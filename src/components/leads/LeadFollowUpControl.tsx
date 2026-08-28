@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Calendar, Clock, ChevronDown, Check, Trash2 } from "lucide-react";
+import { Calendar, Clock, ChevronDown, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { updateLeadFollowUpAction } from "@/lib/actions/leads";

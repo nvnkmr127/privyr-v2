@@ -1,10 +1,10 @@
-import { Worker, Queue, Job } from "bullmq";
+import { Worker, Queue } from "bullmq";
 import Redis from "ioredis";
 import { EscalationService } from "@/domains/leads/escalationService";
 
 export const ESCALATION_QUEUE_NAME = "sla-escalation";
 
-export async function processEscalationJob(_job: Job) {
+export async function processEscalationJob() {
   const count = await EscalationService.runAll();
   console.log(`[ESCALATION_WORKER] Escalated ${count} stale leads`);
   return { escalated: count };

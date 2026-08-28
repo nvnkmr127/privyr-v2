@@ -25,7 +25,7 @@ export function NotificationPreferences({ initialOptOut }: { initialOptOut: stri
     <div className="bg-card p-6 rounded-2xl border border-border space-y-4">
       <div>
         <h3 className="font-semibold">Email notifications</h3>
-        <p className="text-sm text-muted-foreground">You'll always see these in the in-app bell. Choose which also email you.</p>
+        <p className="text-sm text-muted-foreground">You&apos;ll always see these in the in-app bell. Choose which also email you.</p>
       </div>
       <div className="divide-y">
         {EMAIL_NOTIFICATION_TYPES.map(({ type, label }) => {

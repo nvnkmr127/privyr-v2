@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Calendar, Clock, Plus, CheckCircle2, Circle, Trash2, Bell, AlertCircle, Phone, Mail, MessageSquare, Video } from "lucide-react";
+import { Calendar, Clock, Plus, CheckCircle2, Circle, Trash2, Bell, Phone, Mail, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createReminderAction, toggleReminderStatusAction, deleteReminderAction } from "@/lib/actions/reminders";
 import { useToast } from "@/hooks/use-toast";
@@ -78,7 +77,7 @@ export function LeadRemindersTab({ leadId, initialReminders }: LeadRemindersTabP
   const handleToggle = async (id: string, currentStatus: string) => {
     const newStatus = currentStatus === "completed" ? "pending" : "completed";
     try {
-      const updated = await toggleReminderStatusAction(id, leadId, newStatus);
+      await toggleReminderStatusAction(id, leadId, newStatus);
       setReminders((prev) =>
         prev.map((r) => (r.id === id ? { ...r, status: newStatus, completedAt: newStatus === "completed" ? new Date() : null } : r))
       );

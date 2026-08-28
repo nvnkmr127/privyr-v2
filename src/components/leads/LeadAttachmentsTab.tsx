@@ -1,13 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Paperclip, Plus, FileText, Image as ImageIcon, FileSpreadsheet, ExternalLink, Trash2, Download, Link2, File } from "lucide-react";
+import { Paperclip, Plus, FileText, Image as ImageIcon, FileSpreadsheet, ExternalLink, Trash2, File } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { addAttachmentAction, deleteAttachmentAction } from "@/lib/actions/attachments";
 import { useToast } from "@/hooks/use-toast";
-import { Badge } from "@/components/ui/badge";
 
 interface AttachmentItem {
   id: string;
@@ -29,7 +27,7 @@ export function LeadAttachmentsTab({ leadId, initialAttachments }: LeadAttachmen
   const [showAdd, setShowAdd] = useState(false);
   const [fileName, setFileName] = useState("");
   const [fileUrl, setFileUrl] = useState("");
-  const [fileType, setFileType] = useState("document");
+  const [fileType] = useState("document");
   const [submitting, setSubmitting] = useState(false);
   const { toast } = useToast();
 

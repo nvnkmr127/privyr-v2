@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/db";
 import { leads } from "@/db/schema";
-import { and, desc, eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { ApiKeyService } from "@/domains/apiKeys/service";
 import { LeadService } from "@/domains/leads/service";
 import { CustomFieldService } from "@/domains/customFields/service";

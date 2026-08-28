@@ -9,7 +9,7 @@ function queueResults(results: any[][]) {
   let i = 0;
   (db.select as any).mockImplementation(() => ({
     from: () => ({
-      where: (..._a: any[]) => {
+      where: () => {
         const r = results[i++];
         return { limit: () => Promise.resolve(r), then: (res: any) => Promise.resolve(r).then(res) };
       },

@@ -17,7 +17,7 @@ interface LeadSequencesCardProps {
   availableSequences?: SequenceOption[];
 }
 
-export function LeadSequencesCard({ leadId, availableSequences = [] }: LeadSequencesCardProps) {
+export function LeadSequencesCard({ availableSequences = [] }: LeadSequencesCardProps) {
   const [enrolledSequences, setEnrolledSequences] = useState<SequenceOption[]>([]);
   const [open, setOpen] = useState(false);
   const { toast } = useToast();

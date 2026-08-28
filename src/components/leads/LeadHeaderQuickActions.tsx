@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Phone, Mail, MessageSquare, Calendar, Plus, Clock, Trash2, ChevronDown } from "lucide-react";
+import { Phone, Mail, MessageSquare, Calendar, Clock, Trash2, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { QuickResponseDialog } from "@/components/leads/QuickResponseDialog";
 import { EditLeadDialog } from "@/components/leads/EditLeadDialog";
@@ -22,7 +22,7 @@ interface LeadHeaderQuickActionsProps {
   onTabSelect?: (tab: string) => void;
 }
 
-export function LeadHeaderQuickActions({ lead, onTabSelect }: LeadHeaderQuickActionsProps) {
+export function LeadHeaderQuickActions({ lead }: LeadHeaderQuickActionsProps) {
   const [reminderOpen, setReminderOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();

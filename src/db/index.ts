@@ -5,6 +5,7 @@ import * as schema from './schema';
 const connectionString = process.env.DATABASE_URL!;
 
 declare global {
+  // eslint-disable-next-line no-var -- global augmentation requires `var`
   var _dbClient: postgres.Sql | undefined;
 }
 

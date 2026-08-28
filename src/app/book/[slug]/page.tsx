@@ -12,7 +12,7 @@ export default async function BookingPage({ params }: { params: Promise<{ slug: 
       <div className="w-full max-w-md border rounded-2xl bg-card p-8 space-y-6">
         <div>
           <h1 className="text-2xl font-bold">Book a meeting with {org.name}</h1>
-          <p className="text-sm text-muted-foreground mt-1">Pick a time and we'll get back to you to confirm.</p>
+          <p className="text-sm text-muted-foreground mt-1">Pick a time and we&apos;ll get back to you to confirm.</p>
         </div>
         <BookingForm slug={slug} />
       </div>

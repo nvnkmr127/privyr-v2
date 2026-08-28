@@ -29,7 +29,7 @@ export const automationWorker = new Worker<AutomationJobData>(
     const { automationId, leadId, idempotencyKey, payload } = job.data;
 
     // 1. Check Idempotency (Prevent double runs)
-    let [existingRun] = await db
+    const [existingRun] = await db
       .select()
       .from(automationRuns)
       .where(eq(automationRuns.idempotencyKey, idempotencyKey))
