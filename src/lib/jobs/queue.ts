@@ -1,10 +1,10 @@
 import { Queue, QueueEvents } from "bullmq";
 import Redis from "ioredis";
 
-// Use singleton pattern for Redis connection to avoid too many connections in dev
 const connection = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
   maxRetriesPerRequest: null,
 });
+connection.on("error", () => {});
 
 export const REMINDER_QUEUE_NAME = "follow-up-reminders";
 

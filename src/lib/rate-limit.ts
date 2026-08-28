@@ -1,7 +1,7 @@
 import Redis from "ioredis";
 
-// Reuse the existing Redis connection structure
 const redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379");
+redis.on("error", () => {});
 
 export class RateLimiter {
   static async checkLimit(key: string, limit: number, windowSeconds: number): Promise<{ success: boolean; limit: number; remaining: number; reset: number }> {

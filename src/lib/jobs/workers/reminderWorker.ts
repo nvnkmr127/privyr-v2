@@ -10,6 +10,7 @@ import { ActivityService } from "@/domains/activities/service";
 const connection = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
   maxRetriesPerRequest: null,
 });
+connection.on("error", () => {});
 
 export interface ReminderJobData {
   followUpId: string;

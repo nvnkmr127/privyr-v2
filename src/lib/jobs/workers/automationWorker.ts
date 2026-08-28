@@ -7,6 +7,7 @@ import { AutomationEngine } from "@/lib/automation/engine";
 import { EventPayload } from "@/lib/events/emitter";
 
 const connection = new Redis(process.env.REDIS_URL || "redis://localhost:6379", { maxRetriesPerRequest: null });
+connection.on("error", () => {});
 
 export const AUTOMATION_QUEUE_NAME = "automations";
 export const automationQueue = new Queue(AUTOMATION_QUEUE_NAME, {
