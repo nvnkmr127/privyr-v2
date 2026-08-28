@@ -3,7 +3,7 @@
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Area, AreaChart } from "recharts";
 
 // Monochrome chart palette — one light series per chart, dark grid + tooltip to match the surface.
-const INK = "#ededed";
+const INK = "#e0e0e0";
 const AXIS = "#8a8a8f";
 const GRID = "#242427";
 const TOOLTIP = { background: "#141414", border: "1px solid #242427", borderRadius: "8px", color: "#f5f5f5" } as const;
@@ -18,7 +18,7 @@ export function RevenueChart({ data }: { data: any[] }) {
         <XAxis dataKey="name" stroke={AXIS} fontSize={12} tickLine={false} axisLine={false} />
         <YAxis stroke={AXIS} fontSize={12} tickLine={false} axisLine={false} />
         <Tooltip cursor={{ fill: "rgba(255,255,255,0.04)" }} contentStyle={TOOLTIP} />
-        <Bar dataKey="total" fill={INK} radius={[4, 4, 0, 0]} />
+        <Bar dataKey="total" fill={INK} radius={[6, 6, 0, 0]} maxBarSize={56} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -33,7 +33,7 @@ export function LeadsBySourceChart({ data }: { data: any[] }) {
         <XAxis dataKey="name" stroke={AXIS} fontSize={12} tickLine={false} axisLine={false} />
         <YAxis stroke={AXIS} fontSize={12} tickLine={false} axisLine={false} />
         <Tooltip cursor={{ fill: "rgba(255,255,255,0.04)" }} contentStyle={TOOLTIP} />
-        <Bar dataKey="count" fill={INK} radius={[4, 4, 0, 0]} />
+        <Bar dataKey="count" fill={INK} radius={[6, 6, 0, 0]} maxBarSize={56} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -69,7 +69,7 @@ export function LeadsByOwnerChart({ data }: { data: any[] }) {
         <XAxis type="number" stroke={AXIS} fontSize={12} axisLine={false} tickLine={false} />
         <YAxis type="category" dataKey="name" stroke={AXIS} fontSize={12} axisLine={false} tickLine={false} width={100} />
         <Tooltip cursor={{ fill: "rgba(255,255,255,0.04)" }} contentStyle={TOOLTIP} />
-        <Bar dataKey="count" fill={INK} radius={[0, 4, 4, 0]} />
+        <Bar dataKey="count" fill={INK} radius={[0, 6, 6, 0]} maxBarSize={28} />
       </BarChart>
     </ResponsiveContainer>
   );

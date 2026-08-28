@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import { useToast } from "@/hooks/use-toast";
-import { EMAIL_NOTIFICATION_TYPES, setEmailOptOutAction } from "@/lib/actions/notificationPrefs";
+import { setEmailOptOutAction } from "@/lib/actions/notificationPrefs";
+import { EMAIL_NOTIFICATION_TYPES } from "@/lib/notifications/emailTypes";
 
 export function NotificationPreferences({ initialOptOut }: { initialOptOut: string[] }) {
   const { toast } = useToast();

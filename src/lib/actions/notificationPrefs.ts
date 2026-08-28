@@ -6,15 +6,7 @@ import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-
-// The email-eligible notification types users can mute, with display labels.
-export const EMAIL_NOTIFICATION_TYPES: { type: string; label: string }[] = [
-  { type: "new_lead", label: "New lead assigned or received" },
-  { type: "lead_assigned", label: "A lead is assigned to you" },
-  { type: "follow_up_due", label: "Follow-up due" },
-  { type: "follow_up_overdue", label: "Follow-up overdue" },
-  { type: "sla_escalation", label: "SLA escalation (unactioned lead)" },
-];
+import { EMAIL_NOTIFICATION_TYPES } from "@/lib/notifications/emailTypes";
 
 export async function getEmailOptOutAction() {
   const session = await requireAuth();
