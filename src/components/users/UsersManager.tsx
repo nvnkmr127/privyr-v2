@@ -13,7 +13,8 @@ import {
   deleteUserAction,
 } from "@/lib/actions/users"
 import { createTeamAction } from "@/lib/actions/teams"
-import { UserPlus, Plus, Trash2 } from "lucide-react"
+import { inviteUserAction } from "@/lib/actions/invitations"
+import { UserPlus, Plus, Trash2, Mail } from "lucide-react"
 
 type User = {
   id: string;
@@ -47,6 +48,23 @@ export function UsersManager({
   const [teamName, setTeamName] = React.useState("");
   const [form, setForm] = React.useState({ firstName: "", lastName: "", email: "", password: "", roleId: NO_ROLE });
   const [saving, setSaving] = React.useState(false);
+  const [inviteEmail, setInviteEmail] = React.useState("");
+  const [inviteRole, setInviteRole] = React.useState(NO_ROLE);
+  const [inviting, setInviting] = React.useState(false);
+
+  async function invite() {
+    if (!inviteEmail.trim()) return;
+    setInviting(true);
+    try {
+      await inviteUserAction({ email: inviteEmail.trim(), roleId: inviteRole === NO_ROLE ? null : inviteRole });
+      setInviteEmail(""); setInviteRole(NO_ROLE);
+      toast({ title: "Invitation sent", description: "They'll get an email with a link to join." });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Could not send invite", description: e?.message });
+    } finally {
+      setInviting(false);
+    }
+  }
 
   async function createTeam() {
     if (!teamName.trim()) return;
@@ -149,8 +167,26 @@ export function UsersManager({
         </div>
       </div>
 
+      <div className="border rounded-xl p-6 bg-white shadow-sm space-y-3">
+        <div className="flex items-center gap-2"><Mail className="h-4 w-4 text-blue-600" /><h3 className="font-semibold">Invite by email</h3></div>
+        <p className="text-sm text-slate-500">They set their own password via a secure link — no need to share one.</p>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Input type="email" placeholder="teammate@company.com" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} className="flex-1" />
+          <Select value={inviteRole} onValueChange={setInviteRole}>
+            <SelectTrigger className="sm:w-40"><SelectValue placeholder="No role" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_ROLE}>No role</SelectItem>
+              {roles.map((r) => <SelectItem key={r.id} value={r.id} className="capitalize">{r.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Button onClick={invite} disabled={inviting || !inviteEmail.trim()} className="gap-2">
+            <Mail className="h-4 w-4" />{inviting ? "Sending…" : "Send invite"}
+          </Button>
+        </div>
+      </div>
+
       <div className="border rounded-xl p-6 bg-white shadow-sm space-y-4">
-        <h3 className="font-semibold">Add a team member</h3>
+        <h3 className="font-semibold">Or add a member directly</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Input placeholder="First name" value={form.firstName} onChange={(e) => set("firstName", e.target.value)} />
           <Input placeholder="Last name" value={form.lastName} onChange={(e) => set("lastName", e.target.value)} />

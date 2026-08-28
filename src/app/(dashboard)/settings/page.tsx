@@ -1,7 +1,7 @@
 import { getOrganizationAction } from "@/lib/actions/organizations";
 import { GeneralSettingsForm } from "@/components/settings/GeneralSettingsForm";
 import Link from "next/link";
-import { Sliders, Database, MessageSquare, Users } from "lucide-react";
+import { Sliders, Database, MessageSquare, Users, ListPlus, KeyRound, ScrollText, CreditCard, Plug } from "lucide-react";
 
 export default async function SettingsPage() {
   const organization = await getOrganizationAction();
@@ -49,6 +49,41 @@ export default async function SettingsPage() {
           >
             <Users className="h-4 w-4" />
             Users & Roles
+          </Link>
+          <Link
+            href="/settings/custom-fields"
+            className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+          >
+            <ListPlus className="h-4 w-4" />
+            Custom Fields
+          </Link>
+          <Link
+            href="/settings/api"
+            className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+          >
+            <KeyRound className="h-4 w-4" />
+            API Access
+          </Link>
+          <Link
+            href="/settings/audit"
+            className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+          >
+            <ScrollText className="h-4 w-4" />
+            Audit Log
+          </Link>
+          <Link
+            href="/settings/billing"
+            className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+          >
+            <CreditCard className="h-4 w-4" />
+            Billing & Plan
+          </Link>
+          <Link
+            href="/settings/integrations"
+            className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+          >
+            <Plug className="h-4 w-4" />
+            Integrations
           </Link>
         </aside>
 

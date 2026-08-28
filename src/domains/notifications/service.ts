@@ -1,6 +1,9 @@
 import { db } from "@/db";
-import { notifications } from "@/db/schema";
+import { notifications, users } from "@/db/schema";
 import { and, desc, eq, isNull, inArray } from "drizzle-orm";
+
+// High-signal notification types that also warrant an email. Chatty ones (self-completions) don't.
+const EMAIL_TYPES = new Set(["new_lead", "lead_assigned", "follow_up_due", "follow_up_overdue", "sla_escalation"]);
 
 export class NotificationService {
   static async create(data: { userId: string; type: string; title: string; body?: string; leadId?: string }) {
@@ -12,7 +15,26 @@ export class NotificationService {
       body: data.body,
       url: data.leadId ? `/leads/${data.leadId}` : "/",
     });
+    if (EMAIL_TYPES.has(data.type)) void NotificationService.email(data);
     return row;
+  }
+
+  // Best-effort email channel — never throws into the caller. Real delivery needs RESEND_API_KEY;
+  // otherwise the mailer logs to the console so the flow still works in dev.
+  private static async email(data: { userId: string; title: string; body?: string; leadId?: string }) {
+    try {
+      const [user] = await db.select({ email: users.email }).from(users).where(eq(users.id, data.userId)).limit(1);
+      if (!user?.email) return;
+      const { sendEmail, appUrl } = await import("@/lib/mail/mailer");
+      const link = appUrl(data.leadId ? `/leads/${data.leadId}` : "/");
+      await sendEmail({
+        to: user.email,
+        subject: data.title,
+        html: `<p>${data.body ?? data.title}</p><p><a href="${link}">Open in Privyr</a></p>`,
+      });
+    } catch (e) {
+      console.error("[notifications] email failed", e);
+    }
   }
 
   static async listForUser(userId: string, opts: { unreadOnly?: boolean; limit?: number } = {}) {

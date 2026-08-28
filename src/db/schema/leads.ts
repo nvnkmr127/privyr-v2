@@ -57,6 +57,7 @@ export const leads = pgTable('leads', {
   customData: jsonb('custom_data').default({}),
   nextFollowUpAt: timestamp('next_follow_up_at'),
   lastContactedAt: timestamp('last_contacted_at'),
+  escalatedAt: timestamp('escalated_at'), // set when SLA escalation fires; prevents re-alerting
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({

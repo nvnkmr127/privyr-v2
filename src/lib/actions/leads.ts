@@ -6,12 +6,16 @@ import { revalidatePath } from "next/cache";
 import { LeadService } from "@/domains/leads/service";
 import { OrgService } from "@/domains/organizations/service";
 import { assertLeadInOrg } from "@/domains/leads/ownership";
+import { CustomFieldService } from "@/domains/customFields/service";
+import { AuditService } from "@/domains/audit/service";
+import { PlanService } from "@/domains/billing/planService";
 
 const createLeadSchema = z.object({
   name: z.string().min(1, "Name is required").max(255),
   email: z.string().email("Invalid email").optional().or(z.literal("")),
   phone: z.string().optional().or(z.literal("")),
   company: z.string().optional().or(z.literal("")),
+  customData: z.record(z.string(), z.unknown()).optional(),
 });
 
 export async function createLeadAction(input: z.infer<typeof createLeadSchema>) {
@@ -38,7 +42,12 @@ export async function createLeadAction(input: z.infer<typeof createLeadSchema>) 
     throw new Error(`Missing required field(s): ${missing.join(", ")}`);
   }
 
-  const lead = await LeadService.createLead(data, userId, organizationId);
+  await PlanService.assertCanAddLead(organizationId);
+
+  // Validate + clean org-defined custom fields.
+  const customData = await CustomFieldService.validate(organizationId, parsed.data.customData ?? {});
+
+  const lead = await LeadService.createLead({ ...data, customData }, userId, organizationId);
 
   revalidatePath('/leads');
   return lead;
@@ -90,6 +99,7 @@ export async function deleteLeadAction(id: string) {
   const deleted = await LeadService.deleteLead(id, userId, organizationId);
 
   if (deleted) {
+    await AuditService.log({ organizationId, userId, action: "lead.delete", entityType: "lead", entityId: id });
     revalidatePath('/leads');
   }
   return deleted;

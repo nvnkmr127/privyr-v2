@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { EditLeadDialog } from "@/components/leads/EditLeadDialog";
 import { AddNoteForm } from "@/components/leads/AddNoteForm";
 import { WhatsAppSendBox } from "@/components/leads/WhatsAppSendBox";
+import { EmailSendBox } from "@/components/leads/EmailSendBox";
 import { WhatsAppThread } from "@/components/leads/WhatsAppThread";
 import { WhatsAppService } from "@/lib/messaging/whatsapp/service";
 import { LeadStatusControl } from "@/components/leads/LeadStatusControl";
@@ -142,6 +143,9 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
                   ))}
                 </div>
               )}
+            </TabsContent>
+            <TabsContent value="emails" className="p-4 pt-6 space-y-4">
+              <EmailSendBox leadId={lead.id} email={lead.email} />
             </TabsContent>
             <TabsContent value="notes" className="p-4 pt-6 space-y-6">
               <AddNoteForm leadId={lead.id} />

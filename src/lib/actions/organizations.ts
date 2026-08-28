@@ -3,6 +3,7 @@
 import { requireOrg, requirePermission } from "@/lib/rbac";
 import { revalidatePath } from "next/cache";
 import { OrgService } from "@/domains/organizations/service";
+import { AuditService } from "@/domains/audit/service";
 import { z } from "zod";
 
 const LEAD_FIELDS = ["name", "email", "phone", "company"] as const;
@@ -25,6 +26,8 @@ const updateOrgSchema = z.object({
   state: opt(120),
   postalCode: opt(20),
   country: z.string().trim().length(2).nullish().transform((v) => v || null),
+  // SLA escalation window in hours; 0/empty turns it off (stored as null).
+  slaHours: z.coerce.number().int().min(0).max(720).nullish().transform((v) => (v ? v : null)),
   // "name" is always required; keep only known fields and force-include name.
   requiredLeadFields: z
     .array(z.enum(LEAD_FIELDS))
@@ -38,13 +41,14 @@ export async function getOrganizationAction() {
 }
 
 export async function updateOrganizationAction(input: z.input<typeof updateOrgSchema>) {
-  const { organizationId } = await requirePermission("settings.manage");
+  const { organizationId, userId } = await requirePermission("settings.manage");
   const parsed = updateOrgSchema.safeParse(input);
   if (!parsed.success) {
     throw new Error(parsed.error.issues[0]?.message ?? "Invalid settings");
   }
 
   const updated = await OrgService.updateOrganization(organizationId, parsed.data);
+  await AuditService.log({ organizationId, userId, action: "org.settings_update", entityType: "organization", entityId: organizationId });
   revalidatePath("/settings");
   return updated;
 }

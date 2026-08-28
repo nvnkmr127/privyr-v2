@@ -39,8 +39,8 @@ export type ListLeadsOptions = {
 
 export class LeadService {
   static async createLead(
-    data: { name: string; email?: string; phone?: string; company?: string; ownerId?: string; teamId?: string },
-    createdById: string,
+    data: { name: string; email?: string; phone?: string; company?: string; ownerId?: string; teamId?: string; customData?: Record<string, unknown> },
+    createdById: string | null,
     organizationId: string,
   ) {
     // Dedup within THIS org only — same email/phone in another tenant is a different lead.
@@ -60,12 +60,13 @@ export class LeadService {
       email: data.email,
       phone: data.phone,
       company: data.company,
-      ownerId: data.ownerId || createdById,
+      ownerId: data.ownerId || createdById || null,
       teamId: data.teamId,
+      customData: data.customData ?? {},
       status: "new",
     }).returning();
 
-    eventBus.emit('lead.created', { leadId: newLead.id, userId: createdById });
+    eventBus.emit('lead.created', { leadId: newLead.id, userId: createdById ?? undefined });
     return newLead;
   }
 

@@ -56,6 +56,35 @@ export async function sendWhatsAppAction(input: {
   return result;
 }
 
+// Send an email to a lead and log it on the timeline. Uses the shared mailer (dev-safe).
+const emailSchema = z.object({
+  leadId: z.string().uuid(),
+  subject: z.string().min(1).max(255),
+  body: z.string().min(1),
+});
+
+export async function sendEmailAction(input: z.infer<typeof emailSchema>) {
+  const { userId, organizationId } = await requireOrg();
+  const data = emailSchema.parse(input);
+
+  const { LeadService } = await import("@/domains/leads/service");
+  const lead = await LeadService.getLead(data.leadId, organizationId);
+  if (!lead) throw new Error("Lead not found");
+  if (!lead.email) throw new Error("This lead has no email address");
+
+  const { sendEmail } = await import("@/lib/mail/mailer");
+  await sendEmail({ to: lead.email, subject: data.subject, html: `<p>${data.body.replace(/\n/g, "<br/>")}</p>` });
+
+  await ActivityService.addActivity({
+    leadId: data.leadId,
+    userId,
+    type: "email",
+    content: `[email] ${data.subject}`,
+  });
+  revalidatePath(`/leads/${data.leadId}`);
+  return { ok: true };
+}
+
 // Log that a message was sent so it lands on the lead's activity timeline.
 export async function logMessageAction(input: { leadId: string; channel: string; text: string }) {
   const session = await requireAuth();

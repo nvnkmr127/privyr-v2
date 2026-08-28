@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, timestamp, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, timestamp, jsonb, integer } from 'drizzle-orm/pg-core';
 
 // The tenant. Every tenant-scoped row carries organization_id; a user belongs to exactly one org.
 export const organizations = pgTable('organizations', {
@@ -25,6 +25,15 @@ export const organizations = pgTable('organizations', {
 
   // Which lead fields are required at capture. "name" is always required by the column NOT NULL.
   requiredLeadFields: jsonb('required_lead_fields').$type<string[]>().default(['name']).notNull(),
+
+  // Hours a new lead may sit unactioned before it escalates. Null = SLA escalation off.
+  slaHours: integer('sla_hours'),
+
+  // Billing (Razorpay). plan (above) is the source of truth for entitlements; these track the subscription.
+  razorpayCustomerId: varchar('razorpay_customer_id', { length: 255 }),
+  razorpaySubscriptionId: varchar('razorpay_subscription_id', { length: 255 }),
+  planStatus: varchar('plan_status', { length: 30 }).default('active').notNull(), // active, created, halted, cancelled
+  currentPeriodEnd: timestamp('current_period_end'),
 
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });

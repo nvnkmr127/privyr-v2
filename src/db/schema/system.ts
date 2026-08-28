@@ -1,0 +1,74 @@
+import { pgTable, uuid, varchar, text, timestamp, boolean, jsonb, integer, index } from 'drizzle-orm/pg-core';
+import { organizations } from './organizations';
+import { users, roles } from './users';
+
+// Immutable trail of who did what. Written by AuditService; never updated.
+export const auditLogs = pgTable('audit_logs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id').references(() => organizations.id).notNull(),
+  userId: uuid('user_id').references(() => users.id), // null = system/automation
+  action: varchar('action', { length: 100 }).notNull(), // e.g. "lead.delete", "user.role_change"
+  entityType: varchar('entity_type', { length: 50 }),
+  entityId: uuid('entity_id'),
+  metadata: jsonb('metadata').$type<Record<string, unknown>>().default({}),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (t) => ({
+  orgCreatedIdx: index('audit_org_created_idx').on(t.organizationId, t.createdAt),
+}));
+
+// Bearer keys for the public REST API. Only the hash is stored; the raw key is shown once.
+export const apiKeys = pgTable('api_keys', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id').references(() => organizations.id).notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  keyHash: varchar('key_hash', { length: 64 }).notNull().unique(), // sha256 hex
+  prefix: varchar('prefix', { length: 16 }).notNull(), // display only, e.g. "pk_live_ab12"
+  createdById: uuid('created_by_id').references(() => users.id),
+  lastUsedAt: timestamp('last_used_at'),
+  revokedAt: timestamp('revoked_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (t) => ({
+  orgIdx: index('api_keys_org_idx').on(t.organizationId),
+}));
+
+// Per-org definitions for extra lead fields; values live in leads.custom_data keyed by `key`.
+export const customFieldDefs = pgTable('custom_field_defs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id').references(() => organizations.id).notNull(),
+  key: varchar('key', { length: 50 }).notNull(), // slug used in custom_data
+  label: varchar('label', { length: 100 }).notNull(),
+  type: varchar('type', { length: 20 }).notNull().default('text'), // text, number, date, select
+  options: jsonb('options').$type<string[]>().default([]), // for type=select
+  required: boolean('required').notNull().default(false),
+  orderIndex: integer('order_index').notNull().default(0),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (t) => ({
+  orgKeyIdx: index('custom_field_org_key_idx').on(t.organizationId, t.key),
+}));
+
+// Google Calendar OAuth tokens, one row per connected user. Booking events land on their calendar.
+// ponytail: tokens stored plaintext — encrypt at rest (KMS/pgcrypto) before this holds real accounts.
+export const googleCredentials = pgTable('google_credentials', {
+  userId: uuid('user_id').references(() => users.id).primaryKey(),
+  accessToken: text('access_token').notNull(),
+  refreshToken: text('refresh_token'),
+  expiryDate: timestamp('expiry_date'),
+  calendarId: varchar('calendar_id', { length: 255 }).notNull().default('primary'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Email invitations. Accepting one creates the user in the org with the assigned role.
+export const invitations = pgTable('invitations', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id').references(() => organizations.id).notNull(),
+  email: varchar('email', { length: 255 }).notNull(),
+  roleId: uuid('role_id').references(() => roles.id),
+  tokenHash: varchar('token_hash', { length: 64 }).notNull().unique(), // sha256 hex of the raw token
+  invitedById: uuid('invited_by_id').references(() => users.id),
+  expiresAt: timestamp('expires_at').notNull(),
+  acceptedAt: timestamp('accepted_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (t) => ({
+  orgIdx: index('invitations_org_idx').on(t.organizationId),
+}));

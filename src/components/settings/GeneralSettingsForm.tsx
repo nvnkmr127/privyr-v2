@@ -28,6 +28,7 @@ type Org = {
   postalCode?: string | null;
   country?: string | null;
   requiredLeadFields?: string[] | null;
+  slaHours?: number | null;
 };
 
 const LEAD_FIELDS: { key: string; label: string }[] = [
@@ -71,6 +72,7 @@ export function GeneralSettingsForm({ organization }: { organization?: Org | nul
     state: organization?.state ?? "",
     postalCode: organization?.postalCode ?? "",
     country: organization?.country ?? "",
+    slaHours: organization?.slaHours != null ? String(organization.slaHours) : "",
   });
 
   const set = (k: keyof typeof f, v: string) => setF((s) => ({ ...s, [k]: v }));
@@ -83,6 +85,7 @@ export function GeneralSettingsForm({ organization }: { organization?: Org | nul
       await updateOrganizationAction({
         ...f,
         name: f.name.trim(),
+        slaHours: f.slaHours === "" ? null : Number(f.slaHours),
         requiredLeadFields: requiredFields as ("name" | "email" | "phone" | "company")[],
       });
       toast({ title: "Settings saved", description: "Organization settings updated successfully." });
@@ -213,7 +216,13 @@ export function GeneralSettingsForm({ organization }: { organization?: Org | nul
               <p className="text-xs text-gray-500">Fields that must be filled in when a lead is created.</p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-4">
+          <div className="space-y-2 max-w-xs">
+            <Label htmlFor="slaHours">SLA escalation (hours)</Label>
+            <Input id="slaHours" type="number" min={0} value={f.slaHours}
+              onChange={(e) => set("slaHours", e.target.value)} placeholder="e.g. 24 — blank to disable" />
+            <p className="text-xs text-gray-500">A new lead unactioned this long alerts its owner. Blank = off.</p>
+          </div>
+          <div className="flex flex-wrap gap-4 pt-2 border-t border-gray-100 dark:border-gray-800">
             <label className="flex items-center gap-2 text-sm text-gray-400">
               <input type="checkbox" checked disabled className="h-4 w-4 rounded border-gray-300" />
               Name (always required)

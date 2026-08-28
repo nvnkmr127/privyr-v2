@@ -7,6 +7,10 @@ export const PERMISSIONS = {
   "sources.manage": "Manage lead sources & webhooks",
   "templates.manage": "Manage message templates",
   "leads.delete": "Delete leads",
+  "leads.merge": "Merge duplicate leads",
+  "audit.view": "View the audit log",
+  "api.manage": "Manage API keys",
+  "billing.manage": "Manage billing & subscription",
 } as const;
 
 export type PermissionKey = keyof typeof PERMISSIONS;

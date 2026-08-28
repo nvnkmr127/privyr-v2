@@ -89,6 +89,7 @@ export class OrgService {
       postalCode: string | null;
       country: string | null;
       requiredLeadFields: string[];
+      slaHours: number | null;
     }>,
   ) {
     const [updated] = await db

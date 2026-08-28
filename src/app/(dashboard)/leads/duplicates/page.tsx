@@ -1,0 +1,24 @@
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { requireOrg } from "@/lib/rbac";
+import { DedupService } from "@/domains/leads/dedupService";
+import { DuplicatesManager } from "@/components/leads/DuplicatesManager";
+
+export default async function DuplicatesPage() {
+  const { organizationId } = await requireOrg();
+  const groups = await DedupService.findDuplicateGroups(organizationId);
+
+  return (
+    <div className="flex-1 space-y-6 p-8 pt-6 max-w-4xl">
+      <div className="flex items-center gap-3">
+        <Link href="/leads"><Button variant="ghost" size="icon"><ArrowLeft className="h-5 w-5" /></Button></Link>
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Duplicate Leads</h2>
+          <p className="text-sm text-slate-500">Leads sharing an email or phone. Merge keeps the first and moves all history onto it.</p>
+        </div>
+      </div>
+      <DuplicatesManager initial={groups as any} />
+    </div>
+  );
+}

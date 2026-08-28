@@ -7,6 +7,8 @@ import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { UserService } from "@/domains/users/service";
+import { AuditService } from "@/domains/audit/service";
+import { PlanService } from "@/domains/billing/planService";
 
 // Active users of the caller's org for owner/assignee pickers. Returns a display name, not the raw record.
 export async function listUsersAction() {
@@ -37,10 +39,12 @@ const createUserSchema = z.object({
 });
 
 export async function createUserAction(input: z.infer<typeof createUserSchema>) {
-  const { organizationId } = await requirePermission("users.manage");
+  const { organizationId, userId } = await requirePermission("users.manage");
   const data = createUserSchema.parse(input);
+  await PlanService.assertCanAddSeat(organizationId);
   try {
     const user = await UserService.create(organizationId, data);
+    await AuditService.log({ organizationId, userId, action: "user.create", entityType: "user", entityId: user.id, metadata: { email: data.email } });
     revalidatePath("/settings/users");
     return user;
   } catch (e: any) {
@@ -69,6 +73,7 @@ export async function setUserRoleAction(id: string, roleId: string | null) {
   const { organizationId, userId } = await requirePermission("users.manage");
   if (id === userId) throw new Error("You cannot change your own role");
   await UserService.setRole(organizationId, id, roleId);
+  await AuditService.log({ organizationId, userId, action: "user.role_change", entityType: "user", entityId: id, metadata: { roleId } });
   revalidatePath("/settings/users");
 }
 
@@ -76,5 +81,6 @@ export async function deleteUserAction(id: string) {
   const { organizationId, userId } = await requirePermission("users.manage");
   if (id === userId) throw new Error("You cannot delete your own account");
   await UserService.remove(organizationId, id);
+  await AuditService.log({ organizationId, userId, action: "user.delete", entityType: "user", entityId: id });
   revalidatePath("/settings/users");
 }
