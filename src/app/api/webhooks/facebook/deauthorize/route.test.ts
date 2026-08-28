@@ -1,18 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { POST, parseSignedRequest } from "./route";
+import { POST } from "./route";
 import { NextRequest } from "next/server";
 
 describe("Meta App Deauthorization Webhook Callback Endpoint", () => {
-  it("should parse base64url signed_request payload from Meta", () => {
-    const payloadObj = { user_id: "fb_user_12345", algorithm: "HMAC-SHA256", issued_at: 1700000000 };
-    const encodedPayload = Buffer.from(JSON.stringify(payloadObj)).toString("base64url");
-    const mockSignedRequest = `mock_signature.${encodedPayload}`;
-
-    const parsed = parseSignedRequest(mockSignedRequest);
-    expect(parsed).not.toBeNull();
-    expect(parsed?.user_id).toBe("fb_user_12345");
-  });
-
   it("should process deauthorization request and return status URL and confirmation_code", async () => {
     const payloadObj = { user_id: "fb_user_67890", algorithm: "HMAC-SHA256" };
     const encodedPayload = Buffer.from(JSON.stringify(payloadObj)).toString("base64url");

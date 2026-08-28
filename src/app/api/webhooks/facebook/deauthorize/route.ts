@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 
-export interface ParsedMetaSignedRequest {
+interface ParsedMetaSignedRequest {
   user_id?: string;
   algorithm?: string;
   issued_at?: number;
 }
 
-export function parseSignedRequest(
+function parseSignedRequest(
   signedRequest: string,
   appSecret: string = process.env.FACEBOOK_APP_SECRET || "mock_app_secret"
 ): ParsedMetaSignedRequest | null {
