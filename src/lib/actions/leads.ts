@@ -497,4 +497,77 @@ export async function processIframeLeadAction(origin: string, payload: any) {
   return IframePostMessageWorker.processIframePostMessage(origin, payload);
 }
 
+export async function checkLeadDuplicatesAction(leadId: string) {
+  try {
+    const { organizationId } = await requireOrg();
+    const lead = await LeadService.getLead(leadId, organizationId);
+    if (!lead) return { count: 0 };
+
+    const email = lead.email?.trim();
+    const phone = lead.phone?.trim();
+
+    if (!email && !phone) return { count: 0 };
+
+    const { db } = await import("@/db");
+    const { leads } = await import("@/db/schema");
+    const { eq, and, or, ne } = await import("drizzle-orm");
+
+    const conds = [];
+    if (email) conds.push(eq(leads.email, email));
+    if (phone) conds.push(eq(leads.phone, phone));
+
+    if (conds.length === 0) return { count: 0 };
+
+    const dupes = await db.select({ id: leads.id }).from(leads).where(
+      and(
+        eq(leads.organizationId, organizationId),
+        ne(leads.id, leadId),
+        or(...conds)
+      )
+    );
+
+    return { count: dupes.length };
+  } catch {
+    return { count: 0 };
+  }
+}
+
+
+export async function updateLeadFollowUpAction(leadId: string, nextFollowUpAt: string | null) {
+  const { organizationId } = await requireOrg();
+  const { db } = await import("@/db");
+  const { leads } = await import("@/db/schema");
+  const { eq, and } = await import("drizzle-orm");
+
+  const [updated] = await db.update(leads)
+    .set({ nextFollowUpAt: nextFollowUpAt ? new Date(nextFollowUpAt) : null, updatedAt: new Date() })
+    .where(and(eq(leads.id, leadId), eq(leads.organizationId, organizationId)))
+    .returning();
+
+  revalidatePath(`/leads/${leadId}`);
+  revalidatePath('/leads');
+  return updated;
+}
+
+export async function updateLeadStageAndValueAction(leadId: string, input: { stageId?: string | null; expectedValue?: string | null }) {
+  const { organizationId } = await requireOrg();
+  const { db } = await import("@/db");
+  const { leads } = await import("@/db/schema");
+  const { eq, and } = await import("drizzle-orm");
+
+  const [updated] = await db.update(leads)
+    .set({
+      ...(input.stageId !== undefined ? { stageId: input.stageId || null } : {}),
+      ...(input.expectedValue !== undefined ? { expectedValue: input.expectedValue || null } : {}),
+      updatedAt: new Date(),
+    })
+    .where(and(eq(leads.id, leadId), eq(leads.organizationId, organizationId)))
+    .returning();
+
+  revalidatePath(`/leads/${leadId}`);
+  revalidatePath('/leads');
+  return updated;
+}
+
+
 

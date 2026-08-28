@@ -18,7 +18,7 @@ export default async function SettingsPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        <aside className="lg:col-span-1 space-y-1 bg-card dark:bg-secondary p-4 rounded-xl border border-border dark:border-border h-fit">
+        <aside className="lg:col-span-1 space-y-1 bg-card dark:bg-secondary p-4 rounded-2xl border border-border dark:border-border h-fit">
           <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 py-2">
             Navigation
           </div>

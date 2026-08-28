@@ -7,7 +7,7 @@ export default async function AcceptInvitePage({ params }: { params: Promise<{ t
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6">
-      <div className="w-full max-w-md border rounded-xl bg-card shadow-sm p-8 space-y-6">
+      <div className="w-full max-w-md border rounded-2xl bg-card p-8 space-y-6">
         <div>
           <h1 className="text-2xl font-bold">Accept your invitation</h1>
           <p className="text-sm text-muted-foreground mt-1">Set up your account to join the workspace.</p>

@@ -58,7 +58,7 @@ export default async function FollowUpsDashboard() {
           <div className="bg-muted p-4 rounded-md space-y-2 border border-border">
             <h3 className="font-semibold text-foreground">Overdue</h3>
             {overdue.map((f) => (
-              <div key={f.followUp.id} className="flex justify-between items-center bg-card p-3 rounded shadow-sm border border-border">
+              <div key={f.followUp.id} className="flex justify-between items-center bg-card p-3 rounded border border-border">
                 <div>
                   <p className="font-medium">{f.followUp.title} ({f.followUp.type})</p>
                   <p className="text-sm text-muted-foreground">Lead: {f.lead.name}</p>
@@ -75,7 +75,7 @@ export default async function FollowUpsDashboard() {
           <div className="bg-muted p-4 rounded-md space-y-2 border border-border">
             <h3 className="font-semibold text-foreground">Upcoming</h3>
             {upcoming.map((f) => (
-              <div key={f.followUp.id} className="flex justify-between items-center bg-card p-3 rounded shadow-sm border border-border">
+              <div key={f.followUp.id} className="flex justify-between items-center bg-card p-3 rounded border border-border">
                 <div>
                   <p className="font-medium">{f.followUp.title} ({f.followUp.type})</p>
                   <p className="text-sm text-muted-foreground">Lead: {f.lead.name}</p>

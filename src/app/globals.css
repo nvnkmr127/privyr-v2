@@ -57,3 +57,20 @@ body {
 *::-webkit-scrollbar { width: 8px; height: 8px; }
 *::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 9999px; }
 *::-webkit-scrollbar-track { background: transparent; }
+
+/* Native form controls in monochrome — checkboxes, radios, date pickers stay on the B/W scale
+   instead of the browser's default blue. */
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: hsl(var(--foreground));
+}
+::selection {
+  background: hsl(var(--foreground));
+  color: hsl(var(--background));
+}
+/* Dark-native date/time pickers and autofill so inputs don't flash white. */
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"] {
+  color-scheme: dark;
+}

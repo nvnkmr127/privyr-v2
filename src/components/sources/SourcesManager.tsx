@@ -210,7 +210,7 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
   return (
     <div className="space-y-8">
       {/* Header & Security Badge */}
-      <div className="flex items-center justify-between bg-secondary text-foreground p-6 rounded-2xl shadow-md">
+      <div className="flex items-center justify-between bg-secondary text-foreground p-6 rounded-2xl">
         <div>
           <h3 className="text-xl font-bold flex items-center gap-2">
             <ShieldCheck className="h-6 w-6 text-muted-foreground" /> Multi-Source Lead Integration Hub
@@ -235,11 +235,11 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
             return (
               <div
                 key={platform.id}
-                className="border rounded-2xl p-5 bg-card shadow-sm hover:shadow-md transition flex flex-col justify-between space-y-4"
+                className="border rounded-2xl p-5 bg-card transition flex flex-col justify-between space-y-4"
               >
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <div className={`p-3 rounded-xl border ${platform.brandColor}`}>
+                    <div className={`p-3 rounded-2xl border ${platform.brandColor}`}>
                       <IconComponent className="h-6 w-6" />
                     </div>
                     <Badge variant="outline" className="text-xs font-medium">
@@ -259,7 +259,7 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
                   <Button
                     onClick={() => handleConnectPlatform(platform)}
                     disabled={connectingId === platform.id}
-                    className={`w-full font-medium gap-2 rounded-xl py-5 ${platform.buttonBg}`}
+                    className={`w-full font-medium gap-2 rounded-2xl py-5 ${platform.buttonBg}`}
                   >
                     <IconComponent className="h-4 w-4" />
                     {connectingId === platform.id ? "Connecting..." : platform.buttonText}
@@ -291,7 +291,7 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
         ) : (
           <div className="space-y-4">
             {sources.map((s) => (
-              <div key={s.id} className="border rounded-2xl p-5 bg-card shadow-sm space-y-3">
+              <div key={s.id} className="border rounded-2xl p-5 bg-card space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <span className="font-bold text-foreground">{s.name}</span>
@@ -302,7 +302,7 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
                       {s.isActive ? "Active" : "Inactive"}
                     </Badge>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => toggle(s)} className="rounded-xl">
+                  <Button variant="outline" size="sm" onClick={() => toggle(s)} className="rounded-2xl">
                     {s.isActive ? "Deactivate" : "Activate"}
                   </Button>
                 </div>
@@ -311,7 +311,7 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
                   <div>
                     <span className="text-xs font-semibold text-muted-foreground block mb-1">Instant Webhook Endpoint URL</span>
                     <div className="flex items-center gap-2">
-                      <code className="flex-1 truncate bg-muted border rounded-xl px-3 py-2 text-xs font-mono text-foreground">
+                      <code className="flex-1 truncate bg-muted border rounded-2xl px-3 py-2 text-xs font-mono text-foreground">
                         {webhookUrl(s)}
                       </code>
                       <Button variant="ghost" size="icon" onClick={() => copy(webhookUrl(s), "Webhook URL")}>
@@ -325,7 +325,7 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
                         HMAC SHA-256 Signing Secret (Header <code>x-hub-signature-256</code>)
                       </span>
                       <div className="flex items-center gap-2">
-                        <code className="flex-1 truncate bg-muted border rounded-xl px-3 py-2 text-xs font-mono text-foreground">
+                        <code className="flex-1 truncate bg-muted border rounded-2xl px-3 py-2 text-xs font-mono text-foreground">
                           {s.webhookSecret}
                         </code>
                         <Button variant="ghost" size="icon" onClick={() => copy(s.webhookSecret!, "Secret")}>

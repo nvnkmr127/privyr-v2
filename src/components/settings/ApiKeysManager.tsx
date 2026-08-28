@@ -44,7 +44,7 @@ export function ApiKeysManager({ initial }: { initial: ApiKey[] }) {
 
   return (
     <div className="space-y-4">
-      <div className="border rounded-xl p-6 bg-card shadow-sm space-y-3">
+      <div className="border rounded-2xl p-6 bg-card space-y-3">
         <div className="flex items-center gap-2"><Key className="h-5 w-5 text-muted-foreground" /><h3 className="font-semibold">API Keys</h3></div>
         <p className="text-sm text-muted-foreground">
           Authenticate with <code className="text-xs bg-muted px-1 rounded">Authorization: Bearer &lt;key&gt;</code> against
@@ -70,7 +70,7 @@ export function ApiKeysManager({ initial }: { initial: ApiKey[] }) {
         )}
       </div>
 
-      <div className="border rounded-xl bg-card shadow-sm divide-y">
+      <div className="border rounded-2xl bg-card divide-y">
         {keys.length === 0 && <div className="p-6 text-sm text-muted-foreground">No API keys yet.</div>}
         {keys.map((k) => (
           <div key={k.id} className="flex items-center justify-between p-4">

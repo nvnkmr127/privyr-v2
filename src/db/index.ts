@@ -4,6 +4,13 @@ import * as schema from './schema';
 
 const connectionString = process.env.DATABASE_URL!;
 
-// Disable prefetch as it is not supported for "Transaction" pool mode
-const client = postgres(connectionString, { prepare: false });
+declare global {
+  var _dbClient: postgres.Sql | undefined;
+}
+
+const client = globalThis._dbClient ?? postgres(connectionString, { prepare: false, max: 10 });
+if (process.env.NODE_ENV !== 'production') {
+  globalThis._dbClient = client;
+}
+
 export const db = drizzle(client, { schema });

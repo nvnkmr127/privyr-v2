@@ -152,7 +152,7 @@ export function UsersManager({
 
   return (
     <div className="space-y-6">
-      <div className="border rounded-xl p-6 bg-card shadow-sm space-y-3">
+      <div className="border rounded-2xl p-6 bg-card space-y-3">
         <h3 className="font-semibold">Teams</h3>
         <div className="flex flex-wrap gap-1.5">
           {teams.length === 0 && <span className="text-xs text-muted-foreground">No teams yet</span>}
@@ -167,7 +167,7 @@ export function UsersManager({
         </div>
       </div>
 
-      <div className="border rounded-xl p-6 bg-card shadow-sm space-y-3">
+      <div className="border rounded-2xl p-6 bg-card space-y-3">
         <div className="flex items-center gap-2"><Mail className="h-4 w-4 text-muted-foreground" /><h3 className="font-semibold">Invite by email</h3></div>
         <p className="text-sm text-muted-foreground">They set their own password via a secure link — no need to share one.</p>
         <div className="flex flex-col sm:flex-row gap-2">
@@ -185,7 +185,7 @@ export function UsersManager({
         </div>
       </div>
 
-      <div className="border rounded-xl p-6 bg-card shadow-sm space-y-4">
+      <div className="border rounded-2xl p-6 bg-card space-y-4">
         <h3 className="font-semibold">Or add a member directly</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Input placeholder="First name" value={form.firstName} onChange={(e) => set("firstName", e.target.value)} />
@@ -208,7 +208,7 @@ export function UsersManager({
         </div>
       </div>
 
-      <div className="border rounded-xl bg-card shadow-sm divide-y">
+      <div className="border rounded-2xl bg-card divide-y">
         {users.map((u) => {
           const isSelf = u.id === currentUserId;
           return (

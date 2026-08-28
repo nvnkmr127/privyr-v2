@@ -96,7 +96,7 @@ export function BillingManager({
         </div>
       )}
 
-      <div className="rounded-xl border bg-card shadow-sm p-6">
+      <div className="rounded-2xl border bg-card p-6">
         <div className="flex items-center justify-between">
           <div>
             <div className="text-sm text-muted-foreground">Current plan</div>
@@ -112,7 +112,7 @@ export function BillingManager({
           const isCurrent = name === current;
           const paid = name !== "free";
           return (
-            <div key={name} className={`rounded-xl border p-5 space-y-3 ${isCurrent ? "border-border ring-1 ring-ring" : "bg-card"}`}>
+            <div key={name} className={`rounded-2xl border p-5 space-y-3 ${isCurrent ? "border-border ring-1 ring-ring" : "bg-card"}`}>
               <div className="font-semibold capitalize text-lg">{name}</div>
               <ul className="text-sm text-muted-foreground space-y-1">
                 <li className="flex items-center gap-2"><Check className="h-4 w-4 text-muted-foreground" /> {fmt(l.seats)} seats</li>

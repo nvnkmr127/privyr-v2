@@ -62,7 +62,7 @@ export function CustomFieldsManager({ initial }: { initial: Field[] }) {
 
   return (
     <div className="space-y-4">
-      <div className="border rounded-xl p-6 bg-card shadow-sm space-y-3">
+      <div className="border rounded-2xl p-6 bg-card space-y-3">
         <h3 className="font-semibold">Add a custom field</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Input placeholder="Field label (e.g. Budget)" value={label} onChange={(e) => setLabel(e.target.value)} />
@@ -85,7 +85,7 @@ export function CustomFieldsManager({ initial }: { initial: Field[] }) {
         </div>
       </div>
 
-      <div className="border rounded-xl bg-card shadow-sm divide-y">
+      <div className="border rounded-2xl bg-card divide-y">
         {fields.length === 0 && <div className="p-6 text-sm text-muted-foreground">No custom fields yet.</div>}
         {fields.map((f) => (
           <div key={f.id} className="flex items-center justify-between p-4">

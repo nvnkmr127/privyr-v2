@@ -102,7 +102,7 @@ export function GeneralSettingsForm({ organization }: { organization?: Org | nul
 
       <form onSubmit={handleSave} className="space-y-6">
         {/* Company information */}
-        <div className="bg-card dark:bg-secondary rounded-xl border border-border dark:border-border p-6 space-y-6">
+        <div className="bg-card dark:bg-secondary rounded-2xl border border-border dark:border-border p-6 space-y-6">
           <div className="flex items-center gap-3 border-b border-border dark:border-border pb-4">
             <Building className="h-5 w-5 text-muted-foreground" />
             <div>
@@ -171,7 +171,7 @@ export function GeneralSettingsForm({ organization }: { organization?: Org | nul
         </div>
 
         {/* Localisation */}
-        <div className="bg-card dark:bg-secondary rounded-xl border border-border dark:border-border p-6 space-y-6">
+        <div className="bg-card dark:bg-secondary rounded-2xl border border-border dark:border-border p-6 space-y-6">
           <div className="flex items-center gap-3 border-b border-border dark:border-border pb-4">
             <Globe className="h-5 w-5 text-muted-foreground" />
             <div>
@@ -208,7 +208,7 @@ export function GeneralSettingsForm({ organization }: { organization?: Org | nul
         </div>
 
         {/* Required lead information */}
-        <div className="bg-card dark:bg-secondary rounded-xl border border-border dark:border-border p-6 space-y-4">
+        <div className="bg-card dark:bg-secondary rounded-2xl border border-border dark:border-border p-6 space-y-4">
           <div className="flex items-center gap-3 border-b border-border dark:border-border pb-4">
             <Sliders className="h-5 w-5 text-muted-foreground" />
             <div>
@@ -253,7 +253,7 @@ export function GeneralSettingsForm({ organization }: { organization?: Org | nul
       </form>
 
       {/* Core Lead & Workflow Configuration Card */}
-      <div className="bg-card dark:bg-secondary rounded-xl border border-border dark:border-border p-6 space-y-4">
+      <div className="bg-card dark:bg-secondary rounded-2xl border border-border dark:border-border p-6 space-y-4">
         <div className="flex items-center gap-3 border-b border-border dark:border-border pb-4">
           <Sliders className="h-5 w-5 text-muted-foreground" />
           <div>

@@ -1,7 +1,8 @@
-import { pgTable, uuid, varchar, text, timestamp, index } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, timestamp, index, integer } from 'drizzle-orm/pg-core';
 
 import { leads } from './leads';
 import { users } from './users';
+import { organizations } from './organizations';
 
 export const activities = pgTable('activities', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -44,3 +45,18 @@ export const reminders = pgTable('reminders', {
 }, (table) => ({
   followUpIdx: index('reminders_follow_up_idx').on(table.followUpId),
 }));
+
+export const leadAttachments = pgTable('lead_attachments', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  leadId: uuid('lead_id').references(() => leads.id).notNull(),
+  organizationId: uuid('organization_id').references(() => organizations.id),
+  fileName: varchar('file_name', { length: 255 }).notNull(),
+  fileUrl: text('file_url').notNull(),
+  fileSize: integer('file_size'),
+  fileType: varchar('file_type', { length: 100 }),
+  uploadedById: uuid('uploaded_by_id').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  leadIdx: index('lead_attachments_lead_idx').on(table.leadId),
+}));
+

@@ -61,7 +61,7 @@ export function RolesManager({ initialRoles }: { initialRoles: Role[] }) {
   }
 
   return (
-    <div className="border rounded-xl p-6 bg-card shadow-sm space-y-4">
+    <div className="border rounded-2xl p-6 bg-card space-y-4">
       <div className="flex items-center gap-2">
         <Shield className="h-5 w-5 text-muted-foreground" />
         <h3 className="font-semibold">Roles &amp; Permissions</h3>

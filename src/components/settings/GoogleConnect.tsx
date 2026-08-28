@@ -22,7 +22,7 @@ export function GoogleConnect({ connected, configured }: { connected: boolean; c
   }
 
   return (
-    <div className="rounded-xl border bg-card shadow-sm p-6 flex items-center justify-between">
+    <div className="rounded-2xl border bg-card p-6 flex items-center justify-between">
       <div className="flex items-center gap-3">
         <Calendar className="h-6 w-6 text-muted-foreground" />
         <div>

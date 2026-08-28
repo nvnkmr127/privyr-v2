@@ -224,7 +224,11 @@ export function LeadsTable({
                     aria-label={`Select ${lead.name}`}
                   />
                 </TableCell>
-                <TableCell className="font-medium">{lead.name}</TableCell>
+                <TableCell className="font-medium">
+                  <Link href={`/leads/${lead.id}`} className="hover:underline text-primary">
+                    {lead.name}
+                  </Link>
+                </TableCell>
                 <TableCell>{lead.email || "-"}</TableCell>
                 <TableCell>{lead.phone || "-"}</TableCell>
                 <TableCell>

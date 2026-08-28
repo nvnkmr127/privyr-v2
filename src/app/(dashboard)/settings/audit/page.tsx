@@ -24,7 +24,7 @@ export default async function AuditPage() {
         </div>
       </div>
 
-      <div className="border rounded-xl bg-card shadow-sm divide-y text-sm">
+      <div className="border rounded-2xl bg-card divide-y text-sm">
         {logs.length === 0 && <div className="p-6 text-muted-foreground">No activity recorded yet.</div>}
         {logs.map((l) => (
           <div key={l.id} className="flex items-center justify-between p-3">

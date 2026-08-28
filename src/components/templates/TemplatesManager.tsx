@@ -61,7 +61,7 @@ export function TemplatesManager({ initialTemplates }: { initialTemplates: Templ
 
   return (
     <div className="space-y-6">
-      <div className="border rounded-xl p-6 bg-card shadow-sm space-y-4">
+      <div className="border rounded-2xl p-6 bg-card space-y-4">
         <h3 className="font-semibold">New template</h3>
         <div className="flex flex-col sm:flex-row gap-3">
           <Input placeholder="Template name" value={name} onChange={(e) => setName(e.target.value)} className="flex-1" />
@@ -89,7 +89,7 @@ export function TemplatesManager({ initialTemplates }: { initialTemplates: Templ
       ) : (
         <div className="space-y-3">
           {templates.map((t) => (
-            <div key={t.id} className="border rounded-xl p-5 bg-card shadow-sm">
+            <div key={t.id} className="border rounded-2xl p-5 bg-card">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-3">
                   <span className="font-medium">{t.name}</span>

@@ -149,7 +149,7 @@ export function KanbanBoard({
             }}
             onDragLeave={() => setOverCol((c) => (c === col.key ? null : c))}
             onDrop={() => drop(col.key)}
-            className={`flex w-72 shrink-0 flex-col rounded-xl border bg-muted ${
+            className={`flex w-72 shrink-0 flex-col rounded-2xl border bg-muted ${
               overCol === col.key ? "ring-2 ring-ring" : ""
             }`}
           >
@@ -174,7 +174,7 @@ export function KanbanBoard({
                     setDragFromCol(null);
                     setOverCol(null);
                   }}
-                  className="rounded-lg border bg-card p-3 shadow-sm hover:shadow transition-shadow cursor-grab active:cursor-grabbing"
+                  className="rounded-lg border border-border bg-card p-3 hover:border-ring/60 transition-colors cursor-grab active:cursor-grabbing"
                 >
                   <Link href={`/leads/${c.id}`} className="font-medium text-sm hover:underline text-foreground">
                     {c.name}

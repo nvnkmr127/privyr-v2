@@ -33,7 +33,7 @@ export function DuplicatesManager({ initial }: { initial: Group[] }) {
   }
 
   if (groups.length === 0) {
-    return <div className="border rounded-xl bg-card shadow-sm p-8 text-center text-muted-foreground">No duplicate leads found. 🎉</div>;
+    return <div className="rounded-2xl border border-border bg-card p-8 text-center text-muted-foreground">No duplicate leads found.</div>;
   }
 
   return (
@@ -41,7 +41,7 @@ export function DuplicatesManager({ initial }: { initial: Group[] }) {
       {groups.map((group) => {
         const primary = group.leads[0];
         return (
-          <div key={group.key} className="border rounded-xl bg-card shadow-sm p-4 space-y-2">
+          <div key={group.key} className="border rounded-2xl bg-card p-4 space-y-2">
             <div className="text-xs text-muted-foreground">Matched on {group.key.startsWith("e:") ? "email" : "phone"}</div>
             {group.leads.map((l, i) => (
               <div key={l.id} className="flex items-center justify-between py-1">

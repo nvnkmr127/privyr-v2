@@ -7,7 +7,6 @@ import { requireOrg } from "@/lib/rbac";
 import { ActivityService } from "@/domains/activities/service";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
-import { EditLeadDialog } from "@/components/leads/EditLeadDialog";
 import { AddNoteForm } from "@/components/leads/AddNoteForm";
 import { WhatsAppSendBox } from "@/components/leads/WhatsAppSendBox";
 import { EmailSendBox } from "@/components/leads/EmailSendBox";
@@ -18,6 +17,19 @@ import { LeadAssignControl } from "@/components/leads/LeadAssignControl";
 import { LeadTags } from "@/components/leads/LeadTags";
 import { LeadCustomFields } from "@/components/leads/LeadCustomFields";
 import { TagService } from "@/domains/tags/service";
+import { LeadDuplicateBanner } from "@/components/leads/LeadDuplicateBanner";
+import { LeadFollowUpControl } from "@/components/leads/LeadFollowUpControl";
+import { LeadStageAndValueControl } from "@/components/leads/LeadStageAndValueControl";
+import { LeadSequencesCard } from "@/components/leads/LeadSequencesCard";
+import { checkLeadDuplicatesAction } from "@/lib/actions/leads";
+import { getAttachmentsAction } from "@/lib/actions/attachments";
+import { getLeadRemindersAction } from "@/lib/actions/reminders";
+import { LeadHeaderQuickActions } from "@/components/leads/LeadHeaderQuickActions";
+import { LeadRemindersTab } from "@/components/leads/LeadRemindersTab";
+import { LeadAttachmentsTab } from "@/components/leads/LeadAttachmentsTab";
+import { db } from "@/db";
+import { leadPipelineStages, automations } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 export default async function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -26,147 +38,274 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
   const activities = await ActivityService.getLeadActivities(id);
   const waMessages = await WhatsAppService.listForLead(id);
   const leadTags = await TagService.getForLead(id);
+  const { count: dupCount } = await checkLeadDuplicatesAction(id);
+  const attachments = await getAttachmentsAction(id).catch(() => []);
+  const reminders = await getLeadRemindersAction(id).catch(() => []);
+
+  const stagesList = await db.select({ id: leadPipelineStages.id, name: leadPipelineStages.name }).from(leadPipelineStages).catch(() => []);
+  const automationsList = await db
+    .select({ id: automations.id, name: automations.name })
+    .from(automations)
+    .where(eq(automations.organizationId, organizationId))
+    .catch(() => []);
 
   if (!lead) {
     notFound();
   }
 
+  const notesCount = activities.filter((a) => a.type === "note").length;
+  const initials =
+    lead.name
+      ?.split(" ")
+      .map((w) => w[0])
+      .filter(Boolean)
+      .slice(0, 2)
+      .join("")
+      .toUpperCase() || "?";
+
   return (
-    <div className="flex-1 space-y-4 p-8 pt-6">
-      <div className="flex items-center space-x-4 mb-4">
-        <Link href="/leads">
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-        </Link>
-        <h2 className="text-2xl font-bold tracking-tight">Lead Details</h2>
-        <Badge variant={lead.status === 'new' ? 'default' : 'secondary'} className="ml-4">
-          {lead.status}
-        </Badge>
+    <div className="flex-1 space-y-6 p-8 pt-6">
+      {/* Duplicate Warning Banner */}
+      <LeadDuplicateBanner count={dupCount} searchQuery={lead.email || lead.phone || undefined} />
+
+      {/* Header Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-5">
+        <div className="flex items-center gap-3">
+          <Link href="/leads">
+            <Button variant="outline" size="icon" className="h-9 w-9">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-sm font-semibold text-secondary-foreground">
+            {initials}
+          </div>
+          <div>
+            <div className="flex items-center gap-3">
+              <h2 className="text-2xl font-bold tracking-tight">{lead.name}</h2>
+              <Badge variant={lead.status === "new" ? "default" : "secondary"} className="capitalize">
+                {lead.status}
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Created{" "}
+              {lead.createdAt
+                ? new Date(lead.createdAt).toLocaleDateString(undefined, { dateStyle: "medium" })
+                : "recently"}
+            </p>
+          </div>
+        </div>
+
+        {/* Quick Actions Header Toolbar */}
+        <LeadHeaderQuickActions lead={lead} />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Left Column: Lead Info */}
-        <div className="md:col-span-1 space-y-6">
-          <div className="border rounded-xl p-6 bg-card shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-lg flex items-center gap-2">
-                <User className="h-5 w-5" /> Contact Info
-              </h3>
-              <EditLeadDialog lead={lead} />
-            </div>
-            <div className="space-y-4 text-sm">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column: Lead Info & Attributes */}
+        <div className="lg:col-span-1 space-y-6">
+          {/* Follow Up Reminder Widget */}
+          <LeadFollowUpControl leadId={lead.id} nextFollowUpAt={lead.nextFollowUpAt} />
+
+          {/* Quick Controls Card */}
+          <div className="rounded-2xl border border-border p-5 bg-card space-y-4">
+            <h3 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">
+              Lead Management
+            </h3>
+
+            <div className="space-y-4">
               <div>
-                <span className="text-muted-foreground block mb-1">Status</span>
+                <span className="text-xs text-muted-foreground block mb-1.5">Status</span>
                 <LeadStatusControl leadId={lead.id} status={lead.status} />
               </div>
 
               <div>
-                <span className="text-muted-foreground block mb-1">Owner</span>
+                <span className="text-xs text-muted-foreground block mb-1.5">Assignee</span>
                 <LeadAssignControl leadId={lead.id} ownerId={lead.ownerId} />
               </div>
 
               <div>
-                <span className="text-muted-foreground block mb-1">Tags</span>
+                <span className="text-xs text-muted-foreground block mb-1.5">Tags</span>
                 <LeadTags leadId={lead.id} initialTags={leadTags} />
               </div>
 
-              <div>
-                <span className="text-muted-foreground block mb-1">Name</span>
-                <p className="font-medium text-base">{lead.name}</p>
+              {/* Stage & Opportunity Value */}
+              <div className="border-t pt-4">
+                <LeadStageAndValueControl
+                  leadId={lead.id}
+                  stageId={lead.stageId}
+                  expectedValue={lead.expectedValue}
+                  stages={stagesList}
+                />
               </div>
-              
-              {lead.email && (
-                <div className="flex items-start gap-3">
-                  <Mail className="h-4 w-4 text-muted-foreground mt-1" />
-                  <div>
-                    <span className="text-muted-foreground block">Email</span>
-                    <p className="font-medium">{lead.email}</p>
-                  </div>
-                </div>
-              )}
-              
-              {lead.phone && (
-                <div className="flex items-start gap-3">
-                  <Phone className="h-4 w-4 text-muted-foreground mt-1" />
-                  <div>
-                    <span className="text-muted-foreground block">Phone</span>
-                    <p className="font-medium">{lead.phone}</p>
-                  </div>
-                </div>
-              )}
-
-              {lead.company && (
-                <div className="flex items-start gap-3">
-                  <Building className="h-4 w-4 text-muted-foreground mt-1" />
-                  <div>
-                    <span className="text-muted-foreground block">Company</span>
-                    <p className="font-medium">{lead.company}</p>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
 
-          <div className="border rounded-xl p-6 bg-card shadow-sm">
-            <h3 className="font-semibold text-lg mb-4">Details</h3>
+          {/* Contact Information Card */}
+          <div className="rounded-2xl border border-border p-5 bg-card space-y-4">
+            <h3 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+              <User className="h-4 w-4" /> Contact Info
+            </h3>
+
+            <div className="space-y-3.5 text-sm">
+              <div className="flex items-start gap-3">
+                <Mail className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <span className="text-xs text-muted-foreground block">Email</span>
+                  <p className="font-medium truncate">{lead.email || "—"}</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <Phone className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <span className="text-xs text-muted-foreground block">Phone</span>
+                  <p className="font-medium truncate">{lead.phone || "—"}</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <Building className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <span className="text-xs text-muted-foreground block">Company</span>
+                  <p className="font-medium truncate">{lead.company || "—"}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Custom Fields Card */}
+          <div className="rounded-2xl border border-border p-5 bg-card space-y-4">
+            <h3 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">
+              Custom Attributes
+            </h3>
             <LeadCustomFields leadId={lead.id} initialData={(lead.customData as Record<string, unknown>) ?? {}} />
           </div>
         </div>
 
-        {/* Right Column: Activity & Tabs */}
-        <div className="md:col-span-2">
-          <Tabs defaultValue="activity" className="w-full">
-            <TabsList className="w-full justify-start border-b rounded-none h-12 bg-transparent p-0">
-              <TabsTrigger value="activity" className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-border data-[state=active]:shadow-none">Activity</TabsTrigger>
-              <TabsTrigger value="whatsapp" className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-border data-[state=active]:shadow-none">WhatsApp</TabsTrigger>
-              <TabsTrigger value="notes" className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-border data-[state=active]:shadow-none">Notes</TabsTrigger>
-              <TabsTrigger value="emails" className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-border data-[state=active]:shadow-none">Emails</TabsTrigger>
-            </TabsList>
-            <TabsContent value="whatsapp" className="p-4 pt-6 space-y-4">
-              <WhatsAppThread messages={waMessages} />
-              <WhatsAppSendBox leadId={lead.id} hasPhone={!!lead.phone} />
-            </TabsContent>
-            <TabsContent value="activity" className="p-4 pt-6 space-y-4">
-              {activities.length === 0 ? (
-                <div className="text-center py-10 text-muted-foreground">No activity logged yet.</div>
-              ) : (
-                <div className="space-y-4">
-                  {activities.map((activity) => (
-                    <div key={activity.id} className="border-b pb-4 last:border-0">
-                      <div className="text-sm font-medium">{activity.type}</div>
-                      <div className="text-sm text-muted-foreground mt-1">{activity.content}</div>
-                      <div className="text-xs text-muted-foreground mt-2">
-                        {activity.createdAt.toLocaleDateString()} {activity.createdAt.toLocaleTimeString()}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-            <TabsContent value="emails" className="p-4 pt-6 space-y-4">
-              <EmailSendBox leadId={lead.id} email={lead.email} />
-            </TabsContent>
-            <TabsContent value="notes" className="p-4 pt-6 space-y-6">
-              <AddNoteForm leadId={lead.id} />
-              <div className="space-y-4">
-                {activities.filter(a => a.type === 'note').length === 0 ? (
-                  <div className="text-center py-10 text-muted-foreground">No notes added.</div>
-                ) : (
-                  activities.filter(a => a.type === 'note').map((note) => (
-                    <div key={note.id} className="bg-muted p-4 rounded-lg border">
-                      <div className="text-sm text-foreground whitespace-pre-wrap">{note.content}</div>
-                      <div className="text-xs text-muted-foreground mt-2">
-                        {note.createdAt.toLocaleDateString()} {note.createdAt.toLocaleTimeString()}
-                      </div>
-                    </div>
-                  ))
-                )}
+        {/* Right Column: Sequences & Activity/Messaging Tabs */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Automated Sequences Card */}
+          <LeadSequencesCard leadId={lead.id} availableSequences={automationsList} />
+
+          {/* Tabs Container */}
+          <div className="rounded-2xl border border-border bg-card overflow-hidden">
+            <Tabs defaultValue="activity" className="w-full">
+              <div className="border-b border-border px-4 overflow-x-auto">
+                <TabsList className="h-auto bg-transparent gap-1 p-0 justify-start">
+                  <TabsTrigger
+                    value="activity"
+                    className="rounded-none border-b-2 border-transparent -mb-px px-4 py-3 text-sm font-medium text-muted-foreground shrink-0 data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                  >
+                    Activity Log ({activities.length})
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="reminders"
+                    className="rounded-none border-b-2 border-transparent -mb-px px-4 py-3 text-sm font-medium text-muted-foreground shrink-0 data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                  >
+                    Reminders ({reminders.length})
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="attachments"
+                    className="rounded-none border-b-2 border-transparent -mb-px px-4 py-3 text-sm font-medium text-muted-foreground shrink-0 data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                  >
+                    Attachments ({attachments.length})
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="whatsapp"
+                    className="rounded-none border-b-2 border-transparent -mb-px px-4 py-3 text-sm font-medium text-muted-foreground shrink-0 data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                  >
+                    WhatsApp ({waMessages.length})
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="notes"
+                    className="rounded-none border-b-2 border-transparent -mb-px px-4 py-3 text-sm font-medium text-muted-foreground shrink-0 data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                  >
+                    Notes ({notesCount})
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="emails"
+                    className="rounded-none border-b-2 border-transparent -mb-px px-4 py-3 text-sm font-medium text-muted-foreground shrink-0 data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                  >
+                    Send Email
+                  </TabsTrigger>
+                </TabsList>
               </div>
-            </TabsContent>
-          </Tabs>
+
+              <div className="p-6">
+                <TabsContent value="activity" className="mt-0 space-y-4">
+                  {activities.length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground text-sm">
+                      No activity recorded for this lead yet.
+                    </div>
+                  ) : (
+                    <div className="relative pl-6 border-l border-border/60 space-y-6">
+                      {activities.map((activity) => (
+                        <div key={activity.id} className="relative group">
+                          <div className="absolute -left-[31px] top-1 h-2.5 w-2.5 rounded-full bg-border group-hover:bg-primary transition-colors" />
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                              {activity.type}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {activity.createdAt.toLocaleDateString(undefined, { dateStyle: "short" })}{" "}
+                              {activity.createdAt.toLocaleTimeString(undefined, { timeStyle: "short" })}
+                            </span>
+                          </div>
+                          <p className="text-sm font-medium text-foreground mt-1 whitespace-pre-wrap">
+                            {activity.content}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="reminders" className="mt-0">
+                  <LeadRemindersTab leadId={lead.id} initialReminders={reminders} />
+                </TabsContent>
+
+                <TabsContent value="attachments" className="mt-0">
+                  <LeadAttachmentsTab leadId={lead.id} initialAttachments={attachments} />
+                </TabsContent>
+
+                <TabsContent value="whatsapp" className="mt-0 space-y-4">
+                  <WhatsAppThread messages={waMessages} />
+                  <WhatsAppSendBox leadId={lead.id} hasPhone={!!lead.phone} />
+                </TabsContent>
+
+                <TabsContent value="emails" className="mt-0 space-y-4">
+                  <EmailSendBox leadId={lead.id} email={lead.email} />
+                </TabsContent>
+
+                <TabsContent value="notes" className="mt-0 space-y-6">
+                  <AddNoteForm leadId={lead.id} />
+                  <div className="space-y-3">
+                    {notesCount === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground text-sm">
+                        No notes added yet. Use the form above to add a note.
+                      </div>
+                    ) : (
+                      activities
+                        .filter((a) => a.type === "note")
+                        .map((note) => (
+                          <div key={note.id} className="bg-muted/40 p-4 rounded-lg border text-sm space-y-2">
+                            <p className="text-foreground whitespace-pre-wrap">{note.content}</p>
+                            <div className="text-xs text-muted-foreground text-right">
+                              {note.createdAt.toLocaleDateString(undefined, { dateStyle: "short" })}{" "}
+                              {note.createdAt.toLocaleTimeString(undefined, { timeStyle: "short" })}
+                            </div>
+                          </div>
+                        ))
+                    )}
+                  </div>
+                </TabsContent>
+              </div>
+            </Tabs>
+          </div>
         </div>
       </div>
     </div>
   );
 }
+
+
+

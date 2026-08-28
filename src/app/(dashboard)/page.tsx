@@ -39,18 +39,18 @@ export default async function ExecutiveDashboardPage({
       </div>
 
       <div className="space-y-6">
-        <Suspense fallback={<div className="h-32 bg-muted rounded-xl animate-pulse" />}>
+        <Suspense fallback={<div className="h-32 bg-muted rounded-2xl animate-pulse" />}>
           <MetricsCards filters={filters} />
         </Suspense>
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
-          <div className="col-span-4 border rounded-xl p-6 bg-card flex flex-col min-h-[350px]">
+          <div className="col-span-4 border rounded-2xl p-6 bg-card flex flex-col min-h-[350px]">
             <h3 className="text-lg font-medium mb-1">Leads by Source</h3>
             <p className="text-xs text-muted-foreground mb-4">Distribution of incoming lead volume across channels.</p>
             <LeadsBySourceChart data={leadsBySource} />
           </div>
 
-          <div className="col-span-3 border rounded-xl p-6 bg-card flex flex-col min-h-[350px]">
+          <div className="col-span-3 border rounded-2xl p-6 bg-card flex flex-col min-h-[350px]">
             <h3 className="text-lg font-medium mb-1">Pipeline Distribution</h3>
             <p className="text-xs text-muted-foreground mb-4">Leads broken down by current stage.</p>
             <LeadsByStageChart data={pipelineDistribution} />
@@ -58,13 +58,13 @@ export default async function ExecutiveDashboardPage({
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
-          <div className="col-span-4 border rounded-xl p-6 bg-card flex flex-col min-h-[350px]">
+          <div className="col-span-4 border rounded-2xl p-6 bg-card flex flex-col min-h-[350px]">
             <h3 className="text-lg font-medium mb-1">Lead Distribution by Owner</h3>
             <p className="text-xs text-muted-foreground mb-4">Lead count assigned per team member.</p>
             <LeadsByOwnerChart data={leadsByOwner} />
           </div>
 
-          <div className="col-span-3 border rounded-xl p-6 bg-card flex flex-col min-h-[350px]">
+          <div className="col-span-3 border rounded-2xl p-6 bg-card flex flex-col min-h-[350px]">
             <h3 className="text-lg font-medium mb-1">Recent Activity</h3>
             <p className="text-xs text-muted-foreground mb-4">Live timeline of actions across all leads.</p>
             <RecentActivityFeed activities={recentActivity} />
