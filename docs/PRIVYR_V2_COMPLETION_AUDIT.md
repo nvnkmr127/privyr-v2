@@ -97,6 +97,11 @@ This audit report presents a complete code-level analysis of the repository, ver
 | **Real-Time Webhook Event Dispatcher** | COMPLETE | Integration event dispatcher (`LeadWebhookEventService`) constructing HMAC-SHA256 signed JSON payloads for `lead.created`, `lead.status_changed`, `lead.hot_threshold`, and `lead.stagnant_alert`. |
 | **Webhook Delivery & Exponential Backoff** | COMPLETE | Async retry queue worker (`webhookRetryWorker`) executing BullMQ HTTP dispatches with exponential backoff algorithm (`Math.pow(2, attempt)`) up to 5 retries. |
 | **Dead Letter Queue (DLQ) Management** | COMPLETE | Failed webhook management engine (`WebhookDlqService`) recording exhausted delivery failures, displaying error tracebacks, re-queueing retries, and purging DLQ items. |
+| **Facebook Embedded Lead Ads & Field Mapping** | COMPLETE | End-to-end Meta Lead Ads integration engine (`FacebookLeadMappingService`) handling `GET` webhook subscribe challenge verification, `POST` `leadgen` event ingestion, and dynamic form field mapping to Privyr v2 lead columns (`name`, `email`, `phone`, `customData`). |
+| **Meta OAuth 2.0 Page Token Auto-Refresh** | COMPLETE | Authentication refresh engine (`MetaTokenRefreshService`) exchanging short-lived tokens for 60-day long-lived User Tokens, fetching permanent Page Access Tokens, and detecting expiration thresholds. |
+| **Meta OAuth Callback & Page Connection** | COMPLETE | OAuth callback endpoint (`/api/auth/facebook/callback`) handling Meta OAuth consent codes, triggering long-lived token exchange, fetching Page tokens, and persisting tenant Page connections. |
+| **Meta Deauthorization & Data Deletion** | COMPLETE | Meta App Review compliance webhook endpoint (`/api/webhooks/facebook/deauthorize`) verifying `signed_request` payloads and generating data deletion status tracking URLs and confirmation codes. |
+| **Universal Multi-Source Lead Mapping Engine** | COMPLETE | Cross-channel field normalization service (`UniversalLeadMappingService`) mapping incoming payloads from Facebook Lead Ads, Google Lead Form Ads, LinkedIn Lead Gen, Website Webhooks, and WhatsApp Inbound into standard Privyr v2 lead structure. |
 
 ---
 
@@ -120,6 +125,6 @@ All acceptance criteria for the Lead discovery system have passed:
 - [x] Mobile-responsive filter modal / drawer.
 - [x] `npx tsc --noEmit` PASSED (0 errors).
 - [x] `npm run lint` PASSED (0 warnings or errors).
-- [x] `npx vitest run` PASSED (44 test files, 119 unit & integration tests passed).
+- [x] `npx vitest run` PASSED (50 test files, 136 unit & integration tests passed).
 - [x] `npm run build` PASSED (Production build compiled cleanly).
 - [x] `npx playwright test` PASSED (12 test suites, 100% pass rate).

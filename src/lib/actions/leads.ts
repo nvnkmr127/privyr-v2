@@ -450,4 +450,22 @@ export async function purgeDlqJobAction(jobId: string) {
   return WebhookDlqService.purgeDlqJob(jobId, organizationId);
 }
 
+export async function mapFacebookLeadAction(facebookLeadData: any, customRules?: any[]) {
+  await requireOrg();
+  const { FacebookLeadMappingService } = await import("@/domains/leads/facebookLeadMappingService");
+  return FacebookLeadMappingService.mapFacebookLeadToStandardLead(facebookLeadData, customRules);
+}
+
+export async function exchangeMetaTokenAction(shortLivedToken: string) {
+  await requireOrg();
+  const { MetaTokenRefreshService } = await import("@/domains/leads/metaTokenRefreshService");
+  return MetaTokenRefreshService.exchangeShortLivedToken(shortLivedToken);
+}
+
+export async function mapUniversalLeadAction(provider: "facebook" | "google" | "linkedin" | "webhook" | "whatsapp", payload: any) {
+  await requireOrg();
+  const { UniversalLeadMappingService } = await import("@/domains/leads/universalLeadMappingService");
+  return UniversalLeadMappingService.mapLeadByProvider(provider, payload);
+}
+
 
