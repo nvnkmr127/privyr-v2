@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { tags, leadTags } from "@/db/schema";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 export class TagService {
   static async listAll() {
@@ -40,5 +40,23 @@ export class TagService {
 
   static async removeFromLead(leadId: string, tagId: string) {
     await db.delete(leadTags).where(and(eq(leadTags.leadId, leadId), eq(leadTags.tagId, tagId)));
+  }
+
+  static async bulkAddToLeads(leadIds: string[], rawName: string) {
+    const name = rawName.trim();
+    if (!name || leadIds.length === 0) return [];
+    let [tag] = await db.select().from(tags).where(eq(tags.name, name)).limit(1);
+    if (!tag) {
+      await db.insert(tags).values({ name }).onConflictDoNothing();
+      [tag] = await db.select().from(tags).where(eq(tags.name, name)).limit(1);
+    }
+    const values = leadIds.map((leadId) => ({ leadId, tagId: tag.id }));
+    await db.insert(leadTags).values(values).onConflictDoNothing();
+    return tag;
+  }
+
+  static async bulkRemoveFromLeads(leadIds: string[], tagId: string) {
+    if (leadIds.length === 0 || !tagId) return;
+    await db.delete(leadTags).where(and(inArray(leadTags.leadId, leadIds), eq(leadTags.tagId, tagId)));
   }
 }

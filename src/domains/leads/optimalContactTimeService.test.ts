@@ -1,0 +1,52 @@
+import { describe, expect, it, vi } from "vitest";
+import { OptimalContactTimeService } from "./optimalContactTimeService";
+
+vi.mock("@/db", () => ({
+  db: {
+    select: vi.fn(() => ({
+      from: vi.fn(() => ({
+        where: vi.fn().mockImplementation(() =>
+          Promise.resolve([
+            { id: "lead-1" },
+            { id: "lead-2" },
+          ])
+        ),
+      })),
+    })),
+  },
+}));
+
+describe("OptimalContactTimeService", () => {
+  it("should calculate optimal outreach hour and day based on activity timestamps", async () => {
+    const { db } = await import("@/db");
+    // Mock Org Leads
+    (db.select as any).mockImplementationOnce(() => ({
+      from: () => ({
+        where: () => Promise.resolve([{ id: "lead-1" }]),
+      }),
+    }));
+
+    // Tuesday at 14:30 PM
+    const tuesdayTwoPm = new Date("2026-08-25T14:30:00.000Z"); // Tuesday
+
+    // Mock Activities
+    (db.select as any).mockImplementationOnce(() => ({
+      from: () => ({
+        where: () =>
+          Promise.resolve([
+            { createdAt: tuesdayTwoPm },
+            { createdAt: tuesdayTwoPm },
+            { createdAt: tuesdayTwoPm },
+          ]),
+      }),
+    }));
+
+    const metrics = await OptimalContactTimeService.getOptimalContactTimes("org-1");
+
+    expect(metrics.totalTouchpointsAnalyzed).toBe(3);
+    expect(metrics.bestDayOfWeek).toBe("Tuesday");
+    expect(metrics.bestHourOfDayLabel).toContain("PM");
+    expect(metrics.hourlyDistribution.length).toBe(24);
+    expect(metrics.dailyDistribution.length).toBe(7);
+  });
+});

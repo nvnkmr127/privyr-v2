@@ -21,3 +21,10 @@ export async function removeTagAction(leadId: string, tagId: string) {
   await TagService.removeFromLead(leadId, tagId);
   revalidatePath(`/leads/${leadId}`);
 }
+
+export async function bulkAddTagAction(leadIds: string[], tagName: string) {
+  await requireAuth();
+  const tag = await TagService.bulkAddToLeads(leadIds, tagName);
+  revalidatePath("/leads");
+  return tag;
+}

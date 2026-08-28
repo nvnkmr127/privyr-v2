@@ -9,3 +9,4 @@ export * from './whatsapp';
 export * from './notifications';
 export * from './push';
 export * from './legacy';
+export * from './savedViews';
