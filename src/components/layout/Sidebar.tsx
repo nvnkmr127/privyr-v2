@@ -2,46 +2,25 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import {
-  Users,
-  Kanban,
-  LayoutDashboard,
-  CheckSquare,
-  Settings,
-  Activity,
-  Zap,
-  Network,
-} from "lucide-react";
-
-const routes = [
-  { label: 'Executive Dashboard', icon: LayoutDashboard, href: '/', group: 'Analytics' },
-  { label: 'My Dashboard', icon: Activity, href: '/my-dashboard', group: 'Analytics' },
-  { label: 'Leads', icon: Users, href: '/leads', group: 'CRM' },
-  { label: 'Pipeline', icon: Kanban, href: '/leads/kanban', group: 'CRM' },
-  { label: 'Follow-ups', icon: CheckSquare, href: '/follow-ups', group: 'Productivity' },
-  { label: 'Automations', icon: Zap, href: '/automations', group: 'Productivity' },
-  { label: 'Sources', icon: Network, href: '/settings/sources', group: 'Settings' },
-  { label: 'Settings', icon: Settings, href: '/settings', group: 'Settings' },
-];
-
-const groups = ['Analytics', 'CRM', 'Productivity', 'Settings'];
+import { navRoutes, navGroups } from "./nav";
 
 export function Sidebar() {
   const pathname = usePathname();
 
+  // Hidden on mobile — the Header's hamburger opens the same nav as an overlay drawer there.
   return (
-    <aside className="flex flex-col h-full w-64 flex-shrink-0 border-r border-border bg-card">
+    <aside className="hidden md:flex flex-col h-full w-64 flex-shrink-0 border-r border-border bg-card">
       <div className="h-14 flex items-center px-6 border-b border-border">
         <span className="text-base font-semibold tracking-tight">Privyr</span>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-5 space-y-6">
-        {groups.map((group) => (
+        {navGroups.map((group) => (
           <div key={group} className="space-y-1">
             <p className="px-3 mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">
               {group}
             </p>
-            {routes.filter((r) => r.group === group).map((route) => {
+            {navRoutes.filter((r) => r.group === group).map((route) => {
               const active = pathname === route.href;
               return (
                 <Link

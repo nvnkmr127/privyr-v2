@@ -13,8 +13,18 @@ import { useToast } from "@/hooks/use-toast";
 import { listUsersAction } from "@/lib/actions/users";
 import { bulkAssignLeadAction, bulkChangeLeadStatusAction } from "@/lib/actions/leads";
 import { bulkAddTagAction } from "@/lib/actions/tags";
+import { NextBestActionService, type ActionPriority } from "@/domains/leads/nextBestActionService";
 
-type Lead = { id: string; name: string; email: string | null; phone: string | null; status: string; createdAt: Date };
+type Lead = {
+  id: string; name: string; email: string | null; phone: string | null; status: string; createdAt: Date;
+  score?: number | null; lastContactedAt?: Date | null; nextFollowUpAt?: Date | null;
+};
+
+const PRIORITY_VARIANT: Record<ActionPriority, "destructive" | "default" | "secondary"> = {
+  high: "destructive",
+  medium: "default",
+  low: "secondary",
+};
 type User = { id: string; name: string };
 
 const STATUSES = ["new", "active", "won", "lost", "unqualified"];
@@ -209,6 +219,7 @@ export function LeadsTable({
               <TableHead>Email</TableHead>
               <TableHead>Phone</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Next Action</TableHead>
               <TableHead>Created</TableHead>
               <TableHead className="text-right">Action</TableHead>
             </TableRow>
@@ -235,6 +246,23 @@ export function LeadsTable({
                   <Badge variant={lead.status === "new" ? "default" : "secondary"}>
                     {lead.status}
                   </Badge>
+                </TableCell>
+                <TableCell>
+                  {(() => {
+                    const nba = NextBestActionService.getRecommendation({
+                      status: lead.status,
+                      score: lead.score ?? 0,
+                      phone: lead.phone,
+                      email: lead.email,
+                      lastContactedAt: lead.lastContactedAt ?? null,
+                      nextFollowUpAt: lead.nextFollowUpAt ?? null,
+                    });
+                    return (
+                      <Badge variant={PRIORITY_VARIANT[nba.priority]} className="font-normal" title={nba.reason}>
+                        {nba.label}
+                      </Badge>
+                    );
+                  })()}
                 </TableCell>
                 <TableCell suppressHydrationWarning>
                   {new Date(lead.createdAt).toLocaleDateString()}

@@ -1,0 +1,74 @@
+"use client"
+import { useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
+import { Menu, X } from "lucide-react";
+import { navRoutes, navGroups } from "./nav";
+
+// Hamburger + slide-in nav drawer for mobile. Hidden on md+ (the fixed Sidebar takes over there).
+export function MobileSidebar() {
+  const [open, setOpen] = useState(false);
+  const pathname = usePathname();
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label="Open menu"
+        className="md:hidden -ml-1 flex h-9 w-9 items-center justify-center rounded-md text-foreground hover:bg-accent"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
+
+      {open && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div className="absolute inset-0 bg-black/70 animate-in fade-in-0" onClick={() => setOpen(false)} />
+          <aside className="absolute left-0 top-0 flex h-full w-64 flex-col border-r border-border bg-card animate-in slide-in-from-left duration-200">
+            <div className="flex h-14 items-center justify-between px-6 border-b border-border">
+              <span className="text-base font-semibold tracking-tight">Privyr</span>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                aria-label="Close menu"
+                className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <nav className="flex-1 overflow-y-auto px-3 py-5 space-y-6">
+              {navGroups.map((group) => (
+                <div key={group} className="space-y-1">
+                  <p className="px-3 mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">
+                    {group}
+                  </p>
+                  {navRoutes.filter((r) => r.group === group).map((route) => {
+                    const active = pathname === route.href;
+                    return (
+                      <Link
+                        key={route.href}
+                        href={route.href}
+                        onClick={() => setOpen(false)}
+                        className={cn(
+                          "group flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                          active
+                            ? "bg-accent text-accent-foreground"
+                            : "text-muted-foreground hover:text-foreground hover:bg-accent/50",
+                        )}
+                      >
+                        <route.icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.75} />
+                        {route.label}
+                      </Link>
+                    );
+                  })}
+                </div>
+              ))}
+            </nav>
+          </aside>
+        </div>
+      )}
+    </>
+  );
+}

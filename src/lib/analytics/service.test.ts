@@ -84,6 +84,41 @@ describe('AnalyticsService Calculations', () => {
     expect(metrics.total).toBe(0);
     expect(metrics.conversionRate).toBe(0);
     expect(metrics.pipelineValue).toBe(0);
+    expect(metrics.medianResponseSeconds).toBe(0);
+    expect(metrics.within5MinRate).toBe(0);
+    expect(metrics.contactRate).toBe(0);
+  });
+
+  it('should compute speed-to-lead metrics (median response, <5min rate, contact rate)', async () => {
+    const base = new Date('2026-01-01T00:00:00Z').getTime();
+    const at = (ms: number) => new Date(base + ms);
+    const mockLeads = [
+      // contacted after 60s -> within 5 min
+      { status: 'active', expectedValue: '0', createdAt: at(0), lastContactedAt: at(60_000) },
+      // contacted after 240s -> within 5 min
+      { status: 'active', expectedValue: '0', createdAt: at(0), lastContactedAt: at(240_000) },
+      // contacted after 600s -> outside 5 min
+      { status: 'won', expectedValue: '0', createdAt: at(0), lastContactedAt: at(600_000) },
+      // never contacted -> excluded from response time, counts against rates
+      { status: 'new', expectedValue: '0', createdAt: at(0), lastContactedAt: null },
+    ];
+
+    const { db } = await import('@/db');
+    const queryChain = {
+      where: vi.fn().mockResolvedValue(mockLeads),
+      then: (resolve: any) => resolve(mockLeads),
+    };
+    ((db as any).from as any).mockReturnValue(queryChain);
+
+    const metrics = await AnalyticsService.getLeadMetrics({ organizationId: 'org-A' });
+
+    expect(metrics.contacted).toBe(3);
+    // 3 of 4 leads ever contacted
+    expect(metrics.contactRate).toBe(75);
+    // median of [60, 240, 600] = 240
+    expect(metrics.medianResponseSeconds).toBe(240);
+    // 2 of 4 total leads contacted within 5 min = 50%
+    expect(metrics.within5MinRate).toBe(50);
   });
 
   it('should aggregate revenue by source correctly', async () => {

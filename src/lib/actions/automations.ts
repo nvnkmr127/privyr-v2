@@ -6,6 +6,7 @@ import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireOrg, requirePermission } from "@/lib/rbac";
+import { buildTemplatePayload, type AutomationTemplateId } from "@/lib/automation/templates";
 
 const automationSchema = z.object({
   name: z.string().min(1).max(255),
@@ -59,6 +60,13 @@ export async function createAutomation(data: unknown) {
 
   revalidatePath("/automations");
   return newAutomation;
+}
+
+export async function createAutomationFromTemplate(id: AutomationTemplateId) {
+  const payload = buildTemplatePayload(id);
+  if (!payload) throw new Error("Unknown template");
+  // createAutomation enforces the automations.manage permission and org scoping.
+  return createAutomation(payload);
 }
 
 export async function getAutomations() {

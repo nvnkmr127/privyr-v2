@@ -5,6 +5,18 @@ import { RecentActivityFeed } from "@/components/dashboard/RecentActivityFeed";
 import { DashboardDateFilter } from "@/components/dashboard/DashboardDateFilter";
 import { requireOrg } from "@/lib/rbac";
 import { AnalyticsService, AnalyticsFilters } from "@/lib/analytics/service";
+import { SlaAnalyticsService } from "@/domains/leads/slaAnalyticsService";
+import { Timer } from "lucide-react";
+
+function formatMinutes(mins: number): string {
+  if (mins <= 0) return "—";
+  if (mins < 60) return `${Math.round(mins)}m`;
+  const hours = Math.floor(mins / 60);
+  const rem = Math.round(mins % 60);
+  if (hours < 24) return rem ? `${hours}h ${rem}m` : `${hours}h`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ${hours % 24}h`;
+}
 
 export default async function ExecutiveDashboardPage({
   searchParams,
@@ -21,12 +33,15 @@ export default async function ExecutiveDashboardPage({
     dateRange: (typeof params.range === "string" ? params.range : "all") as any,
   };
 
-  const [leadsBySource, pipelineDistribution, leadsByOwner, recentActivity] = await Promise.all([
+  const [leadsBySource, pipelineDistribution, leadsByOwner, recentActivity, sla] = await Promise.all([
     AnalyticsService.getLeadsBySource(filters),
     AnalyticsService.getPipelineDistribution(filters),
     AnalyticsService.getLeadsByOwner(filters),
     AnalyticsService.getRecentActivity(filters),
+    SlaAnalyticsService.getSlaMetrics(organizationId),
   ]);
+
+  const slaOnTrack = sla.complianceRatePercentage >= 80;
 
   return (
     <div className="flex-1 space-y-6 p-8 pt-6">
@@ -39,6 +54,28 @@ export default async function ExecutiveDashboardPage({
       </div>
 
       <div className="space-y-6">
+        <div className="rounded-2xl border bg-card p-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-500/10">
+              <Timer className="h-6 w-6 text-orange-500" />
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Avg. speed to first response</p>
+              <p className="text-3xl font-bold tracking-tight tabular-nums">{formatMinutes(sla.avgFirstContactMinutes)}</p>
+              <p className="text-xs text-muted-foreground">
+                First-to-respond wins the deal — {sla.contactedLeads} of {sla.totalLeads} leads contacted.
+              </p>
+            </div>
+          </div>
+          <div className="sm:text-right">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">SLA compliance</p>
+            <p className={`text-3xl font-bold tabular-nums ${slaOnTrack ? "text-emerald-600" : "text-orange-600"}`}>
+              {sla.complianceRatePercentage.toFixed(0)}%
+            </p>
+            <p className="text-xs text-muted-foreground">{sla.slaBreachedCount} leads breached the response target</p>
+          </div>
+        </div>
+
         <Suspense fallback={<div className="h-32 bg-muted rounded-2xl animate-pulse" />}>
           <MetricsCards filters={filters} />
         </Suspense>

@@ -1,6 +1,6 @@
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
-import { Users, Plus, Upload, FilterX, Kanban } from "lucide-react";
+import { Users, Plus, Upload, FilterX, Kanban, Flame } from "lucide-react";
 import Link from "next/link";
 import { LeadService } from "@/domains/leads/service";
 import { SavedViewService } from "@/domains/savedViews/service";
@@ -74,6 +74,11 @@ export default async function LeadsPage({
         </div>
 
         <div className="flex items-center space-x-2">
+          <Link href="/leads/hot">
+            <Button variant="outline">
+              <Flame className="mr-2 h-4 w-4 text-orange-500" /> Hot Leads
+            </Button>
+          </Link>
           <Link href="/leads/kanban">
             <Button variant="outline">
               <Kanban className="mr-2 h-4 w-4" /> Pipeline Board

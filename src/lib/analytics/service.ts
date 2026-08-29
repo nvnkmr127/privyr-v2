@@ -11,6 +11,13 @@ export interface AnalyticsFilters {
   endDate?: Date;
 }
 
+function median(values: number[]): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
 export class AnalyticsService {
   private static getDateRangeBounds(filters: AnalyticsFilters): { start?: Date; end?: Date } {
     if (filters.startDate || filters.endDate) {
@@ -98,10 +105,25 @@ export class AnalyticsService {
     const pipelineValue = allLeads
       .filter(l => l.status === 'active')
       .reduce((sum, l) => sum + Number(l.expectedValue || 0), 0);
-      
+
     const expectedRevenue = allLeads
       .filter(l => l.status === 'won')
       .reduce((sum, l) => sum + Number(l.expectedValue || 0), 0);
+
+    // Speed-to-lead: the core metric for this product. Response time = first
+    // contact minus lead creation. Median (not mean) so a single stale lead
+    // contacted weeks later doesn't distort the number.
+    const responseSeconds = allLeads
+      .filter(l => l.lastContactedAt)
+      .map(l => (new Date(l.lastContactedAt as Date).getTime() - new Date(l.createdAt).getTime()) / 1000)
+      .filter(s => s >= 0);
+
+    const contacted = responseSeconds.length;
+    const contactRate = total > 0 ? (contacted / total) * 100 : 0;
+    const medianResponseSeconds = median(responseSeconds);
+    const within5MinRate = total > 0
+      ? (responseSeconds.filter(s => s <= 300).length / total) * 100
+      : 0;
 
     return {
       total,
@@ -113,7 +135,11 @@ export class AnalyticsService {
       lost,
       conversionRate,
       pipelineValue,
-      expectedRevenue
+      expectedRevenue,
+      contacted,
+      contactRate,
+      medianResponseSeconds,
+      within5MinRate
     };
   }
 

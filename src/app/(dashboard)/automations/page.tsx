@@ -3,6 +3,7 @@ import { Zap, Plus, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { getAutomations } from "@/lib/actions/automations";
+import { AutomationTemplates } from "@/components/automations/AutomationTemplates";
 
 export default async function AutomationsPage() {
   const automations = await getAutomations();
@@ -20,6 +21,8 @@ export default async function AutomationsPage() {
         </div>
       </div>
       
+      <AutomationTemplates />
+
       {automations.length === 0 ? (
         <EmptyState
           icon={<Zap className="h-10 w-10" />}

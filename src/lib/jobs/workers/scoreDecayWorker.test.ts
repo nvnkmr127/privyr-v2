@@ -28,6 +28,7 @@ describe("Score Decay Worker", () => {
     const result = await processScoreDecayJob(mockJob);
 
     expect(ScoringService.recalculateAllScores).toHaveBeenCalledWith("org-xyz");
-    expect(result).toEqual({ processed: 42 });
+    // The org-wide pass also prunes automation_runs; assert the score result, ignore prune count.
+    expect(result).toMatchObject({ processed: 42 });
   });
 });

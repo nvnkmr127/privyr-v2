@@ -16,6 +16,7 @@ import { QuickAddLeadDrawer } from "@/components/leads/QuickAddLeadDrawer";
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import { EnablePushButton } from "@/components/layout/EnablePushButton";
 import { CommandPalette } from "@/components/layout/CommandPalette";
+import { MobileSidebar } from "@/components/layout/MobileSidebar";
 
 export function Header() {
   const [searchOpen, setSearchOpen] = React.useState(false);
@@ -35,7 +36,9 @@ export function Header() {
   return (
     <div className="flex h-14 items-center justify-between border-b border-border px-4 lg:px-6 bg-background shrink-0">
       <CommandPalette open={searchOpen} onOpenChange={setSearchOpen} />
-      <div className="flex items-center flex-1">
+      <div className="flex items-center flex-1 gap-2">
+        <MobileSidebar />
+        <span className="md:hidden text-base font-semibold tracking-tight">Privyr</span>
         <button
           type="button"
           onClick={() => setSearchOpen(true)}

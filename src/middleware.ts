@@ -1,12 +1,6 @@
 import { withAuth } from "next-auth/middleware";
-import { NextResponse } from "next/server";
 
-export default function middleware(req: any) {
-  if (process.env.BYPASS_AUTH === "true") {
-    return NextResponse.next();
-  }
-  return (withAuth({ pages: { signIn: "/login" } }) as any)(req);
-}
+export default withAuth({ pages: { signIn: "/login" } });
 
 export const config = {
   matcher: [
