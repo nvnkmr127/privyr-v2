@@ -15,6 +15,13 @@ export class NotificationService {
       body: data.body,
       url: data.leadId ? `/leads/${data.leadId}` : "/",
     });
+    // Best-effort mobile push (Expo) — same event, native devices.
+    const { ExpoPushService } = await import("@/lib/push/expo");
+    void ExpoPushService.sendToUser(data.userId, {
+      title: data.title,
+      body: data.body,
+      data: data.leadId ? { leadId: data.leadId } : {},
+    });
     if (EMAIL_TYPES.has(data.type)) void NotificationService.email({ ...data, type: data.type });
     return row;
   }

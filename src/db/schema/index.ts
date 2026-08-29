@@ -8,6 +8,7 @@ export * from './templates';
 export * from './whatsapp';
 export * from './notifications';
 export * from './push';
+export * from './devices';
 export * from './legacy';
 export * from './savedViews';
 export * from './system';

@@ -1,0 +1,33 @@
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { authorizeApiRequest } from "@/lib/apiAuth";
+import { ExpoPushService } from "@/lib/push/expo";
+
+const schema = z.object({ token: z.string().min(1), platform: z.string().optional() });
+
+// Register this device's Expo push token to the signed-in user.
+export async function POST(req: NextRequest) {
+  const auth = await authorizeApiRequest(req);
+  if ("error" in auth) return auth.error;
+  if (!auth.userId) return NextResponse.json({ error: "A user session is required" }, { status: 403 });
+
+  const body = await req.json().catch(() => null);
+  const parsed = schema.safeParse(body);
+  if (!parsed.success) return NextResponse.json({ error: "Invalid body" }, { status: 422 });
+
+  await ExpoPushService.register(auth.userId, auth.organizationId, parsed.data.token, parsed.data.platform);
+  return NextResponse.json({ ok: true }, { status: 201 });
+}
+
+// Unregister on sign-out.
+export async function DELETE(req: NextRequest) {
+  const auth = await authorizeApiRequest(req);
+  if ("error" in auth) return auth.error;
+
+  const body = await req.json().catch(() => null);
+  const parsed = schema.safeParse(body);
+  if (!parsed.success) return NextResponse.json({ error: "Invalid body" }, { status: 422 });
+
+  await ExpoPushService.remove(parsed.data.token);
+  return NextResponse.json({ ok: true });
+}

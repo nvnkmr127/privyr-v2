@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      # The real correctness gates. Build is skipped here because it needs a live DB/Redis;
+      # run it in a deploy job with those services provisioned.
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Lint
+        run: npx next lint

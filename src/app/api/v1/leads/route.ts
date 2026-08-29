@@ -3,19 +3,12 @@ import { z } from "zod";
 import { db } from "@/db";
 import { leads } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
-import { ApiKeyService } from "@/domains/apiKeys/service";
 import { LeadService } from "@/domains/leads/service";
 import { CustomFieldService } from "@/domains/customFields/service";
 import { PlanService } from "@/domains/billing/planService";
+import { authorizeApiRequest } from "@/lib/apiAuth";
 
-// Resolve the Bearer key to an org, or return a 401 response.
-async function authorize(req: NextRequest) {
-  const header = req.headers.get("authorization") ?? "";
-  const raw = header.startsWith("Bearer ") ? header.slice(7) : "";
-  const auth = await ApiKeyService.verify(raw);
-  if (!auth) return { error: NextResponse.json({ error: "Invalid or missing API key" }, { status: 401 }) };
-  return { organizationId: auth.organizationId };
-}
+const authorize = authorizeApiRequest;
 
 export async function GET(req: NextRequest) {
   const auth = await authorize(req);
