@@ -40,4 +40,16 @@ describe("NextBestActionService", () => {
     expect(rec.action).toBe("reengage_cold_lead");
     expect(rec.priority).toBe("medium");
   });
+
+  it("prioritizes a recent content open over routine cadence", () => {
+    const rec = NextBestActionService.getRecommendation({
+      status: "new", // would otherwise recommend welcome template
+      phone: "+1234567890",
+      lastContactedAt: null,
+      recentContentOpen: { title: "Pricing brochure", count: 3 },
+    });
+    expect(rec.action).toBe("call_lead");
+    expect(rec.priority).toBe("high");
+    expect(rec.reason).toContain("Pricing brochure");
+  });
 });

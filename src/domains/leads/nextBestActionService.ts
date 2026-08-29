@@ -21,6 +21,8 @@ export interface NextBestActionInput {
   score?: number;
   phone?: string | null;
   email?: string | null;
+  /** Recent open of shared content — a hot buying signal that trumps routine cadence. */
+  recentContentOpen?: { title: string; count: number } | null;
 }
 
 export class NextBestActionService {
@@ -32,6 +34,17 @@ export class NextBestActionService {
     const lastContactDays = input.lastContactedAt
       ? (now - new Date(input.lastContactedAt).getTime()) / (1000 * 60 * 60 * 24)
       : Infinity;
+
+    // 0. Recent content open — the strongest buying signal, act while they're warm.
+    if (input.recentContentOpen && input.recentContentOpen.count > 0) {
+      const { title, count } = input.recentContentOpen;
+      return {
+        action: "call_lead",
+        label: "Call now — they're engaging with your content",
+        reason: `Opened "${title}" ${count} time${count === 1 ? "" : "s"} recently — strike while interest is high.`,
+        priority: "high",
+      };
+    }
 
     // 1. New lead without initial contact
     if (input.status === "new" && !input.lastContactedAt) {
@@ -66,7 +79,9 @@ export class NextBestActionService {
       return {
         action: "reengage_cold_lead",
         label: "Send Re-engagement Message",
-        reason: `No activity recorded for ${Math.floor(lastContactDays)} days.`,
+        reason: Number.isFinite(lastContactDays)
+          ? `No activity recorded for ${Math.floor(lastContactDays)} days.`
+          : "No prior contact on record — reach out to re-engage.",
         priority: "medium",
       };
     }

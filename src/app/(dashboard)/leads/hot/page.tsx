@@ -1,6 +1,8 @@
 import Link from "next/link";
-import { Flame, ArrowLeft, MessageCircle, Phone } from "lucide-react";
+import { Flame, ArrowLeft, MessageCircle, Phone, Eye, EyeOff } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 import { requireOrg } from "@/lib/rbac";
+import { ContentSharingService } from "@/domains/leads/contentSharingService";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,10 +34,28 @@ function waLink(phone: string | null) {
 
 export default async function HotLeadsPage() {
   const { organizationId } = await requireOrg();
-  const report = await LeadConversionPredictorService.getConversionPredictions(organizationId);
+  const [report, engaged, ignored] = await Promise.all([
+    LeadConversionPredictorService.getConversionPredictions(organizationId),
+    ContentSharingService.recentlyEngagedLeadIds(organizationId),
+    ContentSharingService.ignoredShares(organizationId),
+  ]);
 
-  // Surface the leads worth acting on first: moderate probability and up.
-  const hot = report.leads.filter((l) => l.conversionProbability >= 35);
+  function nudgeLink(phone: string | null, title: string) {
+    const digits = (phone ?? "").replace(/[^0-9]/g, "");
+    const text = encodeURIComponent(`Hi — just checking you received "${title}". Happy to answer any questions!`);
+    return digits.length >= 6 ? `https://wa.me/${digits}?text=${text}` : null;
+  }
+
+  // Surface the leads worth acting on first: moderate probability and up, PLUS anyone who
+  // just opened content (a live buying signal), then float content-openers to the top.
+  const hot = report.leads
+    .filter((l) => l.conversionProbability >= 35 || engaged.has(l.id))
+    .sort((a, b) => {
+      const ae = engaged.has(a.id) ? 1 : 0;
+      const be = engaged.has(b.id) ? 1 : 0;
+      if (ae !== be) return be - ae;
+      return b.conversionProbability - a.conversionProbability;
+    });
 
   return (
     <div className="flex-1 space-y-6 p-8 pt-6">
@@ -101,9 +121,16 @@ export default async function HotLeadsPage() {
                 return (
                   <TableRow key={lead.id}>
                     <TableCell className="font-medium">
-                      <Link href={`/leads/${lead.id}`} className="hover:underline text-primary">
-                        {lead.name}
-                      </Link>
+                      <div className="flex items-center gap-2">
+                        <Link href={`/leads/${lead.id}`} className="hover:underline text-primary">
+                          {lead.name}
+                        </Link>
+                        {engaged.has(lead.id) && (
+                          <Badge variant="default" className="gap-1 font-normal">
+                            <Eye className="h-3 w-3" /> Opened content
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="font-semibold tabular-nums">{lead.conversionProbability}%</TableCell>
                     <TableCell>
@@ -131,6 +158,55 @@ export default async function HotLeadsPage() {
               })}
             </TableBody>
           </Table>
+        </div>
+      )}
+
+      {ignored.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <EyeOff className="h-5 w-5 text-muted-foreground" />
+            <h3 className="text-lg font-semibold tracking-tight">Sent but never opened</h3>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            You shared content with these leads over a day ago and they haven&apos;t opened it. Give them a nudge.
+          </p>
+          <div className="border rounded-md bg-card">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Lead</TableHead>
+                  <TableHead>Content</TableHead>
+                  <TableHead>Sent</TableHead>
+                  <TableHead className="text-right">Nudge</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {ignored.map((item) => {
+                  const nudge = nudgeLink(item.leadPhone, item.title);
+                  return (
+                    <TableRow key={item.id}>
+                      <TableCell className="font-medium">
+                        <Link href={`/leads/${item.leadId}`} className="hover:underline text-primary">
+                          {item.leadName}
+                        </Link>
+                      </TableCell>
+                      <TableCell>{item.title}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {formatDistanceToNow(new Date(item.sentAt), { addSuffix: true })}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {nudge && (
+                          <a href={nudge} target="_blank" rel="noopener noreferrer" aria-label={`Nudge ${item.leadName}`}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8"><MessageCircle className="h-4 w-4" /></Button>
+                          </a>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       )}
     </div>

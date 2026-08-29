@@ -12,3 +12,4 @@ export * from './devices';
 export * from './legacy';
 export * from './savedViews';
 export * from './system';
+export * from './sharedContent';

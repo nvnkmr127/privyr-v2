@@ -1,0 +1,197 @@
+import { randomBytes } from "crypto";
+import { db } from "@/db";
+import { sharedLinks, sharedLinkViews, leads, users, organizations } from "@/db/schema";
+import { and, asc, desc, eq, gt, gte, lt, sql } from "drizzle-orm";
+import { NotificationService } from "@/domains/notifications/service";
+import { ActivityService } from "@/domains/activities/service";
+
+export interface SharedPageData {
+  title: string;
+  targetUrl: string;
+  leadName: string;
+  ownerName: string | null;
+  orgName: string | null;
+}
+
+export interface SharedLinkSummary {
+  id: string;
+  title: string;
+  targetUrl: string;
+  slug: string;
+  viewCount: number;
+  lastViewedAt: Date | null;
+  createdAt: Date;
+}
+
+export class ContentSharingService {
+  /**
+   * Only http(s) links are shareable — blocks javascript:/data: open-redirects, since the
+   * public /s/:slug route redirects to this value. Adds https:// when no scheme is given.
+   * Returns null for anything that isn't a valid web URL.
+   */
+  static normalizeUrl(raw: string): string | null {
+    const withScheme = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+    try {
+      const u = new URL(withScheme);
+      if (u.protocol !== "http:" && u.protocol !== "https:") return null;
+      return u.toString();
+    } catch {
+      return null;
+    }
+  }
+
+  static async createShare(input: {
+    organizationId: string;
+    leadId: string;
+    ownerId?: string | null;
+    title: string;
+    targetUrl: string;
+  }): Promise<SharedLinkSummary> {
+    const slug = randomBytes(9).toString("base64url"); // 12 url-safe chars
+    const [row] = await db
+      .insert(sharedLinks)
+      .values({
+        organizationId: input.organizationId,
+        leadId: input.leadId,
+        ownerId: input.ownerId ?? null,
+        slug,
+        title: input.title.slice(0, 255),
+        targetUrl: input.targetUrl.slice(0, 2048),
+      })
+      .returning();
+    return {
+      id: row.id,
+      title: row.title,
+      targetUrl: row.targetUrl,
+      slug: row.slug,
+      viewCount: row.viewCount,
+      lastViewedAt: row.lastViewedAt,
+      createdAt: row.createdAt,
+    };
+  }
+
+  /**
+   * Lead IDs in the org that opened shared content within the given window — a live
+   * "who's engaging right now" signal for ranking hot leads.
+   */
+  static async recentlyEngagedLeadIds(organizationId: string, withinMs = 3 * 24 * 60 * 60 * 1000): Promise<Set<string>> {
+    const since = new Date(Date.now() - withinMs);
+    const rows = await db
+      .select({ leadId: sharedLinks.leadId })
+      .from(sharedLinks)
+      .where(
+        and(
+          eq(sharedLinks.organizationId, organizationId),
+          gt(sharedLinks.viewCount, 0),
+          gte(sharedLinks.lastViewedAt, since),
+        ),
+      );
+    return new Set(rows.map((r) => r.leadId));
+  }
+
+  /**
+   * Content that was shared but never opened, older than the given age — the "who's ignoring
+   * you" list for re-engagement. Oldest first.
+   */
+  static async ignoredShares(organizationId: string, olderThanMs = 24 * 60 * 60 * 1000) {
+    const before = new Date(Date.now() - olderThanMs);
+    return db
+      .select({
+        id: sharedLinks.id,
+        leadId: sharedLinks.leadId,
+        title: sharedLinks.title,
+        sentAt: sharedLinks.createdAt,
+        leadName: leads.name,
+        leadPhone: leads.phone,
+      })
+      .from(sharedLinks)
+      .innerJoin(leads, eq(leads.id, sharedLinks.leadId))
+      .where(
+        and(
+          eq(sharedLinks.organizationId, organizationId),
+          eq(sharedLinks.viewCount, 0),
+          lt(sharedLinks.createdAt, before),
+        ),
+      )
+      .orderBy(asc(sharedLinks.createdAt));
+  }
+
+  static async listForLead(leadId: string): Promise<SharedLinkSummary[]> {
+    const rows = await db
+      .select()
+      .from(sharedLinks)
+      .where(eq(sharedLinks.leadId, leadId))
+      .orderBy(desc(sharedLinks.createdAt));
+    return rows.map((r) => ({
+      id: r.id,
+      title: r.title,
+      targetUrl: r.targetUrl,
+      slug: r.slug,
+      viewCount: r.viewCount,
+      lastViewedAt: r.lastViewedAt,
+      createdAt: r.createdAt,
+    }));
+  }
+
+  /**
+   * Records an open of a shared link and returns the data for its branded page.
+   * Notifies the link owner and logs an activity so reps see who's actually interested.
+   * Returns null if the slug is unknown.
+   *
+   * ponytail: counts raw opens — link-scanner prefetches (WhatsApp/email bots) can inflate
+   * the count. Add bot-UA filtering / first-open dedup if the numbers prove noisy.
+   */
+  static async openPage(slug: string, userAgent?: string): Promise<SharedPageData | null> {
+    const [link] = await db.select().from(sharedLinks).where(eq(sharedLinks.slug, slug)).limit(1);
+    if (!link) return null;
+
+    await db.insert(sharedLinkViews).values({ sharedLinkId: link.id, userAgent: userAgent?.slice(0, 500) });
+    await db
+      .update(sharedLinks)
+      .set({ viewCount: sql`${sharedLinks.viewCount} + 1`, lastViewedAt: new Date() })
+      .where(eq(sharedLinks.id, link.id));
+
+    const nextCount = link.viewCount + 1;
+    const [lead] = await db.select({ name: leads.name }).from(leads).where(eq(leads.id, link.leadId)).limit(1);
+    const [owner] = link.ownerId
+      ? await db
+          .select({ firstName: users.firstName, lastName: users.lastName })
+          .from(users)
+          .where(eq(users.id, link.ownerId))
+          .limit(1)
+      : [undefined];
+    const ownerName = owner ? [owner.firstName, owner.lastName].filter(Boolean).join(" ").trim() || null : null;
+    const [org] = await db
+      .select({ name: organizations.name })
+      .from(organizations)
+      .where(eq(organizations.id, link.organizationId))
+      .limit(1);
+    const leadName = lead?.name ?? "there";
+
+    // Surface the engagement signal: who opened what, and how many times.
+    void ActivityService.addActivity({
+      leadId: link.leadId,
+      userId: link.ownerId ?? undefined,
+      type: "content_viewed",
+      content: `Opened "${link.title}" (view #${nextCount})`,
+    });
+
+    if (link.ownerId) {
+      void NotificationService.create({
+        userId: link.ownerId,
+        type: "content_viewed",
+        title: `${leadName} opened your content`,
+        body: `${leadName} opened "${link.title}"${nextCount > 1 ? ` — ${nextCount} views so far` : ""}.`,
+        leadId: link.leadId,
+      });
+    }
+
+    return {
+      title: link.title,
+      targetUrl: link.targetUrl,
+      leadName,
+      ownerName,
+      orgName: org?.name ?? null,
+    };
+  }
+}

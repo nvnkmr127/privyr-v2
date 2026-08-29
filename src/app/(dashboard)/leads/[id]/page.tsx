@@ -1,8 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, User, Phone, Mail, Building } from "lucide-react";
+import { ArrowLeft, User, Phone, Mail, Building, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { LeadService } from "@/domains/leads/service";
+import { NextBestActionService } from "@/domains/leads/nextBestActionService";
+import { ShareContentCard } from "@/components/leads/ShareContentCard";
+import { listSharesAction } from "@/lib/actions/sharedContent";
 import { requireOrg } from "@/lib/rbac";
 import { ActivityService } from "@/domains/activities/service";
 import { notFound } from "next/navigation";
@@ -41,6 +44,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
   const { count: dupCount } = await checkLeadDuplicatesAction(id);
   const attachments = await getAttachmentsAction(id).catch(() => []);
   const reminders = await getLeadRemindersAction(id).catch(() => []);
+  const shares = await listSharesAction(id).catch(() => []);
 
   const stagesList = await db.select({ id: leadPipelineStages.id, name: leadPipelineStages.name }).from(leadPipelineStages).catch(() => []);
   const automationsList = await db
@@ -52,6 +56,28 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
   if (!lead) {
     notFound();
   }
+
+  // A content open in the last 3 days is a hot buying signal — surface it to the coach.
+  const RECENT_OPEN_MS = 3 * 24 * 60 * 60 * 1000;
+  const recentOpen = shares
+    .filter((s) => s.viewCount > 0 && s.lastViewedAt && Date.now() - new Date(s.lastViewedAt).getTime() <= RECENT_OPEN_MS)
+    .sort((a, b) => new Date(b.lastViewedAt!).getTime() - new Date(a.lastViewedAt!).getTime())[0];
+
+  const nba = NextBestActionService.getRecommendation({
+    status: lead.status,
+    score: lead.score ?? 0,
+    phone: lead.phone,
+    email: lead.email,
+    lastContactedAt: lead.lastContactedAt,
+    nextFollowUpAt: lead.nextFollowUpAt,
+    recentContentOpen: recentOpen ? { title: recentOpen.title, count: recentOpen.viewCount } : null,
+  });
+  const nbaAccent =
+    nba.priority === "high"
+      ? "border-red-500/40 bg-red-500/5"
+      : nba.priority === "medium"
+        ? "border-orange-500/40 bg-orange-500/5"
+        : "border-border bg-card";
 
   const notesCount = activities.filter((a) => a.type === "note").length;
   const initials =
@@ -102,8 +128,20 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Lead Info & Attributes */}
         <div className="lg:col-span-1 space-y-6">
+          {/* Next Best Action — the coach prompt */}
+          <div className={`rounded-2xl border p-5 space-y-2 ${nbaAccent}`}>
+            <h3 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+              <Sparkles className="h-4 w-4" /> Next Best Action
+            </h3>
+            <p className="text-base font-semibold leading-snug">{nba.label}</p>
+            <p className="text-sm text-muted-foreground">{nba.reason}</p>
+          </div>
+
           {/* Follow Up Reminder Widget */}
           <LeadFollowUpControl leadId={lead.id} nextFollowUpAt={lead.nextFollowUpAt} />
+
+          {/* Share & track content — read receipts on what you send */}
+          <ShareContentCard leadId={lead.id} leadPhone={lead.phone} initialShares={shares} />
 
           {/* Quick Controls Card */}
           <div className="rounded-2xl border border-border p-5 bg-card space-y-4">
