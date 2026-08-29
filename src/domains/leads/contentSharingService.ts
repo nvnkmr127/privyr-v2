@@ -1,13 +1,15 @@
 import { randomBytes } from "crypto";
 import { db } from "@/db";
 import { sharedLinks, sharedLinkViews, leads, users, organizations } from "@/db/schema";
-import { and, asc, desc, eq, gt, gte, lt, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, gte, lt, sql } from "drizzle-orm";
 import { NotificationService } from "@/domains/notifications/service";
 import { ActivityService } from "@/domains/activities/service";
 
 export interface SharedPageData {
   title: string;
-  targetUrl: string;
+  targetUrl: string | null;
+  bodyText: string | null;
+  imageUrl: string | null;
   leadName: string;
   ownerName: string | null;
   orgName: string | null;
@@ -16,7 +18,7 @@ export interface SharedPageData {
 export interface SharedLinkSummary {
   id: string;
   title: string;
-  targetUrl: string;
+  targetUrl: string | null;
   slug: string;
   viewCount: number;
   lastViewedAt: Date | null;
@@ -45,7 +47,9 @@ export class ContentSharingService {
     leadId: string;
     ownerId?: string | null;
     title: string;
-    targetUrl: string;
+    targetUrl?: string | null;
+    bodyText?: string | null;
+    imageUrl?: string | null;
   }): Promise<SharedLinkSummary> {
     const slug = randomBytes(9).toString("base64url"); // 12 url-safe chars
     const [row] = await db
@@ -56,7 +60,9 @@ export class ContentSharingService {
         ownerId: input.ownerId ?? null,
         slug,
         title: input.title.slice(0, 255),
-        targetUrl: input.targetUrl.slice(0, 2048),
+        targetUrl: input.targetUrl?.slice(0, 2048) ?? null,
+        bodyText: input.bodyText ?? null,
+        imageUrl: input.imageUrl?.slice(0, 2048) ?? null,
       })
       .returning();
     return {
@@ -114,6 +120,33 @@ export class ContentSharingService {
         ),
       )
       .orderBy(asc(sharedLinks.createdAt));
+  }
+
+  /** Org-level content engagement for the dashboard: opens in the window + currently-ignored count. */
+  static async orgEngagementStats(
+    organizationId: string,
+    windowMs = 7 * 24 * 60 * 60 * 1000,
+  ): Promise<{ opensInWindow: number; ignoredCount: number }> {
+    const since = new Date(Date.now() - windowMs);
+    const ignoredBefore = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const [[opens], [ignored]] = await Promise.all([
+      db
+        .select({ n: count() })
+        .from(sharedLinkViews)
+        .innerJoin(sharedLinks, eq(sharedLinks.id, sharedLinkViews.sharedLinkId))
+        .where(and(eq(sharedLinks.organizationId, organizationId), gte(sharedLinkViews.viewedAt, since))),
+      db
+        .select({ n: count() })
+        .from(sharedLinks)
+        .where(
+          and(
+            eq(sharedLinks.organizationId, organizationId),
+            eq(sharedLinks.viewCount, 0),
+            lt(sharedLinks.createdAt, ignoredBefore),
+          ),
+        ),
+    ]);
+    return { opensInWindow: Number(opens.n), ignoredCount: Number(ignored.n) };
   }
 
   static async listForLead(leadId: string): Promise<SharedLinkSummary[]> {
@@ -189,6 +222,8 @@ export class ContentSharingService {
     return {
       title: link.title,
       targetUrl: link.targetUrl,
+      bodyText: link.bodyText,
+      imageUrl: link.imageUrl,
       leadName,
       ownerName,
       orgName: org?.name ?? null,

@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, integer, timestamp, index } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, integer, timestamp, text, index } from 'drizzle-orm/pg-core';
 import { organizations } from './organizations';
 import { leads } from './leads';
 import { users } from './users';
@@ -12,7 +12,10 @@ export const sharedLinks = pgTable('shared_links', {
   ownerId: uuid('owner_id').references(() => users.id),
   slug: varchar('slug', { length: 32 }).notNull().unique(),
   title: varchar('title', { length: 255 }).notNull(),
-  targetUrl: varchar('target_url', { length: 2048 }).notNull(),
+  // A share is a link out (targetUrl), a self-contained page (bodyText/imageUrl), or both.
+  targetUrl: varchar('target_url', { length: 2048 }),
+  bodyText: text('body_text'),
+  imageUrl: varchar('image_url', { length: 2048 }),
   viewCount: integer('view_count').default(0).notNull(),
   lastViewedAt: timestamp('last_viewed_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),

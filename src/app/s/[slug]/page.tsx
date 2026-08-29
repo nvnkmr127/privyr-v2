@@ -30,14 +30,25 @@ export default async function SharedContentPage({ params }: { params: Promise<{ 
           {sender && <p className="text-sm text-muted-foreground">Shared with you by {sender}</p>}
         </div>
 
-        <a
-          href={page.targetUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-        >
-          Open content <ExternalLink className="h-4 w-4" />
-        </a>
+        {page.imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={page.imageUrl} alt={page.title} className="w-full rounded-xl object-cover" />
+        )}
+
+        {page.bodyText && (
+          <p className="text-left text-sm leading-relaxed text-foreground whitespace-pre-line">{page.bodyText}</p>
+        )}
+
+        {page.targetUrl && (
+          <a
+            href={page.targetUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+          >
+            Open content <ExternalLink className="h-4 w-4" />
+          </a>
+        )}
 
         <p className="text-xs text-muted-foreground">Sent securely via Privyr</p>
       </div>

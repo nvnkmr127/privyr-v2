@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { MetricsCards } from "@/components/dashboard/MetricsCards";
 import { LeadsBySourceChart, LeadsByStageChart, LeadsByOwnerChart } from "@/components/dashboard/Charts";
 import { RecentActivityFeed } from "@/components/dashboard/RecentActivityFeed";
@@ -6,7 +7,8 @@ import { DashboardDateFilter } from "@/components/dashboard/DashboardDateFilter"
 import { requireOrg } from "@/lib/rbac";
 import { AnalyticsService, AnalyticsFilters } from "@/lib/analytics/service";
 import { SlaAnalyticsService } from "@/domains/leads/slaAnalyticsService";
-import { Timer } from "lucide-react";
+import { ContentSharingService } from "@/domains/leads/contentSharingService";
+import { Timer, Eye } from "lucide-react";
 
 function formatMinutes(mins: number): string {
   if (mins <= 0) return "—";
@@ -33,12 +35,13 @@ export default async function ExecutiveDashboardPage({
     dateRange: (typeof params.range === "string" ? params.range : "all") as any,
   };
 
-  const [leadsBySource, pipelineDistribution, leadsByOwner, recentActivity, sla] = await Promise.all([
+  const [leadsBySource, pipelineDistribution, leadsByOwner, recentActivity, sla, content] = await Promise.all([
     AnalyticsService.getLeadsBySource(filters),
     AnalyticsService.getPipelineDistribution(filters),
     AnalyticsService.getLeadsByOwner(filters),
     AnalyticsService.getRecentActivity(filters),
     SlaAnalyticsService.getSlaMetrics(organizationId),
+    ContentSharingService.orgEngagementStats(organizationId),
   ]);
 
   const slaOnTrack = sla.complianceRatePercentage >= 80;
@@ -66,6 +69,21 @@ export default async function ExecutiveDashboardPage({
                 First-to-respond wins the deal — {sla.contactedLeads} of {sla.totalLeads} leads contacted.
               </p>
             </div>
+          </div>
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+              <Eye className="h-3.5 w-3.5" /> Content opened (7d)
+            </p>
+            <p className="text-3xl font-bold tracking-tight tabular-nums">{content.opensInWindow}</p>
+            <p className="text-xs text-muted-foreground">
+              {content.ignoredCount > 0 ? (
+                <Link href="/leads/hot" className="hover:text-foreground underline-offset-2 hover:underline">
+                  {content.ignoredCount} sent but never opened — nudge them
+                </Link>
+              ) : (
+                "Opens on content you shared"
+              )}
+            </p>
           </div>
           <div className="sm:text-right">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">SLA compliance</p>

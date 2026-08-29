@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { sendWhatsAppAction, listTemplates } from "@/lib/actions/messaging"
+import { draftLeadReplyAction } from "@/lib/actions/ai"
 import { useToast } from "@/hooks/use-toast"
-import { MessageCircle } from "lucide-react"
+import { MessageCircle, Sparkles } from "lucide-react"
 
 type Template = { id: string; name: string; body: string };
 
@@ -14,6 +15,7 @@ export function WhatsAppSendBox({ leadId, hasPhone }: { leadId: string; hasPhone
   const [templates, setTemplates] = React.useState<Template[]>([]);
   const [body, setBody] = React.useState("");
   const [sending, setSending] = React.useState(false);
+  const [drafting, setDrafting] = React.useState(false);
 
   // Load WhatsApp templates once for the one-tap picker.
   React.useEffect(() => {
@@ -23,6 +25,19 @@ export function WhatsAppSendBox({ leadId, hasPhone }: { leadId: string; hasPhone
   function pickTemplate(id: string) {
     const t = templates.find((x) => x.id === id);
     if (t) setBody(t.body);
+  }
+
+  async function draft() {
+    setDrafting(true);
+    try {
+      const { draft, ai } = await draftLeadReplyAction({ leadId });
+      setBody(draft);
+      toast({ title: ai ? "AI draft ready" : "Draft ready", description: "Review and edit before sending." });
+    } catch {
+      toast({ variant: "destructive", title: "Couldn't draft a message" });
+    } finally {
+      setDrafting(false);
+    }
   }
 
   async function send() {
@@ -63,7 +78,11 @@ export function WhatsAppSendBox({ leadId, hasPhone }: { leadId: string; hasPhone
         value={body}
         onChange={(e) => setBody(e.target.value)}
       />
-      <div className="flex justify-end">
+      <div className="flex justify-between">
+        <Button variant="outline" onClick={draft} disabled={drafting || sending} className="gap-2">
+          <Sparkles className="h-4 w-4" />
+          {drafting ? "Drafting…" : "Draft with AI"}
+        </Button>
         <Button onClick={send} disabled={sending || body.trim().length === 0} className="gap-2">
           <MessageCircle className="h-4 w-4" />
           {sending ? "Sending…" : "Send WhatsApp"}

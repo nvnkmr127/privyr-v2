@@ -28,19 +28,26 @@ export function ShareContentCard({
   const [shares, setShares] = React.useState<SharedLinkSummary[]>(initialShares);
   const [title, setTitle] = React.useState("");
   const [url, setUrl] = React.useState("");
+  const [message, setMessage] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [copied, setCopied] = React.useState<string | null>(null);
 
   async function create(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim() || !url.trim()) return;
+    if (!title.trim() || (!url.trim() && !message.trim())) return;
     setBusy(true);
     try {
-      const share = await createShareAction({ leadId, title: title.trim(), targetUrl: url.trim() });
+      const share = await createShareAction({
+        leadId,
+        title: title.trim(),
+        targetUrl: url.trim() || undefined,
+        bodyText: message.trim() || undefined,
+      });
       setShares((s) => [share, ...s]);
       setTitle("");
       setUrl("");
-      toast({ title: "Trackable link created", description: "Share it — you'll be alerted when it's opened." });
+      setMessage("");
+      toast({ title: "Trackable page created", description: "Share it — you'll be alerted when it's opened." });
     } catch (err) {
       toast({ variant: "destructive", title: "Couldn't create link", description: (err as Error).message });
     } finally {
@@ -84,18 +91,29 @@ export function ShareContentCard({
           disabled={busy}
           className="h-9 text-sm"
         />
-        <div className="flex gap-2">
-          <Input
-            placeholder="Paste a link (https://…)"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            disabled={busy}
-            className="h-9 text-sm"
-          />
-          <Button type="submit" size="sm" disabled={busy || !title.trim() || !url.trim()} className="h-9 shrink-0">
-            {busy ? "…" : "Create"}
-          </Button>
-        </div>
+        <Input
+          placeholder="Paste a link (https://…) — optional"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          disabled={busy}
+          className="h-9 text-sm"
+        />
+        <textarea
+          placeholder="Or write a personal message to show on the page — optional"
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          disabled={busy}
+          rows={2}
+          className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
+        />
+        <Button
+          type="submit"
+          size="sm"
+          disabled={busy || !title.trim() || (!url.trim() && !message.trim())}
+          className="h-9 w-full"
+        >
+          {busy ? "Creating…" : "Create trackable page"}
+        </Button>
       </form>
 
       {shares.length > 0 && (

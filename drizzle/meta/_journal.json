@@ -134,6 +134,13 @@
       "when": 1788007427999,
       "tag": "0018_shared_content",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1788019863535,
+      "tag": "0019_shared_content_rich",
+      "breakpoints": true
     }
   ]
 }
