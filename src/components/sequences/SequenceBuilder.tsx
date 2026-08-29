@@ -1,0 +1,123 @@
+"use client";
+
+import * as React from "react";
+import { useRouter } from "next/navigation";
+import { Sparkles, Plus, Trash2, Save } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { generateSequenceAction, type GeneratedSequenceStep } from "@/lib/actions/ai";
+import { createSequenceAction } from "@/lib/actions/sequences";
+
+type Step = GeneratedSequenceStep;
+
+const BLANK: Step = { dayOffset: 0, channel: "whatsapp", body: "" };
+
+export function SequenceBuilder() {
+  const router = useRouter();
+  const { toast } = useToast();
+  const [name, setName] = React.useState("");
+  const [goal, setGoal] = React.useState("");
+  const [steps, setSteps] = React.useState<Step[]>([{ ...BLANK }]);
+  const [generating, setGenerating] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
+
+  function setStep(i: number, patch: Partial<Step>) {
+    setSteps((s) => s.map((st, idx) => (idx === i ? { ...st, ...patch } : st)));
+  }
+
+  async function generate() {
+    setGenerating(true);
+    try {
+      const { steps: gen, ai } = await generateSequenceAction(goal);
+      setSteps(gen);
+      if (!name && goal) setName(goal.slice(0, 60));
+      toast({ title: ai ? "AI drafted your sequence" : "Starter sequence added", description: "Edit the steps, then save." });
+    } catch {
+      toast({ variant: "destructive", title: "Couldn't generate" });
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  async function save() {
+    const clean = steps.filter((s) => s.body.trim());
+    if (!name.trim() || clean.length === 0) {
+      toast({ variant: "destructive", title: "Name and at least one step with text are required" });
+      return;
+    }
+    setSaving(true);
+    try {
+      await createSequenceAction({ name: name.trim(), steps: clean });
+      toast({ title: "Sequence saved" });
+      setName(""); setGoal(""); setSteps([{ ...BLANK }]);
+      router.refresh();
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Couldn't save", description: e?.message });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border bg-card p-6 space-y-4">
+      <h3 className="text-lg font-medium">New sequence</h3>
+
+      <div className="space-y-2">
+        <Label htmlFor="seq-name">Name</Label>
+        <Input id="seq-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. New lead nurture" />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="seq-goal">Describe the goal (AI will draft the steps)</Label>
+        <div className="flex gap-2">
+          <Input id="seq-goal" value={goal} onChange={(e) => setGoal(e.target.value)}
+            placeholder="e.g. Nurture a new insurance lead over a week toward a call" />
+          <Button type="button" variant="outline" onClick={generate} disabled={generating} className="gap-2 shrink-0">
+            <Sparkles className="h-4 w-4" /> {generating ? "Drafting…" : "Generate"}
+          </Button>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <Label>Steps</Label>
+        {steps.map((s, i) => (
+          <div key={i} className="rounded-xl border p-3 space-y-2">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-muted-foreground">Day</span>
+              <Input type="number" min={0} value={s.dayOffset}
+                onChange={(e) => setStep(i, { dayOffset: Math.max(0, Number(e.target.value) || 0) })}
+                className="w-20" />
+              <select
+                value={s.channel}
+                onChange={(e) => setStep(i, { channel: e.target.value === "email" ? "email" : "whatsapp" })}
+                className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+              >
+                <option value="whatsapp">WhatsApp</option>
+                <option value="email">Email</option>
+              </select>
+              {steps.length > 1 && (
+                <Button type="button" variant="ghost" size="icon" className="ml-auto" onClick={() => setSteps((st) => st.filter((_, idx) => idx !== i))}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+            <Textarea value={s.body} onChange={(e) => setStep(i, { body: e.target.value })}
+              placeholder="Message… {{first_name}} is filled in automatically." className="min-h-[70px]" />
+          </div>
+        ))}
+        <Button type="button" variant="outline" size="sm" onClick={() => setSteps((s) => [...s, { ...BLANK, dayOffset: (s.at(-1)?.dayOffset ?? 0) + 2 }])} className="gap-2">
+          <Plus className="h-4 w-4" /> Add step
+        </Button>
+      </div>
+
+      <div className="flex justify-end">
+        <Button onClick={save} disabled={saving} className="gap-2">
+          <Save className="h-4 w-4" /> {saving ? "Saving…" : "Save sequence"}
+        </Button>
+      </div>
+    </div>
+  );
+}

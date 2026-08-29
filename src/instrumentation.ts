@@ -25,6 +25,11 @@ export async function register() {
     const { createScoreDecayWorker, scheduleScoreDecayScan } = await import("@/lib/jobs/workers/scoreDecayWorker");
     createScoreDecayWorker();
     await scheduleScoreDecayScan();
+
+    // Sequences: consumer + a 5-min repeating scan that delivers due drip steps.
+    const { createSequenceWorker, scheduleSequenceScan } = await import("@/lib/jobs/workers/sequenceWorker");
+    createSequenceWorker();
+    await scheduleSequenceScan();
   } catch (err) {
     console.error("[instrumentation] failed to register repeatable job schedulers:", err);
   }

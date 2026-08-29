@@ -148,6 +148,13 @@
       "when": 1788021706356,
       "tag": "0020_whatsapp_mode",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1788023275639,
+      "tag": "0021_sequences",
+      "breakpoints": true
     }
   ]
 }

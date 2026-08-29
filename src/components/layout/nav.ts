@@ -1,4 +1,4 @@
-import { Users, Kanban, LayoutDashboard, CheckSquare, Settings, Activity, Zap, Network, Snowflake, TrendingUp, type LucideIcon } from "lucide-react";
+import { Users, Kanban, LayoutDashboard, CheckSquare, Settings, Activity, Zap, Network, Snowflake, TrendingUp, GitFork, type LucideIcon } from "lucide-react";
 
 // Shared nav definition used by both the desktop Sidebar and the mobile drawer.
 export interface NavRoute {
@@ -17,6 +17,7 @@ export const navRoutes: NavRoute[] = [
   { label: "Going cold", icon: Snowflake, href: "/leads/cold", group: "CRM" },
   { label: "Follow-ups", icon: CheckSquare, href: "/follow-ups", group: "Productivity" },
   { label: "Automations", icon: Zap, href: "/automations", group: "Productivity" },
+  { label: "Sequences", icon: GitFork, href: "/sequences", group: "Productivity" },
   { label: "Sources", icon: Network, href: "/settings/sources", group: "Settings" },
   { label: "Settings", icon: Settings, href: "/settings", group: "Settings" },
 ];

@@ -8,7 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { ChevronLeft, ChevronRight, Download, Tag } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Tag, MessageCircle } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { sendCampaignAction } from "@/lib/actions/campaigns";
 import { useToast } from "@/hooks/use-toast";
 import { listUsersAction } from "@/lib/actions/users";
 import { bulkAssignLeadAction, bulkChangeLeadStatusAction } from "@/lib/actions/leads";
@@ -126,6 +128,26 @@ export function LeadsTable({
   }
 
   const ids = () => Array.from(selected);
+  const [msgOpen, setMsgOpen] = React.useState(false);
+  const [msgBody, setMsgBody] = React.useState("");
+  const [msgSending, setMsgSending] = React.useState(false);
+
+  async function sendCampaign() {
+    setMsgSending(true);
+    try {
+      const { sent, failed } = await sendCampaignAction({ leadIds: ids(), body: msgBody });
+      toast({
+        title: `Message sent to ${sent} lead${sent === 1 ? "" : "s"}`,
+        description: failed ? `${failed} couldn't auto-send — logged for manual send.` : undefined,
+      });
+      setMsgBody(""); setMsgOpen(false); setSelected(new Set());
+      router.refresh();
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Couldn't send", description: e?.message });
+    } finally {
+      setMsgSending(false);
+    }
+  }
 
   const startRecord = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const endRecord = Math.min(page * pageSize, total);
@@ -192,6 +214,16 @@ export function LeadsTable({
             </Button>
           </div>
           <Button
+            variant="outline"
+            size="sm"
+            disabled={busy}
+            onClick={() => setMsgOpen((o) => !o)}
+            className="h-9 gap-1.5"
+          >
+            <MessageCircle className="h-4 w-4" />
+            Message
+          </Button>
+          <Button
             variant="secondary"
             size="sm"
             onClick={exportSelectedCsv}
@@ -200,6 +232,25 @@ export function LeadsTable({
             <Download className="h-4 w-4" />
             Export CSV
           </Button>
+        </div>
+      )}
+
+      {selected.size > 0 && msgOpen && (
+        <div className="space-y-2 rounded-md border bg-card p-3">
+          <p className="text-sm font-medium">Message {selected.size} selected lead{selected.size === 1 ? "" : "s"} on WhatsApp</p>
+          <Textarea
+            placeholder="Type your message… {{first_name}} is personalised per lead."
+            value={msgBody}
+            onChange={(e) => setMsgBody(e.target.value)}
+            className="min-h-[80px]"
+          />
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setMsgOpen(false)}>Cancel</Button>
+            <Button size="sm" disabled={msgSending || msgBody.trim().length === 0} onClick={sendCampaign} className="gap-1.5">
+              <MessageCircle className="h-4 w-4" />
+              {msgSending ? "Sending…" : "Send to all"}
+            </Button>
+          </div>
         </div>
       )}
 

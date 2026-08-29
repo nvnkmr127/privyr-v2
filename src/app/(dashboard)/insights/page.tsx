@@ -4,6 +4,8 @@ import { RevenueForecastService } from "@/domains/leads/revenueForecastService";
 import { WinLossAnalyticsService } from "@/domains/leads/winLossAnalyticsService";
 import { SourceRoiAnalyticsService } from "@/domains/leads/sourceRoiAnalyticsService";
 import { EngagementHealthService } from "@/domains/leads/engagementHealthService";
+import { OptimalContactTimeService } from "@/domains/leads/optimalContactTimeService";
+import { Clock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -23,11 +25,12 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
 
 export default async function InsightsPage() {
   const { organizationId } = await requireOrg();
-  const [forecast, winLoss, sourceRoi, health] = await Promise.all([
+  const [forecast, winLoss, sourceRoi, health, bestTime] = await Promise.all([
     RevenueForecastService.getRevenueForecast(organizationId),
     WinLossAnalyticsService.getWinLossAnalytics(organizationId),
     SourceRoiAnalyticsService.getLeadSourceRoiMetrics(organizationId),
     EngagementHealthService.getEngagementHealthBreakdown(organizationId),
+    OptimalContactTimeService.getOptimalContactTimes(organizationId),
   ]);
 
   return (
@@ -36,6 +39,22 @@ export default async function InsightsPage() {
         <h2 className="text-3xl font-bold tracking-tight">Insights</h2>
         <p className="text-sm text-muted-foreground">Forecast, win/loss, source ROI, and pipeline health at a glance.</p>
       </div>
+
+      {/* Best time to reach */}
+      <Card className="rounded-2xl">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Clock className="h-4 w-4 text-sky-500" /> Best time to reach your leads
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <Stat label="Best hour" value={bestTime.bestHourOfDayLabel} sub="When contact most often lands" />
+            <Stat label="Best day" value={bestTime.bestDayOfWeek} sub="Highest-response weekday" />
+            <Stat label="Based on" value={`${bestTime.totalTouchpointsAnalyzed}`} sub="touchpoints analyzed" />
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Revenue forecast */}
       <Card className="rounded-2xl">

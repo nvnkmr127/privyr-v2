@@ -54,3 +54,72 @@ export async function draftLeadReplyAction(data: unknown): Promise<{ draft: stri
   }
   return { draft, ai: true };
 }
+
+const RECAP_SYSTEM = `You summarize a sales lead's history for a busy salesperson.
+Return ONE or TWO short sentences: where this lead stands and the single most useful next step.
+No preamble, no bullet points, no quotes. Plain, specific, factual.`;
+
+// AI conversation recap — a one-glance "where this lead stands" for the lead header.
+export async function summarizeLeadAction(data: unknown): Promise<{ summary: string; ai: boolean }> {
+  const { organizationId } = await requireOrg();
+  const { leadId } = schema.parse(data);
+  const lead = await LeadService.getLead(leadId, organizationId);
+  if (!lead) throw new Error("Lead not found");
+
+  const activities = await ActivityService.getLeadActivities(leadId);
+  if (!aiEnabled() || activities.length === 0) {
+    const last = activities[0];
+    return {
+      summary: last
+        ? `Last touch: ${last.type}${last.content ? ` — ${last.content}` : ""}. Status is ${lead.status}.`
+        : `New ${lead.status} lead with no activity yet — reach out to make first contact.`,
+      ai: false,
+    };
+  }
+
+  const recent = activities.slice(0, 12).map((a) => `- ${a.type}${a.content ? `: ${a.content}` : ""}`).join("\n");
+  const prompt = [
+    `Lead: ${lead.name ?? "Unknown"}`,
+    `Status: ${lead.status}`,
+    lead.company ? `Company: ${lead.company}` : null,
+    `Activity (newest first):\n${recent}`,
+  ].filter(Boolean).join("\n");
+
+  const summary = await generateText(RECAP_SYSTEM, prompt, 200);
+  return summary ? { summary, ai: true } : { summary: `Status is ${lead.status}. Review recent activity and follow up.`, ai: false };
+}
+
+const SEQ_SYSTEM = `You design short WhatsApp/email follow-up sequences for salespeople.
+Return ONLY a JSON array (no prose) of 3-5 steps. Each step:
+{"dayOffset": <int days from enrolment>, "channel": "whatsapp"|"email", "body": "<message under 60 words>"}
+Start dayOffset at 0 (first message) and increase. Warm, human, specific, one clear next step each.`;
+
+export type GeneratedSequenceStep = { dayOffset: number; channel: "whatsapp" | "email"; body: string };
+
+// AI sequence generator — turns a plain-English goal into ready-to-edit sequence steps.
+export async function generateSequenceAction(goal: string): Promise<{ steps: GeneratedSequenceStep[]; ai: boolean }> {
+  await requireOrg();
+  const clean = String(goal || "").slice(0, 500).trim();
+  const fallback: GeneratedSequenceStep[] = [
+    { dayOffset: 0, channel: "whatsapp", body: "Hi {{first_name}}, thanks for your interest! Happy to answer any questions — when's a good time for a quick chat?" },
+    { dayOffset: 2, channel: "whatsapp", body: "Hi {{first_name}}, just checking in — did you get a chance to look things over? I'm here if anything's unclear." },
+    { dayOffset: 5, channel: "email", body: "Hi {{first_name}}, following up once more. If now isn't the right time, just let me know and I'll circle back later. Otherwise, happy to set up a call." },
+  ];
+  if (!aiEnabled() || !clean) return { steps: fallback, ai: false };
+
+  const raw = await generateText(SEQ_SYSTEM, `Goal: ${clean}\nAudience: sales leads.`, 800);
+  if (!raw) return { steps: fallback, ai: false };
+  try {
+    const parsed = JSON.parse(raw.slice(raw.indexOf("["), raw.lastIndexOf("]") + 1));
+    const steps: GeneratedSequenceStep[] = (Array.isArray(parsed) ? parsed : [])
+      .map((s: any): GeneratedSequenceStep => ({
+        dayOffset: Math.max(0, Math.floor(Number(s.dayOffset) || 0)),
+        channel: s.channel === "email" ? "email" : "whatsapp",
+        body: String(s.body || "").slice(0, 500),
+      }))
+      .filter((s) => s.body.length > 0);
+    return steps.length ? { steps, ai: true } : { steps: fallback, ai: false };
+  } catch {
+    return { steps: fallback, ai: false };
+  }
+}

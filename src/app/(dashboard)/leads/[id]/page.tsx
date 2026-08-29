@@ -28,6 +28,9 @@ import { checkLeadDuplicatesAction } from "@/lib/actions/leads";
 import { getAttachmentsAction } from "@/lib/actions/attachments";
 import { getLeadRemindersAction } from "@/lib/actions/reminders";
 import { getOrganizationAction } from "@/lib/actions/organizations";
+import { LeadAiRecap } from "@/components/leads/LeadAiRecap";
+import { listSequencesAction } from "@/lib/actions/sequences";
+import { SequenceService } from "@/domains/leads/sequenceService";
 import { LeadHeaderQuickActions } from "@/components/leads/LeadHeaderQuickActions";
 import { LeadRemindersTab } from "@/components/leads/LeadRemindersTab";
 import { LeadAttachmentsTab } from "@/components/leads/LeadAttachmentsTab";
@@ -48,6 +51,10 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
   const shares = await listSharesAction(id).catch(() => []);
   const org = await getOrganizationAction().catch(() => null);
   const whatsappMode: "personal" | "bsp" = org?.whatsappMode === "bsp" ? "bsp" : "personal";
+  const [availableSequences, enrolledSequences] = await Promise.all([
+    listSequencesAction().catch(() => []),
+    SequenceService.listForLead(id).catch(() => []),
+  ]);
 
   const stagesList = await db.select({ id: leadPipelineStages.id, name: leadPipelineStages.name }).from(leadPipelineStages).catch(() => []);
   const automationsList = await db
@@ -138,6 +145,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
             </h3>
             <p className="text-base font-semibold leading-snug">{nba.label}</p>
             <p className="text-sm text-muted-foreground">{nba.reason}</p>
+            <LeadAiRecap leadId={lead.id} />
           </div>
 
           {/* Follow Up Reminder Widget */}
@@ -225,7 +233,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
         {/* Right Column: Sequences & Activity/Messaging Tabs */}
         <div className="lg:col-span-2 space-y-6">
           {/* Automated Sequences Card */}
-          <LeadSequencesCard leadId={lead.id} availableSequences={automationsList} />
+          <LeadSequencesCard leadId={lead.id} availableSequences={availableSequences} initialEnrolled={enrolledSequences} />
 
           {/* Tabs Container */}
           <div className="rounded-2xl border border-border bg-card overflow-hidden">

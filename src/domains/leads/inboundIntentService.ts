@@ -1,0 +1,37 @@
+import { generateText, aiEnabled } from "@/lib/ai/client";
+import { ActivityService } from "@/domains/activities/service";
+import { TagService } from "@/domains/tags/service";
+
+export type LeadIntent = "interested" | "not_interested" | "question" | "scheduling" | "other";
+
+const VALID: LeadIntent[] = ["interested", "not_interested", "question", "scheduling", "other"];
+
+const SYSTEM = `You classify a single inbound message from a sales lead.
+Return ONLY compact JSON: {"intent": one of ["interested","not_interested","question","scheduling","other"], "sentiment": one of ["positive","neutral","negative"]}.
+No prose.`;
+
+// Classifies an inbound WhatsApp reply and tags the lead so hot replies surface immediately.
+// No auth context (called from the webhook) — pass organizationId explicitly. Best-effort:
+// any failure is swallowed so it can never break inbound processing.
+export class InboundIntentService {
+  static async classifyAndTag(leadId: string, body: string, organizationId?: string): Promise<void> {
+    if (!aiEnabled() || !body.trim()) return;
+    try {
+      const raw = await generateText(SYSTEM, `Message: "${body.slice(0, 500)}"`, 60);
+      if (!raw) return;
+      const parsed = JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
+      const intent: LeadIntent = VALID.includes(parsed.intent) ? parsed.intent : "other";
+      const sentiment = ["positive", "neutral", "negative"].includes(parsed.sentiment) ? parsed.sentiment : "neutral";
+
+      await ActivityService.addActivity({
+        leadId,
+        type: "note",
+        content: `AI read the reply — intent: ${intent.replace("_", " ")}, sentiment: ${sentiment}.`,
+      });
+      // Tag so replies are filterable/segmentable; interested/scheduling are the buying signals.
+      await TagService.addToLead(leadId, `intent:${intent}`, organizationId).catch(() => {});
+    } catch {
+      /* best-effort classification */
+    }
+  }
+}
