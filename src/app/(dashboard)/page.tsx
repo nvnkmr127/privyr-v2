@@ -3,6 +3,8 @@ import Link from "next/link";
 import { MetricsCards } from "@/components/dashboard/MetricsCards";
 import { LeadsBySourceChart, LeadsByStageChart, LeadsByOwnerChart } from "@/components/dashboard/Charts";
 import { RecentActivityFeed } from "@/components/dashboard/RecentActivityFeed";
+import { PriorityActions } from "@/components/dashboard/PriorityActions";
+import { GettingStarted } from "@/components/dashboard/GettingStarted";
 import { DashboardDateFilter } from "@/components/dashboard/DashboardDateFilter";
 import { requireOrg } from "@/lib/rbac";
 import { AnalyticsService, AnalyticsFilters } from "@/lib/analytics/service";
@@ -56,6 +58,8 @@ export default async function ExecutiveDashboardPage({
         <DashboardDateFilter />
       </div>
 
+      {sla.totalLeads === 0 && <GettingStarted />}
+
       <div className="space-y-6">
         <div className="rounded-2xl border bg-card p-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
@@ -93,6 +97,10 @@ export default async function ExecutiveDashboardPage({
             <p className="text-xs text-muted-foreground">{sla.slaBreachedCount} leads breached the response target</p>
           </div>
         </div>
+
+        <Suspense fallback={<div className="h-40 bg-muted rounded-2xl animate-pulse" />}>
+          <PriorityActions />
+        </Suspense>
 
         <Suspense fallback={<div className="h-32 bg-muted rounded-2xl animate-pulse" />}>
           <MetricsCards filters={filters} />

@@ -141,6 +141,13 @@
       "when": 1788019863535,
       "tag": "0019_shared_content_rich",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1788021706356,
+      "tag": "0020_whatsapp_mode",
+      "breakpoints": true
     }
   ]
 }

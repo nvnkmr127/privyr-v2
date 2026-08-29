@@ -27,6 +27,7 @@ import { LeadSequencesCard } from "@/components/leads/LeadSequencesCard";
 import { checkLeadDuplicatesAction } from "@/lib/actions/leads";
 import { getAttachmentsAction } from "@/lib/actions/attachments";
 import { getLeadRemindersAction } from "@/lib/actions/reminders";
+import { getOrganizationAction } from "@/lib/actions/organizations";
 import { LeadHeaderQuickActions } from "@/components/leads/LeadHeaderQuickActions";
 import { LeadRemindersTab } from "@/components/leads/LeadRemindersTab";
 import { LeadAttachmentsTab } from "@/components/leads/LeadAttachmentsTab";
@@ -45,6 +46,8 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
   const attachments = await getAttachmentsAction(id).catch(() => []);
   const reminders = await getLeadRemindersAction(id).catch(() => []);
   const shares = await listSharesAction(id).catch(() => []);
+  const org = await getOrganizationAction().catch(() => null);
+  const whatsappMode: "personal" | "bsp" = org?.whatsappMode === "bsp" ? "bsp" : "personal";
 
   const stagesList = await db.select({ id: leadPipelineStages.id, name: leadPipelineStages.name }).from(leadPipelineStages).catch(() => []);
   const automationsList = await db
@@ -307,7 +310,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
 
                 <TabsContent value="whatsapp" className="mt-0 space-y-4">
                   <WhatsAppThread messages={waMessages} />
-                  <WhatsAppSendBox leadId={lead.id} hasPhone={!!lead.phone} />
+                  <WhatsAppSendBox leadId={lead.id} hasPhone={!!lead.phone} mode={whatsappMode} phone={lead.phone} />
                 </TabsContent>
 
                 <TabsContent value="emails" className="mt-0 space-y-4">

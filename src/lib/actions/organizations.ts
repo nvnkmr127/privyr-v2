@@ -28,6 +28,8 @@ const updateOrgSchema = z.object({
   country: z.string().trim().length(2).nullish().transform((v) => v || null),
   // SLA escalation window in hours; 0/empty turns it off (stored as null).
   slaHours: z.coerce.number().int().min(0).max(720).nullish().transform((v) => (v ? v : null)),
+  // WhatsApp send mode: personal (wa.me one-tap) or bsp (Business API).
+  whatsappMode: z.enum(["personal", "bsp"]).default("personal"),
   // "name" is always required; keep only known fields and force-include name.
   requiredLeadFields: z
     .array(z.enum(LEAD_FIELDS))

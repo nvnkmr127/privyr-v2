@@ -29,6 +29,10 @@ export const organizations = pgTable('organizations', {
   // Hours a new lead may sit unactioned before it escalates. Null = SLA escalation off.
   slaHours: integer('sla_hours'),
 
+  // WhatsApp send mode: 'personal' = one-tap wa.me from the rep's own number (Privyr-style,
+  // no BSP setup); 'bsp' = send through the WhatsApp Business API. Solos default to personal.
+  whatsappMode: varchar('whatsapp_mode', { length: 10 }).default('personal').notNull(),
+
   // Billing (Razorpay). plan (above) is the source of truth for entitlements; these track the subscription.
   razorpayCustomerId: varchar('razorpay_customer_id', { length: 255 }),
   razorpaySubscriptionId: varchar('razorpay_subscription_id', { length: 255 }),

@@ -10,7 +10,17 @@ import { MessageCircle, Sparkles } from "lucide-react"
 
 type Template = { id: string; name: string; body: string };
 
-export function WhatsAppSendBox({ leadId, hasPhone }: { leadId: string; hasPhone: boolean }) {
+export function WhatsAppSendBox({
+  leadId,
+  hasPhone,
+  mode = "bsp",
+  phone = null,
+}: {
+  leadId: string;
+  hasPhone: boolean;
+  mode?: "personal" | "bsp";
+  phone?: string | null;
+}) {
   const { toast } = useToast();
   const [templates, setTemplates] = React.useState<Template[]>([]);
   const [body, setBody] = React.useState("");
@@ -41,10 +51,19 @@ export function WhatsAppSendBox({ leadId, hasPhone }: { leadId: string; hasPhone
   }
 
   async function send() {
+    // Personal mode: open WhatsApp with the message prefilled to send from the rep's own
+    // number (Privyr-style). No BSP, no 24h-window limits — the rep taps send in WhatsApp.
+    if (mode === "personal") {
+      const digits = (phone ?? "").replace(/[^0-9]/g, "");
+      const href = digits.length >= 6 ? `https://wa.me/${digits}?text=${encodeURIComponent(body)}` : `https://wa.me/?text=${encodeURIComponent(body)}`;
+      window.open(href, "_blank", "noopener,noreferrer");
+      setBody("");
+      return;
+    }
     setSending(true);
     try {
       await sendWhatsAppAction({ leadId, body });
-      toast({ title: "WhatsApp sent", description: "Message delivered to Watxio." });
+      toast({ title: "WhatsApp sent", description: "Message delivered via the Business API." });
       setBody("");
     } catch (err: any) {
       // Surfaces the 24h-window error verbatim so the user knows a template is required.
@@ -85,7 +104,7 @@ export function WhatsAppSendBox({ leadId, hasPhone }: { leadId: string; hasPhone
         </Button>
         <Button onClick={send} disabled={sending || body.trim().length === 0} className="gap-2">
           <MessageCircle className="h-4 w-4" />
-          {sending ? "Sending…" : "Send WhatsApp"}
+          {mode === "personal" ? "Open in WhatsApp" : sending ? "Sending…" : "Send WhatsApp"}
         </Button>
       </div>
     </div>

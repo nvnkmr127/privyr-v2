@@ -90,6 +90,7 @@ export class OrgService {
       country: string | null;
       requiredLeadFields: string[];
       slaHours: number | null;
+      whatsappMode: string;
     }>,
   ) {
     const [updated] = await db

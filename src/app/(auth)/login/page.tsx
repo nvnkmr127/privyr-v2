@@ -10,7 +10,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+// Dev-only convenience: skip typing seed creds during local verification. NODE_ENV is
+// "production" in real builds, so this whole branch is dead code there — never a prod bypass.
+const DEV = process.env.NODE_ENV === "development";
+const DEV_EMAIL = process.env.NEXT_PUBLIC_DEV_LOGIN_EMAIL || "admin@acme.com";
+const DEV_PASSWORD = process.env.NEXT_PUBLIC_DEV_LOGIN_PASSWORD || "password123";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -45,6 +51,19 @@ export default function LoginPage() {
       router.push("/profile");
     }
   };
+
+  const devLogin = async () => {
+    setError(null);
+    const result = await signIn("credentials", { redirect: false, email: DEV_EMAIL, password: DEV_PASSWORD });
+    if (result?.error) setError("Dev auto-login failed — is the DB seeded (npm run db:seed)?");
+    else router.push("/");
+  };
+
+  // Auto-run dev login when explicitly opted in via env, so the preview lands logged in.
+  useEffect(() => {
+    if (DEV && process.env.NEXT_PUBLIC_DEV_AUTOLOGIN === "1") devLogin();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="flex h-screen w-full items-center justify-center bg-muted">
@@ -88,6 +107,12 @@ export default function LoginPage() {
             <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
               {form.formState.isSubmitting ? "Logging in..." : "Login"}
             </Button>
+
+            {DEV && (
+              <Button type="button" variant="outline" className="w-full" onClick={devLogin}>
+                Sign in as demo admin (dev)
+              </Button>
+            )}
           </form>
         </CardContent>
       </Card>

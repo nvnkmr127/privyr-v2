@@ -29,6 +29,7 @@ type Org = {
   country?: string | null;
   requiredLeadFields?: string[] | null;
   slaHours?: number | null;
+  whatsappMode?: string | null;
 };
 
 const LEAD_FIELDS: { key: string; label: string }[] = [
@@ -73,6 +74,7 @@ export function GeneralSettingsForm({ organization }: { organization?: Org | nul
     postalCode: organization?.postalCode ?? "",
     country: organization?.country ?? "",
     slaHours: organization?.slaHours != null ? String(organization.slaHours) : "",
+    whatsappMode: organization?.whatsappMode ?? "personal",
   });
 
   const set = (k: keyof typeof f, v: string) => setF((s) => ({ ...s, [k]: v }));
@@ -85,6 +87,7 @@ export function GeneralSettingsForm({ organization }: { organization?: Org | nul
       await updateOrganizationAction({
         ...f,
         name: f.name.trim(),
+        whatsappMode: f.whatsappMode === "bsp" ? "bsp" : "personal",
         slaHours: f.slaHours === "" ? null : Number(f.slaHours),
         requiredLeadFields: requiredFields as ("name" | "email" | "phone" | "company")[],
       });
@@ -221,6 +224,16 @@ export function GeneralSettingsForm({ organization }: { organization?: Org | nul
             <Input id="slaHours" type="number" min={0} value={f.slaHours}
               onChange={(e) => set("slaHours", e.target.value)} placeholder="e.g. 24 — blank to disable" />
             <p className="text-xs text-muted-foreground">A new lead unactioned this long alerts its owner. Blank = off.</p>
+          </div>
+          <div className="space-y-2 max-w-xs">
+            <Label htmlFor="whatsappMode">WhatsApp sending</Label>
+            <NativeSelect id="whatsappMode" value={f.whatsappMode} onChange={(e) => set("whatsappMode", e.target.value)}>
+              <option value="personal">Personal number (one-tap, opens WhatsApp)</option>
+              <option value="bsp">Business API (send in-app)</option>
+            </NativeSelect>
+            <p className="text-xs text-muted-foreground">
+              Personal opens WhatsApp with the message ready to send from your own number. Business API sends directly and needs BSP setup.
+            </p>
           </div>
           <div className="flex flex-wrap gap-4 pt-2 border-t border-border dark:border-border">
             <label className="flex items-center gap-2 text-sm text-muted-foreground">

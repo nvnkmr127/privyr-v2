@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import { ServiceWorkerRegister } from "@/components/layout/ServiceWorkerRegister";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -16,6 +17,19 @@ const geistMono = localFont({
 export const metadata: Metadata = {
   title: "Privyr CRM",
   description: "Lead capture, instant alerts, and one-tap messaging.",
+  applicationName: "Privyr",
+  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Privyr" },
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }, { url: "/icon-192.png", sizes: "192x192", type: "image/png" }],
+    apple: [{ url: "/apple-icon.png", sizes: "180x180" }],
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0a0a0a",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -29,6 +43,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         {children}
+        <ServiceWorkerRegister />
       </body>
     </html>
   );

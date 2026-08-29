@@ -1,0 +1,1 @@
+ALTER TABLE "organizations" ADD COLUMN "whatsapp_mode" varchar(10) DEFAULT 'personal' NOT NULL;
