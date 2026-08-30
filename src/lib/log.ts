@@ -15,5 +15,12 @@ export function logError(context: string, error: unknown, extra?: Record<string,
       : { value: String(error) };
   // Never log secrets: callers must not pass tokens/passwords in `extra`.
   console.error(`[error] ${context} ref=${ref}`, JSON.stringify({ ref, ...base, ...extra }));
+
+  // Forward to Sentry with the same ref as a tag (fire-and-forget; no-op until the DSN is set).
+  void import("@sentry/nextjs")
+    .then((Sentry) => Sentry.captureException(error, { tags: { ref, context }, extra }))
+    .catch(() => {
+      /* Sentry unavailable — the console log above is the fallback */
+    });
   return ref;
 }

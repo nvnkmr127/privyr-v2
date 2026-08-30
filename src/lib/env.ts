@@ -14,6 +14,7 @@ const OPTIONAL_FEATURES: Record<string, string[]> = {
   "WhatsApp (Watxio)": ["WATXIO_API_KEY", "WATXIO_BASE_URL", "WATXIO_PHONE_NUMBER_ID"],
   "AI drafting (Anthropic)": ["ANTHROPIC_API_KEY"],
   "Web push": ["NEXT_PUBLIC_VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY"],
+  "Mobile push (Firebase/FCM)": ["FIREBASE_PROJECT_ID", "FIREBASE_CLIENT_EMAIL", "FIREBASE_PRIVATE_KEY"],
   "Google Calendar": ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"],
   "Facebook Lead Ads": ["FACEBOOK_APP_ID", "FACEBOOK_APP_SECRET"],
   "Email (Resend)": ["RESEND_API_KEY"],

@@ -2,6 +2,13 @@
 // a worker factory) is what actually starts the BullMQ consumer — a queue on its own has no
 // consumer. Everything registered here was previously enqueuing jobs that nothing processed.
 export async function register() {
+  // Initialize Sentry for whichever runtime this is (safe/dormant until the DSN is set).
+  if (process.env.NEXT_RUNTIME === "nodejs") {
+    await import("../sentry.server.config");
+  } else if (process.env.NEXT_RUNTIME === "edge") {
+    await import("../sentry.edge.config");
+  }
+
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
 
   // Fail fast on a misconfigured environment before anything touches the DB or signs a JWT.
@@ -74,4 +81,8 @@ export async function onRequestError(
     digest: err?.digest,
     routePath: context?.routePath,
   });
+
+  // Forward to Sentry (no-op until the DSN is configured).
+  const Sentry = await import("@sentry/nextjs");
+  Sentry.captureRequestError(err, request, context);
 }

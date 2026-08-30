@@ -15,9 +15,9 @@ export class NotificationService {
       body: data.body,
       url: data.leadId ? `/leads/${data.leadId}` : "/",
     });
-    // Best-effort mobile push (Expo) — same event, native devices.
-    const { ExpoPushService } = await import("@/lib/push/expo");
-    void ExpoPushService.sendToUser(data.userId, {
+    // Best-effort mobile push (Expo + FCM) — same event, native devices.
+    const { MobilePushService } = await import("@/lib/push/mobile");
+    void MobilePushService.sendToUser(data.userId, {
       title: data.title,
       body: data.body,
       data: data.leadId ? { leadId: data.leadId } : {},

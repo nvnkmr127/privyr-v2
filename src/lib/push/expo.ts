@@ -27,13 +27,13 @@ export const ExpoPushService = {
     await db.delete(deviceTokens).where(eq(deviceTokens.token, token));
   },
 
-  async sendToUser(userId: string, message: ExpoPushMessage) {
+  // Send to Expo push tokens (ExponentPushToken[...]). Returns the tokens that are dead and
+  // should be dropped. The unified dispatcher (mobile.ts) owns the DB lookup + routing.
+  async sendToTokens(tokens: string[], message: ExpoPushMessage): Promise<string[]> {
+    if (tokens.length === 0) return [];
     try {
-      const rows = await db.select({ token: deviceTokens.token }).from(deviceTokens).where(eq(deviceTokens.userId, userId));
-      if (rows.length === 0) return;
-
-      const messages = rows.map((r) => ({
-        to: r.token,
+      const messages = tokens.map((to) => ({
+        to,
         title: message.title,
         body: message.body ?? "",
         data: message.data ?? {},
@@ -46,16 +46,17 @@ export const ExpoPushService = {
         body: JSON.stringify(messages),
       });
 
-      // Expo returns per-message receipts; a DeviceNotRegistered error means we should drop the token.
+      // Expo returns per-message receipts; a DeviceNotRegistered error means drop the token.
       const json: any = await res.json().catch(() => null);
       const receipts: any[] = json?.data ?? [];
-      await Promise.all(
-        receipts.map((rcpt, i) =>
-          rcpt?.details?.error === "DeviceNotRegistered" ? ExpoPushService.remove(messages[i].to) : Promise.resolve()
-        )
-      );
+      const dead: string[] = [];
+      receipts.forEach((rcpt, i) => {
+        if (rcpt?.details?.error === "DeviceNotRegistered") dead.push(messages[i].to);
+      });
+      return dead;
     } catch (e) {
       console.error("[expo-push] send failed", e);
+      return [];
     }
   },
 };

@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 // Node-only packages that must never be bundled/traced by webpack (breaks with
 // "Can't resolve 'http'/'pg'" and bullmq's broken ESM randomUUID export). Externalizing
@@ -48,4 +49,14 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Sentry: error monitoring + (when SENTRY_AUTH_TOKEN is set) source-map upload for readable
+// stack traces. Org/project match the Sentry SaaS project. Source-map upload is skipped unless
+// an auth token is present, so builds succeed without it.
+export default withSentryConfig(nextConfig, {
+  org: "digicloudify",
+  project: "sentry-cordovan-arrow",
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  silent: !process.env.CI,
+  sourcemaps: { disable: !process.env.SENTRY_AUTH_TOKEN },
+  widenClientFileUpload: true,
+});
