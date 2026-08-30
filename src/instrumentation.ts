@@ -43,3 +43,26 @@ export async function register() {
   // producer or configuration surface yet. It's a speculative feature, not a broken one; wire it
   // when outbound webhook endpoints become a real, configurable feature.
 }
+
+// Next.js 15 Observability hook: centrally captures unhandled server exceptions, Server Action errors,
+// and route errors for structured production logging without leaking secrets.
+export async function onRequestError(
+  err: { digest?: string } & Error,
+  request: {
+    path: string;
+    method: string;
+    headers: { [key: string]: string };
+  },
+  context: {
+    routerKind: "Pages Router" | "App Router";
+    routePath: string;
+    routeType: "render" | "route" | "action" | "middleware";
+    renderSource?: "react-server-components" | "server-rendering";
+  }
+) {
+  console.error(`[Server Exception] ${request.method || "UNKNOWN"} ${request.path || ""} (${context.routeType}):`, {
+    message: err?.message,
+    digest: err?.digest,
+    routePath: context?.routePath,
+  });
+}

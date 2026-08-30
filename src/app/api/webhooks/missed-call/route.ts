@@ -1,15 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sql } from "drizzle-orm";
+import { sql, and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { leads } from "@/db/schema";
 import { WhatsAppService } from "@/lib/messaging/whatsapp/service";
 import { ActivityService } from "@/domains/activities/service";
+import { RateLimiter } from "@/lib/rate-limit";
 
 // Provider-agnostic missed-call → instant WhatsApp. Point any telephony provider (Twilio,
-// Exotel, Knowlarity, …) at POST /api/webhooks/missed-call with { phone } when a call to your
+// Exotel, Knowlarity, …) at POST /api/webhooks/missed-call with { phone, organizationId } when a call to your
 // business number is missed. We match the caller to a lead and auto-send a WhatsApp so no
 // missed call goes un-followed-up. Optional shared secret: header x-webhook-secret.
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get("x-forwarded-for") || "unknown";
+  const rateLimit = await RateLimiter.checkLimit(`webhook:missed-call:${ip}`, 60, 60);
+  if (!rateLimit.success) {
+    return NextResponse.json({ ok: false, error: "Too many requests" }, { status: 429 });
+  }
+
   const secret = process.env.MISSED_CALL_WEBHOOK_SECRET;
   if (secret && req.headers.get("x-webhook-secret") !== secret) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
@@ -23,13 +30,19 @@ export async function POST(req: NextRequest) {
   }
 
   const phone: string = body.phone || body.from || body.caller || "";
+  const organizationId: string | undefined = body.organizationId || req.nextUrl.searchParams.get("orgId") || undefined;
   const digits = String(phone).replace(/\D/g, "");
   if (!digits) return NextResponse.json({ ok: false, error: "missing phone" }, { status: 400 });
+
+  const whereConditions = [sql`regexp_replace(${leads.phone}, '\\D', '', 'g') = ${digits}`];
+  if (organizationId) {
+    whereConditions.push(eq(leads.organizationId, organizationId));
+  }
 
   const [lead] = await db
     .select({ id: leads.id, name: leads.name })
     .from(leads)
-    .where(sql`regexp_replace(${leads.phone}, '\\D', '', 'g') = ${digits}`)
+    .where(and(...whereConditions))
     .limit(1);
 
   if (!lead) return NextResponse.json({ ok: true, matched: false });

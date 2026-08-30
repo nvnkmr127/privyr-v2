@@ -3,6 +3,8 @@ import { z } from "zod";
 import { authorizeApiRequest } from "@/lib/apiAuth";
 import { FollowUpService } from "@/domains/follow-ups/service";
 
+const idSchema = z.string().uuid();
+
 const schema = z.object({
   action: z.enum(["complete", "cancel", "reschedule"]),
   dueAt: z.string().datetime().optional(),
@@ -14,9 +16,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if ("error" in auth) return auth.error;
   const { id } = await params;
 
+  if (!idSchema.safeParse(id).success) {
+    return NextResponse.json({ error: "Invalid follow-up ID format. Expected a valid UUID." }, { status: 400 });
+  }
+
   const body = await req.json().catch(() => null);
   const parsed = schema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ error: "Invalid body" }, { status: 422 });
+  if (!parsed.success) return NextResponse.json({ error: "Invalid body", details: parsed.error.issues }, { status: 422 });
 
   try {
     let result;
@@ -25,9 +31,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     } else if (parsed.data.action === "cancel") {
       result = await FollowUpService.cancelFollowUp(id, auth.organizationId);
     } else {
-      if (!parsed.data.dueAt) return NextResponse.json({ error: "dueAt required to reschedule" }, { status: 422 });
+      if (!parsed.data.dueAt) return NextResponse.json({ error: "dueAt is required to reschedule" }, { status: 422 });
       result = await FollowUpService.rescheduleFollowUp(id, new Date(parsed.data.dueAt), auth.organizationId);
     }
+
+    if (!result) {
+      return NextResponse.json({ error: "Follow-up not found or already deleted" }, { status: 404 });
+    }
+
     return NextResponse.json({ data: result });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message ?? "Could not update follow-up" }, { status: 400 });

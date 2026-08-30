@@ -49,6 +49,8 @@ import { ActivityService } from "@/domains/activities/service";
 import { NotificationService } from "@/domains/notifications/service";
 import { LeadService } from "@/domains/leads/service";
 
+const isUuid = (str?: string) => !!str && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+
 // Bind events to the dispatcher and activity logger — exactly once per process, even if
 // this module is evaluated in more than one bundle.
 const __handlerGuard = globalThis as unknown as { __eventHandlersBound?: boolean };
@@ -57,17 +59,17 @@ if (!__handlerGuard.__eventHandlersBound) {
 
 eventBus.on('lead.created', async (p) => {
   dispatchTrigger('lead.created', p);
-  await ActivityService.addActivity({ leadId: p.leadId, userId: p.userId, type: 'note', content: 'Lead was created manually.' });
+  await ActivityService.addActivity({ leadId: p.leadId, userId: isUuid(p.userId) ? p.userId : undefined, type: 'note', content: 'Lead was created manually.' });
 });
 
 eventBus.on('lead.updated', async (p) => {
   dispatchTrigger('lead.updated', p);
-  await ActivityService.addActivity({ leadId: p.leadId, userId: p.userId, type: 'note', content: 'Lead details were updated.' });
+  await ActivityService.addActivity({ leadId: p.leadId, userId: isUuid(p.userId) ? p.userId : undefined, type: 'note', content: 'Lead details were updated.' });
 });
 
 eventBus.on('lead.assigned', async (p) => {
   dispatchTrigger('lead.assigned', p);
-  await ActivityService.addActivity({ leadId: p.leadId, userId: p.assignedById, type: 'note', content: `Lead was assigned to user ${p.ownerId}.` });
+  await ActivityService.addActivity({ leadId: p.leadId, userId: isUuid(p.assignedById) ? p.assignedById : undefined, type: 'note', content: `Lead was assigned to user ${p.ownerId}.` });
 
   // The "New Lead Alert": ping the owner, unless they assigned it to themselves.
   if (p.ownerId && p.ownerId !== p.assignedById) {

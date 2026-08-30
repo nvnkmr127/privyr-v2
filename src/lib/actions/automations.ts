@@ -26,37 +26,41 @@ export async function createAutomation(data: unknown) {
   const { organizationId } = await requirePermission("automations.manage");
   const { name, isActive, trigger, conditions, actions } = automationSchema.parse(data);
 
-  const [newAutomation] = await db.insert(automations).values({
-    organizationId,
-    name,
-    isActive: isActive ?? true,
-  }).returning();
+  const newAutomation = await db.transaction(async (tx) => {
+    const [created] = await tx.insert(automations).values({
+      organizationId,
+      name,
+      isActive: isActive ?? true,
+    }).returning();
 
-  if (trigger) {
-    await db.insert(automationTriggers).values({
-      automationId: newAutomation.id,
-      type: trigger.type,
-      config: trigger.config || {},
-    });
-  }
-
-  if (conditions) {
-    await db.insert(automationConditions).values({
-      automationId: newAutomation.id,
-      config: conditions as Record<string, unknown>,
-    });
-  }
-
-  if (actions && actions.length > 0) {
-    for (let i = 0; i < actions.length; i++) {
-      await db.insert(automationActions).values({
-        automationId: newAutomation.id,
-        type: actions[i].type,
-        config: actions[i].config || {},
-        orderIndex: i,
+    if (trigger) {
+      await tx.insert(automationTriggers).values({
+        automationId: created.id,
+        type: trigger.type,
+        config: trigger.config || {},
       });
     }
-  }
+
+    if (conditions) {
+      await tx.insert(automationConditions).values({
+        automationId: created.id,
+        config: conditions as Record<string, unknown>,
+      });
+    }
+
+    if (actions && actions.length > 0) {
+      for (let i = 0; i < actions.length; i++) {
+        await tx.insert(automationActions).values({
+          automationId: created.id,
+          type: actions[i].type,
+          config: actions[i].config || {},
+          orderIndex: i,
+        });
+      }
+    }
+
+    return created;
+  });
 
   revalidatePath("/automations");
   return newAutomation;
@@ -66,27 +70,29 @@ export async function updateAutomation(id: string, data: unknown) {
   const { organizationId } = await requirePermission("automations.manage");
   const { name, isActive, trigger, conditions, actions } = automationSchema.parse(data);
 
-  const [existing] = await db.select().from(automations).where(and(eq(automations.id, id), eq(automations.organizationId, organizationId)));
-  if (!existing) throw new Error("Automation not found");
+  await db.transaction(async (tx) => {
+    const [existing] = await tx.select().from(automations).where(and(eq(automations.id, id), eq(automations.organizationId, organizationId)));
+    if (!existing) throw new Error("Automation not found");
 
-  await db.update(automations).set({ name, isActive: isActive ?? true }).where(eq(automations.id, id));
+    await tx.update(automations).set({ name, isActive: isActive ?? true }).where(eq(automations.id, id));
 
-  // Replace trigger/conditions/actions wholesale — simplest correct way to edit.
-  await db.delete(automationTriggers).where(eq(automationTriggers.automationId, id));
-  await db.delete(automationConditions).where(eq(automationConditions.automationId, id));
-  await db.delete(automationActions).where(eq(automationActions.automationId, id));
+    // Replace trigger/conditions/actions wholesale — atomically inside transaction.
+    await tx.delete(automationTriggers).where(eq(automationTriggers.automationId, id));
+    await tx.delete(automationConditions).where(eq(automationConditions.automationId, id));
+    await tx.delete(automationActions).where(eq(automationActions.automationId, id));
 
-  if (trigger) {
-    await db.insert(automationTriggers).values({ automationId: id, type: trigger.type, config: trigger.config || {} });
-  }
-  if (conditions) {
-    await db.insert(automationConditions).values({ automationId: id, config: conditions as Record<string, unknown> });
-  }
-  if (actions && actions.length > 0) {
-    for (let i = 0; i < actions.length; i++) {
-      await db.insert(automationActions).values({ automationId: id, type: actions[i].type, config: actions[i].config || {}, orderIndex: i });
+    if (trigger) {
+      await tx.insert(automationTriggers).values({ automationId: id, type: trigger.type, config: trigger.config || {} });
     }
-  }
+    if (conditions) {
+      await tx.insert(automationConditions).values({ automationId: id, config: conditions as Record<string, unknown> });
+    }
+    if (actions && actions.length > 0) {
+      for (let i = 0; i < actions.length; i++) {
+        await tx.insert(automationActions).values({ automationId: id, type: actions[i].type, config: actions[i].config || {}, orderIndex: i });
+      }
+    }
+  });
 
   revalidatePath("/automations");
   return { id };

@@ -67,8 +67,16 @@ export class TagService {
     return tag;
   }
 
-  static async bulkRemoveFromLeads(leadIds: string[], tagId: string) {
+  static async bulkRemoveFromLeads(leadIds: string[], tagId: string, organizationId?: string) {
     if (leadIds.length === 0 || !tagId) return;
+    if (organizationId) {
+      const owned = await db
+        .select({ id: leads.id })
+        .from(leads)
+        .where(and(eq(leads.organizationId, organizationId), inArray(leads.id, leadIds)));
+      leadIds = owned.map((l) => l.id);
+      if (leadIds.length === 0) return;
+    }
     await db.delete(leadTags).where(and(inArray(leadTags.leadId, leadIds), eq(leadTags.tagId, tagId)));
   }
 }

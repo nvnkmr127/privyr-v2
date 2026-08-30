@@ -11,7 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormMessage } from "@/component
 
 const formSchema = z.object({
   leadId: z.string().uuid(),
-  content: z.string().min(1, "Note cannot be empty"),
+  content: z.string().trim().min(1, "Note cannot be empty").max(10000, "Note cannot exceed 10,000 characters"),
 });
 
 export function AddNoteForm({ leadId }: { leadId: string }) {
@@ -32,12 +32,12 @@ export function AddNoteForm({ leadId }: { leadId: string }) {
         title: "Note Added",
         description: "Your note was successfully added to the timeline.",
       });
-      form.reset();
-    } catch {
+      form.reset({ leadId, content: "" });
+    } catch (e: any) {
       toast({
         variant: "destructive",
-        title: "Error",
-        description: "There was a problem adding this note.",
+        title: "Unable to add note",
+        description: e?.message || "There was a problem adding this note. Please try again.",
       });
     }
   }
@@ -54,6 +54,7 @@ export function AddNoteForm({ leadId }: { leadId: string }) {
                 <Textarea 
                   placeholder="Type a note here..." 
                   className="min-h-[100px]"
+                  maxLength={10000}
                   {...field} 
                 />
               </FormControl>

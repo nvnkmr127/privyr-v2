@@ -40,6 +40,11 @@ import { eq } from "drizzle-orm";
 
 export default async function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+  if (!isUuid) {
+    notFound();
+  }
+
   const { organizationId } = await requireOrg();
   const lead = await LeadService.getLead(id, organizationId);
   const activities = await ActivityService.getLeadActivities(id);

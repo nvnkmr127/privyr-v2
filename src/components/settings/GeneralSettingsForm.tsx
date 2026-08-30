@@ -120,11 +120,14 @@ export function GeneralSettingsForm({ organization }: { organization?: Org | nul
     whatsappMode: organization?.whatsappMode ?? "personal",
   });
 
-  const set = (k: keyof typeof f, v: string) => setF((s) => ({ ...s, [k]: v }));
+  // Prompt user before leaving with unsaved changes
+  const [dirty, setDirty] = React.useState(false);
+  const set = (k: keyof typeof f, v: string) => {
+    setDirty(true);
+    setF((s) => ({ ...s, [k]: v }));
+  };
 
   const tzList = React.useMemo(() => timezoneList(), []);
-  // `now` is client-only: the live clock differs between server render and client hydration,
-  // so we keep it null until mounted to avoid a hydration mismatch, then tick it each minute.
   const [now, setNow] = React.useState<Date | null>(null);
   React.useEffect(() => {
     setNow(new Date());
@@ -148,9 +151,39 @@ export function GeneralSettingsForm({ organization }: { organization?: Org | nul
     return { tzTime, date, money };
   }, [now, f.locale, f.timezone, f.dateFormat, f.currency]);
 
+  React.useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (dirty) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [dirty]);
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     if (!f.name.trim()) return;
+
+    if (f.website.trim()) {
+      let url = f.website.trim();
+      if (!/^https?:\/\//i.test(url)) {
+        url = `https://${url}`;
+      }
+      try {
+        new URL(url);
+      } catch {
+        toast({ variant: "destructive", title: "Invalid Website URL", description: "Please enter a valid website address (e.g., https://example.com)." });
+        return;
+      }
+    }
+
+    if (f.slaHours && (isNaN(Number(f.slaHours)) || Number(f.slaHours) < 0)) {
+      toast({ variant: "destructive", title: "Invalid SLA Hours", description: "SLA escalation hours must be a positive number." });
+      return;
+    }
+
     setSaving(true);
     try {
       await updateOrganizationAction({
@@ -160,9 +193,10 @@ export function GeneralSettingsForm({ organization }: { organization?: Org | nul
         slaHours: f.slaHours === "" ? null : Number(f.slaHours),
         requiredLeadFields: requiredFields as ("name" | "email" | "phone" | "company")[],
       });
+      setDirty(false);
       toast({ title: "Settings saved", description: "Organization settings updated successfully." });
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Failed to save settings", description: err?.message });
+      toast({ variant: "destructive", title: "Failed to save settings", description: err?.message || "Please check your inputs and try again." });
     } finally {
       setSaving(false);
     }

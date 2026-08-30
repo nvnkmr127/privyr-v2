@@ -6,6 +6,7 @@ import { requireOrg } from "@/lib/rbac";
 import { eq, and, desc } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { ActivityService } from "@/domains/activities/service";
+import { assertLeadInOrg } from "@/domains/leads/ownership";
 import { z } from "zod";
 
 const addAttachmentSchema = z.object({
@@ -23,6 +24,8 @@ export async function addAttachmentAction(input: z.infer<typeof addAttachmentSch
   if (!parsed.success) {
     throw new Error("Invalid attachment data");
   }
+
+  await assertLeadInOrg(parsed.data.leadId, organizationId);
 
   const [attachment] = await db
     .insert(leadAttachments)
@@ -49,20 +52,29 @@ export async function addAttachmentAction(input: z.infer<typeof addAttachmentSch
 }
 
 export async function getAttachmentsAction(leadId: string) {
-  await requireOrg();
+  const { organizationId } = await requireOrg();
+  await assertLeadInOrg(leadId, organizationId);
+
   return db
     .select()
     .from(leadAttachments)
-    .where(eq(leadAttachments.leadId, leadId))
+    .where(and(eq(leadAttachments.leadId, leadId), eq(leadAttachments.organizationId, organizationId)))
     .orderBy(desc(leadAttachments.createdAt));
 }
 
 export async function deleteAttachmentAction(attachmentId: string, leadId: string) {
-  const { userId } = await requireOrg();
+  const { userId, organizationId } = await requireOrg();
+  await assertLeadInOrg(leadId, organizationId);
 
   const [deleted] = await db
     .delete(leadAttachments)
-    .where(and(eq(leadAttachments.id, attachmentId), eq(leadAttachments.leadId, leadId)))
+    .where(
+      and(
+        eq(leadAttachments.id, attachmentId),
+        eq(leadAttachments.leadId, leadId),
+        eq(leadAttachments.organizationId, organizationId)
+      )
+    )
     .returning();
 
   if (deleted) {

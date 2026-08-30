@@ -63,7 +63,7 @@ export default function SignupPage() {
               <Label htmlFor="orgName">Workspace name</Label>
               <Input id="orgName" placeholder="Acme Sales" {...form.register("orgName")} />
               {form.formState.errors.orgName && (
-                <p className="text-sm text-foreground">{form.formState.errors.orgName.message}</p>
+                <p className="text-sm text-destructive">{form.formState.errors.orgName.message}</p>
               )}
             </div>
 
@@ -71,7 +71,7 @@ export default function SignupPage() {
               <Label htmlFor="firstName">Your name</Label>
               <Input id="firstName" placeholder="Jane Doe" {...form.register("firstName")} />
               {form.formState.errors.firstName && (
-                <p className="text-sm text-foreground">{form.formState.errors.firstName.message}</p>
+                <p className="text-sm text-destructive">{form.formState.errors.firstName.message}</p>
               )}
             </div>
 
@@ -79,7 +79,7 @@ export default function SignupPage() {
               <Label htmlFor="email">Work email</Label>
               <Input id="email" type="email" placeholder="m@example.com" {...form.register("email")} />
               {form.formState.errors.email && (
-                <p className="text-sm text-foreground">{form.formState.errors.email.message}</p>
+                <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>
               )}
             </div>
 
@@ -87,7 +87,7 @@ export default function SignupPage() {
               <Label htmlFor="password">Password</Label>
               <Input id="password" type="password" {...form.register("password")} />
               {form.formState.errors.password && (
-                <p className="text-sm text-foreground">{form.formState.errors.password.message}</p>
+                <p className="text-sm text-destructive">{form.formState.errors.password.message}</p>
               )}
             </div>
 

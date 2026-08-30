@@ -7,14 +7,20 @@ import { authorizeApiRequest } from "@/lib/apiAuth";
 import { LeadService } from "@/domains/leads/service";
 import { ActivityService } from "@/domains/activities/service";
 
+const idSchema = z.string().uuid();
+
 // Lead detail: lead + activity timeline + this lead's follow-ups.
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authorizeApiRequest(req);
   if ("error" in auth) return auth.error;
   const { id } = await params;
 
+  if (!idSchema.safeParse(id).success) {
+    return NextResponse.json({ error: "Invalid lead ID format. Expected a valid UUID." }, { status: 400 });
+  }
+
   const lead = await LeadService.getLead(id, auth.organizationId);
-  if (!lead) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!lead) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
 
   const activities = await ActivityService.getLeadActivities(id);
   const fus = await db
@@ -42,9 +48,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if ("error" in auth) return auth.error;
   const { id } = await params;
 
+  if (!idSchema.safeParse(id).success) {
+    return NextResponse.json({ error: "Invalid lead ID format. Expected a valid UUID." }, { status: 400 });
+  }
+
   const body = await req.json().catch(() => null);
   const parsed = patchSchema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ error: "Invalid body" }, { status: 422 });
+  if (!parsed.success) return NextResponse.json({ error: "Invalid body", details: parsed.error.issues }, { status: 422 });
 
   try {
     if (parsed.data.ownerId !== undefined) {
@@ -53,7 +63,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         leadId: id,
         ownerId: parsed.data.ownerId,
         teamId: null,
-        assignedById: auth.userId ?? "api",
+        assignedById: auth.userId,
         organizationId: auth.organizationId,
       });
     }
@@ -61,6 +71,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       await LeadService.changeStatus(id, parsed.data.status, auth.userId ?? null, auth.organizationId);
     }
     const lead = await LeadService.getLead(id, auth.organizationId);
+    if (!lead) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     return NextResponse.json({ data: lead });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message ?? "Could not update lead" }, { status: 400 });

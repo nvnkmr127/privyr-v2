@@ -41,26 +41,28 @@ export class OrgService {
     firstName?: string;
     lastName?: string;
   }) {
-    const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, input.email)).limit(1);
-    if (existing) throw new Error("An account with that email already exists");
-
     const adminRole = await OrgService.ensureSystemRoles();
-
     const slug = `${slugify(input.orgName)}-${Math.random().toString(36).slice(2, 7)}`;
-    const [org] = await db.insert(organizations).values({ name: input.orgName, slug }).returning();
-
     const passwordHash = await bcrypt.hash(input.password, 10);
-    await db.insert(users).values({
-      organizationId: org.id,
-      email: input.email,
-      passwordHash,
-      firstName: input.firstName,
-      lastName: input.lastName,
-      roleId: adminRole?.id ?? null,
-      isActive: true,
-    });
 
-    return { organizationId: org.id, slug };
+    return db.transaction(async (tx) => {
+      const [existing] = await tx.select({ id: users.id }).from(users).where(eq(users.email, input.email)).limit(1);
+      if (existing) throw new Error("An account with that email already exists");
+
+      const [org] = await tx.insert(organizations).values({ name: input.orgName, slug }).returning();
+
+      await tx.insert(users).values({
+        organizationId: org.id,
+        email: input.email,
+        passwordHash,
+        firstName: input.firstName,
+        lastName: input.lastName,
+        roleId: adminRole?.id ?? null,
+        isActive: true,
+      });
+
+      return { organizationId: org.id, slug };
+    });
   }
 
   static async getOrganization(organizationId: string) {

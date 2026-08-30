@@ -96,13 +96,22 @@ export class SequenceService {
 
   // Enroll leads at step 0; the first step fires on the next scan (dayOffset 0) or later.
   static async enroll(organizationId: string, sequenceId: string, leadIds: string[]) {
+    if (leadIds.length === 0) return { enrolled: 0 };
     const [seq] = await db.select().from(sequences).where(and(eq(sequences.id, sequenceId), eq(sequences.organizationId, organizationId)));
     if (!seq) throw new Error("Sequence not found");
     const steps = await db.select().from(sequenceSteps).where(eq(sequenceSteps.sequenceId, sequenceId)).orderBy(asc(sequenceSteps.stepIndex));
     if (steps.length === 0) throw new Error("Sequence has no steps");
 
+    // Enforce tenant isolation on enrolled leadIds
+    const { inArray } = await import("drizzle-orm");
+    const validLeads = await db
+      .select({ id: leads.id })
+      .from(leads)
+      .where(and(eq(leads.organizationId, organizationId), inArray(leads.id, leadIds)));
+    const validLeadIds = validLeads.map((l) => l.id);
+
     let enrolled = 0;
-    for (const leadId of leadIds) {
+    for (const leadId of validLeadIds) {
       const [existing] = await db
         .select({ id: sequenceEnrollments.id })
         .from(sequenceEnrollments)

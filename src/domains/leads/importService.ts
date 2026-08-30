@@ -1,6 +1,7 @@
 import { db } from "@/db";
 import { leads } from "@/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
+import { PlanService } from "@/domains/billing/planService";
 
 // Columns the importer understands. `name` is the only required one.
 export const IMPORT_FIELDS = [
@@ -34,6 +35,7 @@ export interface AnalyzedRow extends ImportRow {
   valid: boolean;
   duplicate: boolean;
   reason?: string;
+  cleanedExpectedValue?: string | null;
 }
 
 export interface ImportAnalysis {
@@ -45,6 +47,17 @@ export interface ImportAnalysis {
 }
 
 const digits = (s?: string | null) => (s ?? "").replace(/\D/g, "");
+
+function cleanNumericValue(val?: string | null): { valid: boolean; value: string | null } {
+  if (!val || !val.trim()) return { valid: true, value: null };
+  const cleaned = val.trim().replace(/[$€£₹, ]/g, "");
+  if (!cleaned) return { valid: true, value: null };
+  const num = Number(cleaned);
+  if (isNaN(num) || num < 0 || !isFinite(num)) {
+    return { valid: false, value: null };
+  }
+  return { valid: true, value: num.toFixed(2) };
+}
 
 export class LeadImportService {
   // Validates each row and flags duplicates — both against existing org leads and earlier
@@ -62,9 +75,10 @@ export class LeadImportService {
     const seenPhone = new Set<string>();
 
     const analyzed: AnalyzedRow[] = rows.map((r, index) => {
-      const name = (r.name ?? "").trim();
-      const email = (r.email ?? "").trim().toLowerCase();
-      const phone = digits(r.phone);
+      const name = (r.name ?? "").trim().slice(0, 255);
+      const email = (r.email ?? "").trim().toLowerCase().slice(0, 255);
+      const phone = digits(r.phone).slice(0, 50);
+      const numCheck = cleanNumericValue(r.expectedValue);
 
       let valid = true;
       let duplicate = false;
@@ -73,6 +87,9 @@ export class LeadImportService {
       if (!name) {
         valid = false;
         reason = "Missing required name";
+      } else if (!numCheck.valid) {
+        valid = false;
+        reason = `Invalid expected value: "${r.expectedValue}"`;
       } else {
         const emailDup = !!email && (existingEmails.has(email) || seenEmail.has(email));
         const phoneDup = phone.length >= 6 && (existingPhones.has(phone) || seenPhone.has(phone));
@@ -85,7 +102,14 @@ export class LeadImportService {
       if (email) seenEmail.add(email);
       if (phone.length >= 6) seenPhone.add(phone);
 
-      return { ...r, index, valid, duplicate, reason };
+      return {
+        ...r,
+        index,
+        valid,
+        duplicate,
+        reason,
+        cleanedExpectedValue: numCheck.value,
+      };
     });
 
     return {
@@ -108,19 +132,26 @@ export class LeadImportService {
     const toInsert = analysis.rows.filter((r) => r.valid && !r.duplicate);
 
     if (toInsert.length > 0) {
-      await db.insert(leads).values(
-        toInsert.map((r) => ({
-          organizationId,
-          name: r.name!.trim(),
-          email: r.email?.trim() || null,
-          phone: r.phone?.trim() || null,
-          company: r.company?.trim() || null,
-          status: (r.status?.trim() || config.fallbackStatus || "new").toLowerCase(),
-          sourceId: config.sourceId || null,
-          ownerId: config.ownerId || userId || null,
-          expectedValue: r.expectedValue?.trim() ? r.expectedValue.trim() : null,
-        }))
-      );
+      await PlanService.assertCanAddLead(organizationId);
+
+      // Batch in chunks of 250 rows to avoid exceeding Postgres parameter limits
+      const CHUNK_SIZE = 250;
+      for (let i = 0; i < toInsert.length; i += CHUNK_SIZE) {
+        const chunk = toInsert.slice(i, i + CHUNK_SIZE);
+        await db.insert(leads).values(
+          chunk.map((r) => ({
+            organizationId,
+            name: r.name!.trim().slice(0, 255),
+            email: r.email?.trim().slice(0, 255) || null,
+            phone: r.phone?.trim().slice(0, 255) || null,
+            company: r.company?.trim().slice(0, 255) || null,
+            status: (r.status?.trim().slice(0, 50) || config.fallbackStatus || "new").toLowerCase(),
+            sourceId: config.sourceId || null,
+            ownerId: config.ownerId || userId || null,
+            expectedValue: r.cleanedExpectedValue || null,
+          }))
+        );
+      }
     }
 
     return { imported: toInsert.length, skipped: analysis.duplicateCount + analysis.errorCount };

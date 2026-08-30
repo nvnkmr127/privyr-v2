@@ -22,9 +22,9 @@ import { useToast } from "@/hooks/use-toast"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 
 const formSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  email: z.string().email("Invalid email").optional().or(z.literal("")),
-  phone: z.string().optional().or(z.literal("")),
+  name: z.string().trim().min(1, "Name is required").max(255, "Name cannot exceed 255 characters"),
+  email: z.string().email("Invalid email address").optional().or(z.literal("")),
+  phone: z.string().max(50, "Phone number too long").optional().or(z.literal("")),
 });
 
 export function QuickAddLeadDrawer({ children }: { children?: React.ReactNode }) {
@@ -34,12 +34,22 @@ export function QuickAddLeadDrawer({ children }: { children?: React.ReactNode })
   const [customValues, setCustomValues] = React.useState<Record<string, string>>({});
 
   React.useEffect(() => {
-    if (open) listCustomFieldsAction().then((r) => {
-      const d = r as CustomFieldDef[];
-      setDefs(d);
-      setCustomValues(defaultCustomValues(d)); // prefill declared defaults
-    }).catch(() => {});
-  }, [open]);
+    if (open) {
+      listCustomFieldsAction()
+        .then((r) => {
+          const d = r as CustomFieldDef[];
+          setDefs(d);
+          setCustomValues(defaultCustomValues(d));
+        })
+        .catch(() => {
+          toast({
+            variant: "destructive",
+            title: "Custom fields unavailable",
+            description: "Could not load workspace custom fields. You can still add standard contact details.",
+          });
+        });
+    }
+  }, [open, toast]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -53,7 +63,11 @@ export function QuickAddLeadDrawer({ children }: { children?: React.ReactNode })
   async function onSubmit(values: z.infer<typeof formSchema>) {
     const missing = defs.filter((d) => d.required && !(customValues[d.key] ?? "").trim());
     if (missing.length) {
-      toast({ variant: "destructive", title: "Required field missing", description: missing.map((m) => m.label).join(", ") });
+      toast({
+        variant: "destructive",
+        title: "Required field missing",
+        description: `Please fill in: ${missing.map((m) => m.label).join(", ")}`,
+      });
       return;
     }
     try {
@@ -68,8 +82,8 @@ export function QuickAddLeadDrawer({ children }: { children?: React.ReactNode })
     } catch (e: any) {
       toast({
         variant: "destructive",
-        title: "Uh oh! Something went wrong.",
-        description: e?.message ?? "There was a problem creating this lead.",
+        title: "Unable to create lead",
+        description: e?.message || "Please check your inputs and try again.",
       });
     }
   }
@@ -92,7 +106,7 @@ export function QuickAddLeadDrawer({ children }: { children?: React.ReactNode })
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Name</FormLabel>
+                    <FormLabel>Name *</FormLabel>
                     <FormControl>
                       <Input placeholder="John Doe" {...field} />
                     </FormControl>

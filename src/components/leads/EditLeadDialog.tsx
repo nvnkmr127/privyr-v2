@@ -20,10 +20,10 @@ import { Pencil } from "lucide-react"
 
 const formSchema = z.object({
   id: z.string().uuid(),
-  name: z.string().min(1, "Name is required"),
-  email: z.string().email("Invalid email").optional().or(z.literal("")),
-  phone: z.string().optional().or(z.literal("")),
-  company: z.string().optional().or(z.literal("")),
+  name: z.string().trim().min(1, "Name is required").max(255, "Name cannot exceed 255 characters"),
+  email: z.string().email("Invalid email address").optional().or(z.literal("")),
+  phone: z.string().max(50, "Phone number too long").optional().or(z.literal("")),
+  company: z.string().max(255, "Company name cannot exceed 255 characters").optional().or(z.literal("")),
 });
 
 interface EditLeadDialogProps {
@@ -51,6 +51,19 @@ export function EditLeadDialog({ lead }: EditLeadDialogProps) {
     },
   });
 
+  // Reset form with fresh lead props whenever the dialog opens
+  React.useEffect(() => {
+    if (open) {
+      form.reset({
+        id: lead.id,
+        name: lead.name,
+        email: lead.email || "",
+        phone: lead.phone || "",
+        company: lead.company || "",
+      });
+    }
+  }, [open, lead, form]);
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
       await updateLeadAction(values);
@@ -59,11 +72,11 @@ export function EditLeadDialog({ lead }: EditLeadDialogProps) {
         description: "The lead was successfully updated.",
       });
       setOpen(false);
-    } catch {
+    } catch (e: any) {
       toast({
         variant: "destructive",
-        title: "Error",
-        description: "There was a problem updating this lead.",
+        title: "Unable to update lead",
+        description: e?.message || "There was a problem updating this lead. Please check your inputs and try again.",
       });
     }
   }
@@ -89,7 +102,7 @@ export function EditLeadDialog({ lead }: EditLeadDialogProps) {
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Name</FormLabel>
+                  <FormLabel>Name *</FormLabel>
                   <FormControl>
                     <Input {...field} />
                   </FormControl>

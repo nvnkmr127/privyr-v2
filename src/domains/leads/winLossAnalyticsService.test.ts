@@ -7,9 +7,9 @@ vi.mock("@/db", () => ({
       from: vi.fn(() => ({
         where: vi.fn().mockImplementation(() =>
           Promise.resolve([
-            { id: "lead-won", status: "won" },
-            { id: "lead-lost-1", status: "lost" },
-            { id: "lead-lost-2", status: "lost" },
+            { id: "lead-won", status: "won", lostReason: null },
+            { id: "lead-lost-1", status: "lost", lostReason: "Price / Budget Constraints" },
+            { id: "lead-lost-2", status: "lost", lostReason: "Competitor Selected" },
           ])
         ),
       })),
@@ -25,20 +25,9 @@ describe("WinLossAnalyticsService", () => {
       from: () => ({
         where: () =>
           Promise.resolve([
-            { id: "lead-won", status: "won" },
-            { id: "lead-lost-1", status: "lost" },
-            { id: "lead-lost-2", status: "lost" },
-          ]),
-      }),
-    }));
-
-    // Mock activity notes for lost leads
-    (db.select as any).mockImplementationOnce(() => ({
-      from: () => ({
-        where: () =>
-          Promise.resolve([
-            { content: "Customer reported price too high for monthly budget" },
-            { content: "Chose competitor solution instead" },
+            { id: "lead-won", status: "won", lostReason: null },
+            { id: "lead-lost-1", status: "lost", lostReason: "Price / Budget Constraints" },
+            { id: "lead-lost-2", status: "lost", lostReason: "Competitor Selected" },
           ]),
       }),
     }));

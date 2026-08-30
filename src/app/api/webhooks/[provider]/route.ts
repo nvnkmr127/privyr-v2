@@ -61,15 +61,23 @@ export async function POST(
     }
 
     // Signature validation (HMAC SHA-256)
-    const signature = req.headers.get("x-hub-signature-256");
-    if (source.webhookSecret && signature) {
+    if (source.webhookSecret) {
+      const signature = req.headers.get("x-hub-signature-256");
+      if (!signature) {
+        return NextResponse.json({ success: false, error: "Missing required signature header" }, { status: 401 });
+      }
+
       const crypto = await import("crypto");
       const expectedSignature = crypto
         .createHmac("sha256", source.webhookSecret)
         .update(rawText)
         .digest("hex");
 
-      if (signature !== expectedSignature) {
+      const cleanSig = signature.startsWith("sha256=") ? signature.slice(7) : signature;
+      const a = Buffer.from(cleanSig, "utf8");
+      const b = Buffer.from(expectedSignature, "utf8");
+
+      if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
         return NextResponse.json({ success: false, error: "Invalid signature" }, { status: 401 });
       }
     }
