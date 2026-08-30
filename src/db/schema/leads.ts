@@ -54,10 +54,14 @@ export const leads = pgTable('leads', {
   priority: varchar('priority', { length: 50 }).default('medium'), // low, medium, high
   score: integer('score').default(0),
   expectedValue: numeric('expected_value', { precision: 12, scale: 2 }),
+  lostReason: varchar('lost_reason', { length: 120 }), // why a lead was lost/unqualified — powers win/loss analytics
+  wonAt: timestamp('won_at'), // set when a lead is marked won — for cycle-time reporting
   customData: jsonb('custom_data').default({}),
   nextFollowUpAt: timestamp('next_follow_up_at'),
   lastContactedAt: timestamp('last_contacted_at'),
   escalatedAt: timestamp('escalated_at'), // set when SLA escalation fires; prevents re-alerting
+  deletedAt: timestamp('deleted_at'), // recycle bin: soft-delete timestamp; auto-purged 30 days later
+  deletedBy: uuid('deleted_by').references(() => users.id),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({

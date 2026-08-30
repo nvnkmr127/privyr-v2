@@ -155,6 +155,20 @@
       "when": 1788023275639,
       "tag": "0021_sequences",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1788052339461,
+      "tag": "0022_lead_disposition",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1788053312109,
+      "tag": "0023_lead_recycle_bin",
+      "breakpoints": true
     }
   ]
 }

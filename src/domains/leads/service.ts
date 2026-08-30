@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { leads, leadStatusHistory, leadTags, tags } from "@/db/schema";
+import { leads, leadStatusHistory, leadTags, tags, activities, followUps, reminders, leadAttachments, notifications, whatsappMessages } from "@/db/schema";
 import {
   eq,
   ilike,
@@ -11,6 +11,7 @@ import {
   ne,
   isNull,
   isNotNull,
+  inArray,
   lt,
   lte,
   gt,
@@ -19,6 +20,7 @@ import {
   count,
 } from "drizzle-orm";
 import { eventBus } from "@/lib/events/emitter";
+import { ActivityService } from "@/domains/activities/service";
 import { FilterGroup, FilterRule } from "@/domains/savedViews/service";
 
 export type ListLeadsOptions = {
@@ -94,7 +96,7 @@ export class LeadService {
 
   static async getLead(leadId: string, organizationId: string) {
     const [lead] = await db.select().from(leads)
-      .where(and(eq(leads.id, leadId), eq(leads.organizationId, organizationId)))
+      .where(and(eq(leads.id, leadId), eq(leads.organizationId, organizationId), isNull(leads.deletedAt)))
       .limit(1);
     return lead;
   }
@@ -248,7 +250,8 @@ export class LeadService {
     const limit = Math.max(options.limit || 50, 1);
     const offset = (page - 1) * limit;
 
-    const baseConditions = [eq(leads.organizationId, options.organizationId)];
+    // Recycled (soft-deleted) leads never appear in normal lists.
+    const baseConditions = [eq(leads.organizationId, options.organizationId), isNull(leads.deletedAt)];
 
     // Global Search (Name, Phone, Email, Company)
     if (options.search && options.search.trim()) {
@@ -358,11 +361,78 @@ export class LeadService {
     return results;
   }
 
-  static async deleteLead(leadId: string, _deletedById: string, organizationId: string) {
-    const [deletedLead] = await db.delete(leads)
-      .where(and(eq(leads.id, leadId), eq(leads.organizationId, organizationId)))
+  // Soft delete → recycle bin. The lead disappears from all lists but is recoverable for 30 days.
+  static async deleteLead(leadId: string, deletedById: string, organizationId: string) {
+    const validBy = (deletedById && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(deletedById)) ? deletedById : null;
+    const [deletedLead] = await db.update(leads)
+      .set({ deletedAt: new Date(), deletedBy: validBy })
+      .where(and(eq(leads.id, leadId), eq(leads.organizationId, organizationId), isNull(leads.deletedAt)))
       .returning();
     return deletedLead;
+  }
+
+  static async listDeletedLeads(organizationId: string) {
+    const rows = await db.select().from(leads)
+      .where(and(eq(leads.organizationId, organizationId), isNotNull(leads.deletedAt)))
+      .orderBy(desc(leads.deletedAt));
+    const PURGE_DAYS = 30;
+    return rows.map((l) => {
+      const deletedMs = l.deletedAt ? new Date(l.deletedAt).getTime() : Date.now();
+      const daysLeft = Math.max(0, PURGE_DAYS - Math.floor((Date.now() - deletedMs) / (1000 * 60 * 60 * 24)));
+      return { ...l, daysLeft };
+    });
+  }
+
+  static async restoreLead(leadId: string, organizationId: string) {
+    const [restored] = await db.update(leads)
+      .set({ deletedAt: null, deletedBy: null })
+      .where(and(eq(leads.id, leadId), eq(leads.organizationId, organizationId), isNotNull(leads.deletedAt)))
+      .returning();
+    return restored;
+  }
+
+  // Permanently removes leads AND their child rows. Several child tables (activities, follow-ups,
+  // attachments, status history, tags, notifications, WhatsApp messages) don't ON DELETE CASCADE,
+  // so we clear them first — otherwise the leads delete hits a foreign-key violation.
+  private static async hardDeleteLeads(leadIds: string[]): Promise<number> {
+    if (leadIds.length === 0) return 0;
+    await db.delete(activities).where(inArray(activities.leadId, leadIds));
+    // reminders reference follow_ups (a grandchild), so clear them before their follow-ups.
+    const fu = await db.select({ id: followUps.id }).from(followUps).where(inArray(followUps.leadId, leadIds));
+    if (fu.length) await db.delete(reminders).where(inArray(reminders.followUpId, fu.map((f) => f.id)));
+    await db.delete(followUps).where(inArray(followUps.leadId, leadIds));
+    await db.delete(leadAttachments).where(inArray(leadAttachments.leadId, leadIds));
+    await db.delete(leadStatusHistory).where(inArray(leadStatusHistory.leadId, leadIds));
+    await db.delete(leadTags).where(inArray(leadTags.leadId, leadIds));
+    await db.delete(notifications).where(inArray(notifications.leadId, leadIds));
+    await db.delete(whatsappMessages).where(inArray(whatsappMessages.leadId, leadIds));
+    const deleted = await db.delete(leads).where(inArray(leads.id, leadIds)).returning({ id: leads.id });
+    return deleted.length;
+  }
+
+  // Permanent removal — the only path that actually deletes rows. Gate behind leads.purge.
+  static async purgeLead(leadId: string, organizationId: string) {
+    const [target] = await db.select({ id: leads.id }).from(leads)
+      .where(and(eq(leads.id, leadId), eq(leads.organizationId, organizationId), isNotNull(leads.deletedAt)));
+    if (!target) return null;
+    await this.hardDeleteLeads([leadId]);
+    return { id: leadId };
+  }
+
+  static async emptyRecycleBin(organizationId: string) {
+    const rows = await db.select({ id: leads.id }).from(leads)
+      .where(and(eq(leads.organizationId, organizationId), isNotNull(leads.deletedAt)));
+    const purgedCount = await this.hardDeleteLeads(rows.map((r) => r.id));
+    return { purgedCount };
+  }
+
+  // Auto-purge: permanently remove anything soft-deleted more than `days` ago (default 30).
+  static async purgeExpired(days = 30) {
+    const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const rows = await db.select({ id: leads.id }).from(leads)
+      .where(and(isNotNull(leads.deletedAt), lt(leads.deletedAt, cutoff)));
+    const purgedCount = await this.hardDeleteLeads(rows.map((r) => r.id));
+    return { purgedCount };
   }
 
   // Delegate to canonical AssignmentService
@@ -376,7 +446,7 @@ export class LeadService {
     });
   }
 
-  static async changeStatus(leadId: string, newStatus: string, changedById?: string | null, organizationId?: string) {
+  static async changeStatus(leadId: string, newStatus: string, changedById?: string | null, organizationId?: string, reason?: string | null) {
     const idWhere = organizationId
       ? and(eq(leads.id, leadId), eq(leads.organizationId, organizationId))
       : eq(leads.id, leadId);
@@ -385,8 +455,15 @@ export class LeadService {
     if (!currentLead) throw new Error("Lead not found");
     if (currentLead.status === newStatus) return currentLead;
 
-    const [updatedLead] = await db.update(leads)
-      .set({ status: newStatus, updatedAt: new Date() }).where(idWhere).returning();
+    // Capture disposition: a loss reason for lost/unqualified, a won timestamp for won.
+    // Moving back to an open status clears the loss reason so stale reasons don't linger.
+    const isLoss = newStatus === "lost" || newStatus === "unqualified";
+    const patch: Record<string, unknown> = { status: newStatus, updatedAt: new Date() };
+    if (isLoss) patch.lostReason = reason?.trim() || null;
+    else patch.lostReason = null;
+    if (newStatus === "won") patch.wonAt = new Date();
+
+    const [updatedLead] = await db.update(leads).set(patch).where(idWhere).returning();
 
     const validChangedById = (changedById && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(changedById))
       ? changedById
@@ -395,6 +472,9 @@ export class LeadService {
     await db.insert(leadStatusHistory).values({
       leadId, oldStatus: currentLead.status, newStatus, changedById: validChangedById,
     });
+    if (isLoss && reason?.trim()) {
+      await ActivityService.addActivity({ leadId, userId: validChangedById ?? undefined, type: "note", content: `Lost reason: ${reason.trim()}` });
+    }
     eventBus.emit('lead.status_changed', { leadId, oldStatus: currentLead.status, newStatus });
     return updatedLead;
   }

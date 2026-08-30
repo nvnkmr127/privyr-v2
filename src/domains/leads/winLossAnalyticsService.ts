@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { leads, activities } from "@/db/schema";
+import { leads } from "@/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 
 export interface LossReasonSummary {
@@ -26,6 +26,7 @@ export class WinLossAnalyticsService {
       .select({
         id: leads.id,
         status: leads.status,
+        lostReason: leads.lostReason,
       })
       .from(leads)
       .where(
@@ -49,18 +50,11 @@ export class WinLossAnalyticsService {
     let wonCount = 0;
     let lostCount = 0;
     let unqualifiedCount = 0;
-    const lostLeadIds: string[] = [];
 
     for (const lead of closedLeads) {
-      if (lead.status === "won") {
-        wonCount++;
-      } else if (lead.status === "lost") {
-        lostCount++;
-        lostLeadIds.push(lead.id);
-      } else if (lead.status === "unqualified") {
-        unqualifiedCount++;
-        lostLeadIds.push(lead.id);
-      }
+      if (lead.status === "won") wonCount++;
+      else if (lead.status === "lost") lostCount++;
+      else if (lead.status === "unqualified") unqualifiedCount++;
     }
 
     const winRatePercentage =
@@ -76,35 +70,15 @@ export class WinLossAnalyticsService {
       "Other / Unspecified": 0,
     };
 
-    if (lostLeadIds.length > 0) {
-      const notes = await db
-        .select({
-          content: activities.content,
-        })
-        .from(activities)
-        .where(
-          and(
-            inArray(activities.leadId, lostLeadIds),
-            eq(activities.type, "note")
-          )
-        );
-
-      for (const note of notes) {
-        const text = (note.content || "").toLowerCase();
-        if (text.includes("price") || text.includes("budget") || text.includes("expensive")) {
-          lossMap["Price / Budget Constraints"]++;
-        } else if (text.includes("competitor") || text.includes("chose another")) {
-          lossMap["Competitor Selected"]++;
-        } else if (text.includes("feature") || text.includes("fit") || text.includes("requirement")) {
-          lossMap["Product Fit / Missing Features"]++;
-        } else if (text.includes("no response") || text.includes("ghost") || text.includes("unreachable")) {
-          lossMap["No Response / Ghosted"]++;
-        } else if (text.includes("unqualified") || text.includes("not interested")) {
-          lossMap["Unqualified / Out of Scope"]++;
-        } else {
-          lossMap["Other / Unspecified"]++;
-        }
-      }
+    // Bucket by the structured reason captured at close time. Leads closed without a reason
+    // (older data) fall into "Other / Unspecified".
+    const buckets = Object.keys(lossMap);
+    for (const lead of closedLeads) {
+      if (lead.status !== "lost" && lead.status !== "unqualified") continue;
+      const bucket = lead.lostReason
+        ? buckets.find((b) => lead.lostReason!.startsWith(b)) ?? "Other / Unspecified"
+        : "Other / Unspecified";
+      lossMap[bucket]++;
     }
 
     const totalLostReasonHits = Object.values(lossMap).reduce((a, b) => a + b, 0) || 1;

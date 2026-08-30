@@ -104,6 +104,13 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
       {/* Duplicate Warning Banner */}
       <LeadDuplicateBanner count={dupCount} searchQuery={lead.email || lead.phone || undefined} />
 
+      {(lead.status === "lost" || lead.status === "unqualified") && lead.lostReason && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-2.5 text-sm">
+          <span className="font-medium capitalize">{lead.status}</span>
+          <span className="text-muted-foreground"> — reason: {lead.lostReason}</span>
+        </div>
+      )}
+
       {/* Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-5">
         <div className="flex items-center gap-3">

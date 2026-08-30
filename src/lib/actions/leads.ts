@@ -102,14 +102,51 @@ export async function deleteLeadAction(id: string) {
   if (deleted) {
     await AuditService.log({ organizationId, userId, action: "lead.delete", entityType: "lead", entityId: id });
     revalidatePath('/leads');
+    revalidatePath('/leads/recycle-bin');
   }
   return deleted;
 }
 
-export async function changeLeadStatusAction(id: string, status: string) {
+// Recycle bin: list, restore, and (super-admin only) permanent removal.
+export async function listDeletedLeadsAction() {
+  const { organizationId } = await requireOrg();
+  return LeadService.listDeletedLeads(organizationId);
+}
+
+export async function restoreLeadAction(id: string) {
+  const { userId, organizationId } = await requirePermission("leads.delete");
+  const restored = await LeadService.restoreLead(id, organizationId);
+  if (restored) {
+    await AuditService.log({ organizationId, userId, action: "lead.restore", entityType: "lead", entityId: id });
+    revalidatePath('/leads');
+    revalidatePath('/leads/recycle-bin');
+  }
+  return restored;
+}
+
+export async function purgeLeadAction(id: string) {
+  // leads.purge is admin-only by default — the "super" gate on permanent deletion.
+  const { userId, organizationId } = await requirePermission("leads.purge");
+  const purged = await LeadService.purgeLead(id, organizationId);
+  if (purged) {
+    await AuditService.log({ organizationId, userId, action: "lead.purge", entityType: "lead", entityId: id });
+    revalidatePath('/leads/recycle-bin');
+  }
+  return purged;
+}
+
+export async function emptyRecycleBinAction() {
+  const { userId, organizationId } = await requirePermission("leads.purge");
+  const res = await LeadService.emptyRecycleBin(organizationId);
+  await AuditService.log({ organizationId, userId, action: "lead.recycle_bin.empty", entityType: "organization", entityId: organizationId });
+  revalidatePath('/leads/recycle-bin');
+  return res;
+}
+
+export async function changeLeadStatusAction(id: string, status: string, reason?: string) {
   const { userId, organizationId } = await requireOrg();
 
-  const lead = await LeadService.changeStatus(id, status, userId, organizationId);
+  const lead = await LeadService.changeStatus(id, status, userId, organizationId, reason);
 
   revalidatePath('/leads');
   revalidatePath(`/leads/${id}`);

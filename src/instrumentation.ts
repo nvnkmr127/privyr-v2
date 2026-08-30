@@ -30,6 +30,11 @@ export async function register() {
     const { createSequenceWorker, scheduleSequenceScan } = await import("@/lib/jobs/workers/sequenceWorker");
     createSequenceWorker();
     await scheduleSequenceScan();
+
+    // Recycle bin: consumer + a daily scan that permanently purges leads deleted 30+ days ago.
+    const { createRecycleBinWorker, scheduleRecycleBinScan } = await import("@/lib/jobs/workers/recycleBinWorker");
+    createRecycleBinWorker();
+    await scheduleRecycleBinScan();
   } catch (err) {
     console.error("[instrumentation] failed to register repeatable job schedulers:", err);
   }

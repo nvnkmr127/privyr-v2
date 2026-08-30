@@ -1,6 +1,8 @@
+import { Suspense } from "react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
-import { Users, Plus, Upload, FilterX, Kanban, Flame } from "lucide-react";
+import { SmartSegments } from "@/components/leads/SmartSegments";
+import { Users, Plus, Upload, FilterX, Kanban, Flame, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { LeadService } from "@/domains/leads/service";
 import { SavedViewService } from "@/domains/savedViews/service";
@@ -84,6 +86,11 @@ export default async function LeadsPage({
               <Kanban className="mr-2 h-4 w-4" /> Pipeline Board
             </Button>
           </Link>
+          <Link href="/leads/recycle-bin">
+            <Button variant="outline">
+              <Trash2 className="mr-2 h-4 w-4" /> Recycle Bin
+            </Button>
+          </Link>
           <ImportCsvDialog>
             <Button variant="outline">
               <Upload className="mr-2 h-4 w-4" /> Import CSV
@@ -96,6 +103,10 @@ export default async function LeadsPage({
           </QuickAddLeadDrawer>
         </div>
       </div>
+
+      <Suspense fallback={null}>
+        <SmartSegments />
+      </Suspense>
 
       <LeadsFilterBar
         views={views}
