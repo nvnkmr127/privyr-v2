@@ -43,10 +43,15 @@ export function EnablePushButton() {
         applicationServerKey: urlBase64ToUint8Array(key),
       });
       const json = sub.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } };
-      await subscribePushAction({ endpoint: json.endpoint, keys: json.keys });
+      const res = await subscribePushAction({ endpoint: json.endpoint, keys: json.keys });
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Could not enable push", description: res.message });
+        return;
+      }
       setEnabled(true);
       toast({ title: "Push notifications enabled" });
     } catch (e: any) {
+      // Client-side/browser errors keep their (safe) message here.
       toast({ variant: "destructive", title: "Could not enable push", description: e?.message });
     } finally {
       setBusy(false);
@@ -59,12 +64,17 @@ export function EnablePushButton() {
       const reg = await navigator.serviceWorker.getRegistration();
       const sub = await reg?.pushManager.getSubscription();
       if (sub) {
-        await unsubscribePushAction(sub.endpoint);
+        const res = await unsubscribePushAction(sub.endpoint);
+        if (!res.ok) {
+          toast({ variant: "destructive", title: "Could not turn off push", description: res.message });
+          return;
+        }
         await sub.unsubscribe();
       }
       setEnabled(false);
       toast({ title: "Push notifications turned off" });
     } catch (e: any) {
+      // Client-side/browser errors keep their (safe) message here.
       toast({ variant: "destructive", title: "Could not turn off push", description: e?.message });
     } finally {
       setBusy(false);

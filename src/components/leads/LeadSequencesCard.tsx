@@ -39,8 +39,12 @@ export function LeadSequencesCard({ leadId, availableSequences = [], initialEnro
     if (activeIds.has(seq.id)) return;
     setPending(seq.id);
     try {
-      const { enrolled: n } = await enrollLeadsAction(seq.id, [leadId]);
-      if (n > 0) {
+      const res = await enrollLeadsAction(seq.id, [leadId]);
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Couldn't enroll", description: res.message });
+        return;
+      }
+      if (res.data.enrolled > 0) {
         setEnrolled((cur) => [...cur, { enrollmentId: "new", sequenceId: seq.id, name: seq.name, status: "active" }]);
         toast({ title: "Enrolled in sequence", description: `Lead added to '${seq.name}'.` });
         router.refresh();
@@ -48,8 +52,8 @@ export function LeadSequencesCard({ leadId, availableSequences = [], initialEnro
         toast({ title: "Already enrolled", description: `Lead is already in '${seq.name}'.` });
       }
       setOpen(false);
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Couldn't enroll", description: e?.message });
+    } catch {
+      toast({ variant: "destructive", title: "Couldn't enroll", description: "We couldn't reach the server. Please try again." });
     } finally {
       setPending(null);
     }
@@ -123,12 +127,16 @@ export function LeadSequencesCard({ leadId, availableSequences = [], initialEnro
                     onClick={async () => {
                       setPending(seq.enrollmentId);
                       try {
-                        await stopEnrollmentAction(seq.enrollmentId, leadId);
+                        const res = await stopEnrollmentAction(seq.enrollmentId, leadId);
+                        if (!res.ok) {
+                          toast({ variant: "destructive", title: "Couldn't stop", description: res.message });
+                          return;
+                        }
                         setEnrolled((cur) => cur.map((e) => e.enrollmentId === seq.enrollmentId ? { ...e, status: "stopped" } : e));
                         toast({ title: "Sequence stopped" });
                         router.refresh();
                       } catch {
-                        toast({ variant: "destructive", title: "Couldn't stop" });
+                        toast({ variant: "destructive", title: "Couldn't stop", description: "We couldn't reach the server. Please try again." });
                       } finally { setPending(null); }
                     }}>
                     Stop

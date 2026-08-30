@@ -62,12 +62,16 @@ export function WhatsAppSendBox({
     }
     setSending(true);
     try {
-      await sendWhatsAppAction({ leadId, body });
+      const res = await sendWhatsAppAction({ leadId, body });
+      if (!res.ok) {
+        // Surfaces the 24h-window / template-required message so the user knows what to do.
+        toast({ variant: "destructive", title: "Not sent", description: res.message });
+        return;
+      }
       toast({ title: "WhatsApp sent", description: "Message delivered via the Business API." });
       setBody("");
-    } catch (err: any) {
-      // Surfaces the 24h-window error verbatim so the user knows a template is required.
-      toast({ variant: "destructive", title: "Not sent", description: err?.message ?? "Send failed." });
+    } catch {
+      toast({ variant: "destructive", title: "Not sent", description: "We couldn't reach the server. Please try again." });
     } finally {
       setSending(false);
     }

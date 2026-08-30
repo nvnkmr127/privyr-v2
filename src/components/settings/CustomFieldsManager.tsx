@@ -41,7 +41,7 @@ export function CustomFieldsManager({ initial }: { initial: Field[] }) {
     if (!label.trim()) return;
     setSaving(true);
     try {
-      const row = await createCustomFieldAction({
+      const res = await createCustomFieldAction({
         label: label.trim(),
         type,
         required,
@@ -49,11 +49,15 @@ export function CustomFieldsManager({ initial }: { initial: Field[] }) {
         defaultValue: defaultValue.trim() || null,
         disabled, adminOnly, showOnTable,
       });
-      setFields((prev) => [...prev, row as Field]);
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Could not add field", description: res.message });
+        return;
+      }
+      setFields((prev) => [...prev, res.data as Field]);
       setLabel(""); setOptions(""); setDefaultValue(""); setRequired(false); setDisabled(false); setAdminOnly(false); setShowOnTable(false); setType("text");
       toast({ title: "Field added" });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Could not add field", description: e?.message });
+    } catch {
+      toast({ variant: "destructive", title: "Could not add field", description: "We couldn't reach the server. Please try again." });
     } finally {
       setSaving(false);
     }
@@ -64,10 +68,14 @@ export function CustomFieldsManager({ initial }: { initial: Field[] }) {
     const prev = fields;
     setFields((p) => p.filter((x) => x.id !== f.id));
     try {
-      await deleteCustomFieldAction(f.id);
-    } catch (e: any) {
+      const res = await deleteCustomFieldAction(f.id);
+      if (!res.ok) {
+        setFields(prev);
+        toast({ variant: "destructive", title: "Could not delete", description: res.message });
+      }
+    } catch {
       setFields(prev);
-      toast({ variant: "destructive", title: "Could not delete", description: e?.message });
+      toast({ variant: "destructive", title: "Could not delete", description: "We couldn't reach the server. Please try again." });
     }
   }
 
@@ -92,11 +100,16 @@ export function CustomFieldsManager({ initial }: { initial: Field[] }) {
     setFields((p) => p.map((x) => (x.id === f.id ? { ...x, ...patch, label: patch.label || x.label, options: options ?? x.options } : x)));
     setEditId(null);
     try {
-      await updateCustomFieldAction({ id: f.id, options, ...patch });
+      const res = await updateCustomFieldAction({ id: f.id, options, ...patch });
+      if (!res.ok) {
+        setFields(prev);
+        toast({ variant: "destructive", title: "Could not update", description: res.message });
+        return;
+      }
       toast({ title: "Field updated" });
-    } catch (e: any) {
+    } catch {
       setFields(prev);
-      toast({ variant: "destructive", title: "Could not update", description: e?.message });
+      toast({ variant: "destructive", title: "Could not update", description: "We couldn't reach the server. Please try again." });
     }
   }
 
@@ -107,9 +120,10 @@ export function CustomFieldsManager({ initial }: { initial: Field[] }) {
     [next[index], next[j]] = [next[j], next[index]];
     setFields(next);
     try {
-      await reorderCustomFieldsAction(next.map((f) => f.id));
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Could not reorder", description: e?.message });
+      const res = await reorderCustomFieldsAction(next.map((f) => f.id));
+      if (!res.ok) toast({ variant: "destructive", title: "Could not reorder", description: res.message });
+    } catch {
+      toast({ variant: "destructive", title: "Could not reorder", description: "We couldn't reach the server. Please try again." });
     }
   }
 

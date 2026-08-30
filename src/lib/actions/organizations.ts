@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { OrgService } from "@/domains/organizations/service";
 import { AuditService } from "@/domains/audit/service";
 import { z } from "zod";
+import { ok, fail, actionFail, zodFieldErrors } from "@/lib/actions/result";
 
 const LEAD_FIELDS = ["name", "email", "phone", "company"] as const;
 
@@ -46,11 +47,15 @@ export async function updateOrganizationAction(input: z.input<typeof updateOrgSc
   const { organizationId, userId } = await requirePermission("settings.manage");
   const parsed = updateOrgSchema.safeParse(input);
   if (!parsed.success) {
-    throw new Error(parsed.error.issues[0]?.message ?? "Invalid settings");
+    return fail("VALIDATION", parsed.error.issues[0]?.message ?? "Please check the highlighted fields.", zodFieldErrors(parsed.error));
   }
 
-  const updated = await OrgService.updateOrganization(organizationId, parsed.data);
-  await AuditService.log({ organizationId, userId, action: "org.settings_update", entityType: "organization", entityId: organizationId });
-  revalidatePath("/settings");
-  return updated;
+  try {
+    const updated = await OrgService.updateOrganization(organizationId, parsed.data);
+    await AuditService.log({ organizationId, userId, action: "org.settings_update", entityType: "organization", entityId: organizationId });
+    revalidatePath("/settings");
+    return ok(updated);
+  } catch (e) {
+    return actionFail(e);
+  }
 }

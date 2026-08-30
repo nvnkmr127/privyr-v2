@@ -14,6 +14,7 @@ import { Download, Upload, CheckCircle2, AlertTriangle, Copy, FlaskConical, Play
 import { listSourcesAction } from "@/lib/actions/sources";
 import { listUsersAction } from "@/lib/actions/users";
 import { parseImportCsvAction, simulateImportAction, commitImportAction } from "@/lib/actions/import";
+import { validateCsvFile } from "@/lib/csvFile";
 
 // Client-safe copy of the importable fields (the server module can't be imported here — it pulls in db).
 const FIELDS = [
@@ -98,18 +99,25 @@ export function LeadImportWizard({ children }: { children: React.ReactNode }) {
     }), []);
 
   async function onFile(file: File) {
+    const problem = validateCsvFile(file);
+    if (problem) {
+      toast({ variant: "destructive", title: "Can't import this file", description: problem });
+      return;
+    }
     setBusy(true);
     try {
       const text = await file.text();
-      const { headers, rows: raw, mapping } = await parseImportCsvAction(text);
+      const res = await parseImportCsvAction(text);
+      if (!res.ok) { toast({ variant: "destructive", title: "Couldn't read file", description: res.message }); return; }
+      const { headers, rows: raw, mapping } = res.data;
       if (raw.length === 0) { toast({ variant: "destructive", title: "No rows found in that file" }); return; }
       setHeaders(headers); setRawRows(raw); setMapping(mapping);
       const built = buildRows(raw, mapping);
       setRows(built);
       await runSimulate(built, false);
       setStep("review");
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Couldn't read file", description: e?.message });
+    } catch {
+      toast({ variant: "destructive", title: "Couldn't read file", description: "We couldn't read this file. Make sure it's a valid CSV and try again." });
     } finally {
       setBusy(false);
     }
@@ -129,34 +137,64 @@ export function LeadImportWizard({ children }: { children: React.ReactNode }) {
 
   async function runSimulate(theRows: Row[], announce: boolean) {
     try {
-      const res = (await simulateImportAction({ rows: theRows })) as Analysis;
-      setAnalysis(res);
+      const res = await simulateImportAction({ rows: theRows });
+      if (!res.ok) { toast({ variant: "destructive", title: "Simulation failed", description: res.message }); return; }
+      const analysis = res.data as Analysis;
+      setAnalysis(analysis);
       if (announce) {
-        setSimResult(`${res.newCount} will import · ${res.duplicateCount} duplicates skipped · ${res.errorCount} rows with errors.`);
+        setSimResult(`${analysis.newCount} will import · ${analysis.duplicateCount} duplicates skipped · ${analysis.errorCount} rows with errors.`);
       }
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Simulation failed", description: e?.message });
+    } catch {
+      toast({ variant: "destructive", title: "Simulation failed", description: "We couldn't reach the server. Please try again." });
     }
   }
 
   async function doImport() {
     setBusy(true);
     try {
-      const { imported, skipped } = await commitImportAction({
+      const res = await commitImportAction({
         rows,
         config: { sourceId: sourceId || null, ownerId: ownerId || null, fallbackStatus },
       });
+      if (!res.ok) { toast({ variant: "destructive", title: "Import failed", description: res.message }); return; }
+      const { imported, skipped } = res.data;
       toast({ title: `Imported ${imported} leads`, description: skipped ? `${skipped} skipped (duplicates or errors).` : undefined });
       setOpen(false); reset();
       router.refresh();
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Import failed", description: e?.message });
+    } catch {
+      toast({ variant: "destructive", title: "Import failed", description: "We couldn't reach the server. Please try again." });
     } finally {
       setBusy(false);
     }
   }
 
   const flagFor = (i: number) => analysis?.rows.find((r) => r.index === i);
+
+  // Export the rows that won't import (invalid or duplicate) as CSV, with a reason column,
+  // so the user can fix them and re-upload.
+  function downloadFailedRows() {
+    if (!analysis) return;
+    const failed = analysis.rows.filter((r) => !r.valid || r.duplicate);
+    if (failed.length === 0) return;
+    const cols = FIELDS.map((f) => f.key);
+    const esc = (v: string) => `"${(v ?? "").replace(/"/g, '""')}"`;
+    const header = [...FIELDS.map((f) => f.label), "Reason"].join(",");
+    const lines = failed.map((f) => {
+      const row = rows[f.index] ?? ({} as Row);
+      const reason = f.reason || (f.duplicate ? "Duplicate of an existing or earlier row" : "Invalid row");
+      return [...cols.map((c) => esc(row[c] ?? "")), esc(reason)].join(",");
+    });
+    const csv = [header, ...lines].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.setAttribute("download", `import_failed_rows_${Date.now()}.csv`);
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
 
   return (
     <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) reset(); }}>
@@ -219,6 +257,14 @@ export function LeadImportWizard({ children }: { children: React.ReactNode }) {
                 <p className="text-xs text-muted-foreground">Errors</p>
               </div>
             </div>
+
+            {analysis.errorCount + analysis.duplicateCount > 0 && (
+              <div className="flex justify-end">
+                <Button variant="outline" size="sm" onClick={downloadFailedRows} className="gap-2">
+                  <Download className="h-4 w-4" /> Download failed rows ({analysis.errorCount + analysis.duplicateCount})
+                </Button>
+              </div>
+            )}
 
             {/* Column mapping */}
             <div>

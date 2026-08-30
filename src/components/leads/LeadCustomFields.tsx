@@ -41,11 +41,15 @@ export function LeadCustomFields({ leadId, initialData }: { leadId: string; init
         toast({ variant: "destructive", title: "Required field missing", description: missing.map((m) => m.label).join(", ") });
         return;
       }
-      await updateCustomDataAction(leadId, values);
+      const res = await updateCustomDataAction(leadId, values);
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Could not save details", description: res.message });
+        return;
+      }
       toast({ title: "Details saved" });
       router.refresh();
     } catch {
-      toast({ variant: "destructive", title: "Could not save details" });
+      toast({ variant: "destructive", title: "Could not save details", description: "We couldn't reach the server. Please try again." });
     } finally {
       setSaving(false);
     }

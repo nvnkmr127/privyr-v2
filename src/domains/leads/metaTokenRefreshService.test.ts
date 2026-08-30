@@ -1,30 +1,43 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { MetaTokenRefreshService } from "./metaTokenRefreshService";
 
 describe("MetaTokenRefreshService", () => {
-  it("should exchange short-lived Meta token for a long-lived 60-day access token", async () => {
-    const res = await MetaTokenRefreshService.exchangeShortLivedToken("short_token_xyz123");
+  const origId = process.env.FACEBOOK_APP_ID;
+  const origSecret = process.env.FACEBOOK_APP_SECRET;
 
-    expect(res.accessToken).toContain("long_lived");
-    expect(res.tokenType).toBe("bearer");
-    expect(res.expiresInSeconds).toBe(5184000); // 60 days
-    expect(res.expiresAt.getTime()).toBeGreaterThan(Date.now());
+  afterEach(() => {
+    process.env.FACEBOOK_APP_ID = origId;
+    process.env.FACEBOOK_APP_SECRET = origSecret;
   });
 
-  it("should fetch a permanent Page Access Token for a target Facebook page", async () => {
-    const pageToken = await MetaTokenRefreshService.fetchPageAccessToken("long_lived_user_token", "page_12345");
+  describe("when Facebook is not configured", () => {
+    beforeEach(() => {
+      delete process.env.FACEBOOK_APP_ID;
+      delete process.env.FACEBOOK_APP_SECRET;
+    });
 
-    expect(pageToken.pageId).toBe("page_12345");
-    expect(pageToken.pageAccessToken).toBe("EAAK_page_page_12345_token");
+    it("reports not configured", () => {
+      expect(MetaTokenRefreshService.isConfigured()).toBe(false);
+    });
+
+    it("throws instead of fabricating tokens", async () => {
+      await expect(MetaTokenRefreshService.exchangeShortLivedToken("x")).rejects.toThrow(/not configured/i);
+      await expect(MetaTokenRefreshService.fetchPageAccessToken("t", "p")).rejects.toThrow(/not configured/i);
+      await expect(MetaTokenRefreshService.exchangeCodeForToken("c", "https://app/cb")).rejects.toThrow(/not configured/i);
+    });
+  });
+
+  it("treats the mock_app_id/secret fallbacks as unconfigured", () => {
+    process.env.FACEBOOK_APP_ID = "mock_app_id";
+    process.env.FACEBOOK_APP_SECRET = "mock_app_secret";
+    expect(MetaTokenRefreshService.isConfigured()).toBe(false);
   });
 
   it("should correctly detect if a Meta OAuth access token is expiring within buffer threshold", () => {
     const expiringAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000); // 3 days remaining
-    const isExpiring = MetaTokenRefreshService.isTokenExpiringSoon(expiringAt, 7);
-    expect(isExpiring).toBe(true);
+    expect(MetaTokenRefreshService.isTokenExpiringSoon(expiringAt, 7)).toBe(true);
 
     const validAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days remaining
-    const isValid = MetaTokenRefreshService.isTokenExpiringSoon(validAt, 7);
-    expect(isValid).toBe(false);
+    expect(MetaTokenRefreshService.isTokenExpiringSoon(validAt, 7)).toBe(false);
   });
 });

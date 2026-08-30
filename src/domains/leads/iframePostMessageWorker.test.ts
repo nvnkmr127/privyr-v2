@@ -8,36 +8,53 @@ describe("IframePostMessageWorker (Cross-Origin Iframe Integration)", () => {
     expect(IframePostMessageWorker.isAllowedOrigin("https://malicious.com", ["mywebsite.com"])).toBe(false);
   });
 
-  it("should process cross-origin iframe lead submission and return success result", async () => {
-    const payload = {
+  it("should reject submissions from a disallowed origin before touching the pipeline", async () => {
+    const res = await IframePostMessageWorker.processIframePostMessage(
+      "https://malicious.com",
+      { type: "PRIVYR_LEAD_SUBMISSION", tenantId: "t1", data: { sourceId: "s1", email: "a@b.com" } },
+      ["mywebsite.com"],
+    );
+    expect(res.success).toBe(false);
+    expect(res.allowedOrigin).toBe(false);
+  });
+
+  it("should reject a malformed payload", async () => {
+    const res = await IframePostMessageWorker.processIframePostMessage("https://ok.com", {
+      type: "NOT_A_LEAD",
+      data: { email: "a@b.com" },
+    } as any);
+    expect(res.success).toBe(false);
+    expect(res.error).toMatch(/invalid/i);
+  });
+
+  it("should reject an embed missing its tenant or source id (no fake success)", async () => {
+    const res = await IframePostMessageWorker.processIframePostMessage("https://ok.com", {
       type: "PRIVYR_LEAD_SUBMISSION",
-      tenantId: "tenant_org_100",
-      source: "WordPress Landing Page",
-      data: {
-        name: "Arthur Dent",
-        email: "arthur@earth.org",
-        phone: "+442079460912",
-        budget: "£42000",
-        preferred_product: "Towel",
-      },
-    };
+      data: { name: "Arthur", email: "arthur@earth.org" }, // no tenantId / sourceId
+    });
+    expect(res.success).toBe(false);
+    expect(res.error).toMatch(/misconfigured/i);
+  });
 
-    const res = await IframePostMessageWorker.processIframePostMessage("https://wordpress.example.com", payload);
-
-    expect(res.success).toBe(true);
-    expect(res.allowedOrigin).toBe(true);
-    expect(res.leadId).toContain("lead_iframe_");
+  it("should reject a lead with neither email nor phone", async () => {
+    const res = await IframePostMessageWorker.processIframePostMessage("https://ok.com", {
+      type: "PRIVYR_LEAD_SUBMISSION",
+      tenantId: "t1",
+      data: { name: "No Contact", sourceId: "s1" },
+    });
+    expect(res.success).toBe(false);
+    expect(res.error).toMatch(/email or phone/i);
   });
 
   it("should generate postMessage acknowledgment payload for parent window", () => {
     const ack = IframePostMessageWorker.createAckMessage({
       success: true,
-      leadId: "lead_iframe_999",
+      eventId: "evt_999",
       allowedOrigin: true,
     });
 
     expect(ack.type).toBe("PRIVYR_LEAD_ACK");
     expect(ack.status).toBe("success");
-    expect(ack.leadId).toBe("lead_iframe_999");
+    expect(ack.eventId).toBe("evt_999");
   });
 });

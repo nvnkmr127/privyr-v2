@@ -7,6 +7,7 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { EMAIL_NOTIFICATION_TYPES } from "@/lib/notifications/emailTypes";
+import { ok, actionFail } from "@/lib/actions/result";
 
 export async function getEmailOptOutAction() {
   const session = await requireAuth();
@@ -17,8 +18,12 @@ export async function getEmailOptOutAction() {
 export async function setEmailOptOutAction(optOut: string[]) {
   const session = await requireAuth();
   const allowed = new Set(EMAIL_NOTIFICATION_TYPES.map((t) => t.type));
-  const clean = z.array(z.string()).parse(optOut).filter((t) => allowed.has(t));
-  await db.update(users).set({ emailOptOut: clean, updatedAt: new Date() }).where(eq(users.id, session.user.id));
-  revalidatePath("/profile");
-  return clean;
+  const clean = (Array.isArray(optOut) ? optOut : []).filter((t) => allowed.has(t));
+  try {
+    await db.update(users).set({ emailOptOut: clean, updatedAt: new Date() }).where(eq(users.id, session.user.id));
+    revalidatePath("/profile");
+    return ok(clean);
+  } catch (e) {
+    return actionFail(e);
+  }
 }

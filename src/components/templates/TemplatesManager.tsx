@@ -47,18 +47,23 @@ export function TemplatesManager({ initialTemplates }: { initialTemplates: Templ
       body,
     };
     try {
+      const res = editingId
+        ? await updateTemplateAction({ id: editingId, ...payload })
+        : await createTemplateAction(payload);
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Could not save template", description: res.message });
+        return;
+      }
       if (editingId) {
-        const row = await updateTemplateAction({ id: editingId, ...payload });
-        setTemplates((prev) => prev.map((t) => (t.id === editingId ? (row as Template) : t)));
+        setTemplates((prev) => prev.map((t) => (t.id === editingId ? (res.data as Template) : t)));
         toast({ title: "Template updated" });
       } else {
-        const row = await createTemplateAction(payload);
-        setTemplates((prev) => [row as Template, ...prev]);
+        setTemplates((prev) => [res.data as Template, ...prev]);
         toast({ title: "Template saved" });
       }
       resetForm();
     } catch {
-      toast({ variant: "destructive", title: "Could not save template" });
+      toast({ variant: "destructive", title: "Could not save template", description: "We couldn't reach the server. Please try again." });
     } finally {
       setSaving(false);
     }
@@ -68,10 +73,14 @@ export function TemplatesManager({ initialTemplates }: { initialTemplates: Templ
     const prev = templates;
     setTemplates((t) => t.filter((x) => x.id !== id));
     try {
-      await deleteTemplateAction(id);
+      const res = await deleteTemplateAction(id);
+      if (!res.ok) {
+        setTemplates(prev);
+        toast({ variant: "destructive", title: "Could not delete template", description: res.message });
+      }
     } catch {
       setTemplates(prev);
-      toast({ variant: "destructive", title: "Could not delete template" });
+      toast({ variant: "destructive", title: "Could not delete template", description: "We couldn't reach the server. Please try again." });
     }
   }
 

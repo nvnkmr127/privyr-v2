@@ -1,5 +1,5 @@
-import { pgTable, uuid, varchar, timestamp, integer, jsonb, index, numeric } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
+import { pgTable, uuid, varchar, timestamp, integer, jsonb, index, uniqueIndex, numeric } from 'drizzle-orm/pg-core';
+import { relations, sql } from 'drizzle-orm';
 import { users, teams } from './users';
 import { organizations } from './organizations';
 
@@ -76,6 +76,15 @@ export const leads = pgTable('leads', {
   orgOwnerIdx: index('leads_org_owner_idx').on(table.organizationId, table.ownerId),
   orgStatusIdx: index('leads_org_status_idx').on(table.organizationId, table.status),
   orgSourceIdx: index('leads_org_source_idx').on(table.organizationId, table.sourceId),
+  // Enforce per-tenant dedup at the DB layer (replaces the racy check-then-insert).
+  // Partial: only active (non-deleted) rows with a real value participate, so soft-deleted
+  // leads and blank contacts never collide.
+  orgEmailUnique: uniqueIndex('leads_org_email_unique')
+    .on(table.organizationId, table.email)
+    .where(sql`${table.deletedAt} IS NULL AND ${table.email} IS NOT NULL AND ${table.email} <> ''`),
+  orgPhoneUnique: uniqueIndex('leads_org_phone_unique')
+    .on(table.organizationId, table.phone)
+    .where(sql`${table.deletedAt} IS NULL AND ${table.phone} IS NOT NULL AND ${table.phone} <> ''`),
 }));
 
 export const leadStatusHistory = pgTable('lead_status_history', {

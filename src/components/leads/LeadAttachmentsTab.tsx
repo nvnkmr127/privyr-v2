@@ -37,14 +37,18 @@ export function LeadAttachmentsTab({ leadId, initialAttachments }: LeadAttachmen
 
     setSubmitting(true);
     try {
-      const created = await addAttachmentAction({
+      const res = await addAttachmentAction({
         leadId,
         fileName,
         fileUrl,
         fileType,
       });
+      if (!res.ok) {
+        toast({ title: "Failed to add attachment", description: res.message, variant: "destructive" });
+        return;
+      }
 
-      setAttachments((prev) => [created as AttachmentItem, ...prev]);
+      setAttachments((prev) => [res.data as AttachmentItem, ...prev]);
       setFileName("");
       setFileUrl("");
       setShowAdd(false);
@@ -52,10 +56,10 @@ export function LeadAttachmentsTab({ leadId, initialAttachments }: LeadAttachmen
         title: "Attachment added",
         description: `Attached ${fileName} to lead`,
       });
-    } catch (err: any) {
+    } catch {
       toast({
         title: "Failed to add attachment",
-        description: err.message || "Something went wrong.",
+        description: "We couldn't reach the server. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -65,13 +69,17 @@ export function LeadAttachmentsTab({ leadId, initialAttachments }: LeadAttachmen
 
   const handleDelete = async (id: string) => {
     try {
-      await deleteAttachmentAction(id, leadId);
+      const res = await deleteAttachmentAction(id, leadId);
+      if (!res.ok) {
+        toast({ title: "Failed to delete attachment", description: res.message, variant: "destructive" });
+        return;
+      }
       setAttachments((prev) => prev.filter((a) => a.id !== id));
       toast({ title: "Attachment removed" });
-    } catch (err: any) {
+    } catch {
       toast({
         title: "Failed to delete attachment",
-        description: err.message,
+        description: "We couldn't reach the server. Please try again.",
         variant: "destructive",
       });
     }

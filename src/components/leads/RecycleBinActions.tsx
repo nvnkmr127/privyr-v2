@@ -15,11 +15,15 @@ export function RecycleBinRowActions({ leadId, canPurge }: { leadId: string; can
   async function restore() {
     setBusy(true);
     try {
-      await restoreLeadAction(leadId);
+      const res = await restoreLeadAction(leadId);
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Couldn't restore", description: res.message });
+        return;
+      }
       toast({ title: "Lead restored" });
       router.refresh();
     } catch {
-      toast({ variant: "destructive", title: "Couldn't restore" });
+      toast({ variant: "destructive", title: "Couldn't restore", description: "We couldn't reach the server. Please try again." });
     } finally {
       setBusy(false);
     }
@@ -29,11 +33,19 @@ export function RecycleBinRowActions({ leadId, canPurge }: { leadId: string; can
     if (!confirm("Permanently delete this lead? This cannot be undone.")) return;
     setBusy(true);
     try {
-      await purgeLeadAction(leadId);
+      const res = await purgeLeadAction(leadId);
+      if (!res.ok) {
+        toast({
+          variant: "destructive",
+          title: "Couldn't delete",
+          description: res.code === "FORBIDDEN" ? "Only an admin can permanently delete." : res.message,
+        });
+        return;
+      }
       toast({ title: "Lead permanently deleted" });
       router.refresh();
     } catch {
-      toast({ variant: "destructive", title: "Couldn't delete", description: "Only an admin can permanently delete." });
+      toast({ variant: "destructive", title: "Couldn't delete", description: "We couldn't reach the server. Please try again." });
     } finally {
       setBusy(false);
     }
@@ -62,11 +74,20 @@ export function EmptyBinButton() {
     if (!confirm("Permanently delete ALL leads in the recycle bin? This cannot be undone.")) return;
     setBusy(true);
     try {
-      const { purgedCount } = await emptyRecycleBinAction();
+      const res = await emptyRecycleBinAction();
+      if (!res.ok) {
+        toast({
+          variant: "destructive",
+          title: "Couldn't empty bin",
+          description: res.code === "FORBIDDEN" ? "Only an admin can empty the recycle bin." : res.message,
+        });
+        return;
+      }
+      const { purgedCount } = res.data;
       toast({ title: `Emptied recycle bin`, description: `${purgedCount} lead${purgedCount === 1 ? "" : "s"} permanently deleted.` });
       router.refresh();
     } catch {
-      toast({ variant: "destructive", title: "Couldn't empty bin", description: "Only an admin can empty the recycle bin." });
+      toast({ variant: "destructive", title: "Couldn't empty bin", description: "We couldn't reach the server. Please try again." });
     } finally {
       setBusy(false);
     }

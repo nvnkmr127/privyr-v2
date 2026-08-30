@@ -21,12 +21,17 @@ export function ApiKeysManager({ initial }: { initial: ApiKey[] }) {
     if (!name.trim()) return;
     setSaving(true);
     try {
-      const created = await createApiKeyAction(name.trim());
+      const res = await createApiKeyAction(name.trim());
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Could not create key", description: res.message });
+        return;
+      }
+      const created = res.data;
       setNewKey(created.key);
       setKeys((prev) => [{ id: created.id, name: created.name, prefix: created.prefix, lastUsedAt: null, revokedAt: null, createdAt: new Date() }, ...prev]);
       setName("");
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Could not create key", description: e?.message });
+    } catch {
+      toast({ variant: "destructive", title: "Could not create key", description: "We couldn't reach the server. Please try again." });
     } finally {
       setSaving(false);
     }
@@ -35,10 +40,14 @@ export function ApiKeysManager({ initial }: { initial: ApiKey[] }) {
   async function revoke(k: ApiKey) {
     if (!confirm(`Revoke "${k.name}"? Apps using it will stop working immediately.`)) return;
     try {
-      await revokeApiKeyAction(k.id);
+      const res = await revokeApiKeyAction(k.id);
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Could not revoke", description: res.message });
+        return;
+      }
       setKeys((prev) => prev.map((x) => (x.id === k.id ? { ...x, revokedAt: new Date() } : x)));
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Could not revoke", description: e?.message });
+    } catch {
+      toast({ variant: "destructive", title: "Could not revoke", description: "We couldn't reach the server. Please try again." });
     }
   }
 

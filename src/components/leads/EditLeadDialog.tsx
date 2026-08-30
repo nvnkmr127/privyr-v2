@@ -66,17 +66,28 @@ export function EditLeadDialog({ lead }: EditLeadDialogProps) {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      await updateLeadAction(values);
+      const res = await updateLeadAction(values);
+      if (!res.ok) {
+        if (res.fieldErrors) {
+          for (const [key, message] of Object.entries(res.fieldErrors)) {
+            if (key === "name" || key === "email" || key === "phone" || key === "company") {
+              form.setError(key, { message });
+            }
+          }
+        }
+        toast({ variant: "destructive", title: "Unable to update lead", description: res.message });
+        return;
+      }
       toast({
         title: "Lead Updated",
         description: "The lead was successfully updated.",
       });
       setOpen(false);
-    } catch (e: any) {
+    } catch {
       toast({
         variant: "destructive",
-        title: "Unable to update lead",
-        description: e?.message || "There was a problem updating this lead. Please check your inputs and try again.",
+        title: "Connection problem",
+        description: "We couldn't reach the server. Check your connection and try again.",
       });
     }
   }

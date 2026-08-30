@@ -56,11 +56,15 @@ export function UsersManager({
     if (!inviteEmail.trim()) return;
     setInviting(true);
     try {
-      await inviteUserAction({ email: inviteEmail.trim(), roleId: inviteRole === NO_ROLE ? null : inviteRole });
+      const res = await inviteUserAction({ email: inviteEmail.trim(), roleId: inviteRole === NO_ROLE ? null : inviteRole });
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Could not send invite", description: res.message });
+        return;
+      }
       setInviteEmail(""); setInviteRole(NO_ROLE);
       toast({ title: "Invitation sent", description: "They'll get an email with a link to join." });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Could not send invite", description: e?.message });
+    } catch {
+      toast({ variant: "destructive", title: "Could not send invite", description: "We couldn't reach the server. Please try again." });
     } finally {
       setInviting(false);
     }
@@ -69,12 +73,16 @@ export function UsersManager({
   async function createTeam() {
     if (!teamName.trim()) return;
     try {
-      const t = await createTeamAction({ name: teamName.trim() });
-      setTeams((prev) => [...prev, t as Team]);
+      const res = await createTeamAction({ name: teamName.trim() });
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Could not create team", description: res.message });
+        return;
+      }
+      setTeams((prev) => [...prev, res.data as Team]);
       setTeamName("");
       toast({ title: "Team created" });
     } catch {
-      toast({ variant: "destructive", title: "Could not create team" });
+      toast({ variant: "destructive", title: "Could not create team", description: "We couldn't reach the server. Please try again." });
     }
   }
 
@@ -82,10 +90,14 @@ export function UsersManager({
     const teamId = value === NO_TEAM ? null : value;
     setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, teamId } : x)));
     try {
-      await setUserTeamAction(u.id, teamId);
+      const res = await setUserTeamAction(u.id, teamId);
+      if (!res.ok) {
+        setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, teamId: u.teamId } : x)));
+        toast({ variant: "destructive", title: "Could not update team", description: res.message });
+      }
     } catch {
       setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, teamId: u.teamId } : x)));
-      toast({ variant: "destructive", title: "Could not update team" });
+      toast({ variant: "destructive", title: "Could not update team", description: "We couldn't reach the server. Please try again." });
     }
   }
 
@@ -93,11 +105,16 @@ export function UsersManager({
     const roleId = value === NO_ROLE ? null : value;
     setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, roleId } : x)));
     try {
-      await setUserRoleAction(u.id, roleId);
+      const res = await setUserRoleAction(u.id, roleId);
+      if (!res.ok) {
+        setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, roleId: u.roleId } : x)));
+        toast({ variant: "destructive", title: "Could not update role", description: res.message });
+        return;
+      }
       toast({ title: "Role updated" });
-    } catch (e: any) {
+    } catch {
       setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, roleId: u.roleId } : x)));
-      toast({ variant: "destructive", title: "Could not update role", description: e?.message });
+      toast({ variant: "destructive", title: "Could not update role", description: "We couldn't reach the server. Please try again." });
     }
   }
 
@@ -109,18 +126,22 @@ export function UsersManager({
     if (!form.email.trim() || form.password.length < 6) return;
     setSaving(true);
     try {
-      const u = await createUserAction({
+      const res = await createUserAction({
         email: form.email.trim(),
         firstName: form.firstName.trim() || undefined,
         lastName: form.lastName.trim() || undefined,
         password: form.password,
         roleId: form.roleId === NO_ROLE ? null : form.roleId,
       });
-      setUsers((prev) => [...prev, u as User]);
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Could not create user", description: res.message });
+        return;
+      }
+      setUsers((prev) => [...prev, res.data as User]);
       setForm({ firstName: "", lastName: "", email: "", password: "", roleId: NO_ROLE });
       toast({ title: "User created" });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Could not create user", description: e?.message });
+    } catch {
+      toast({ variant: "destructive", title: "Could not create user", description: "We couldn't reach the server. Please try again." });
     } finally {
       setSaving(false);
     }
@@ -130,10 +151,14 @@ export function UsersManager({
     const next = !u.isActive;
     setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, isActive: next } : x)));
     try {
-      await setUserActiveAction(u.id, next);
-    } catch (e: any) {
+      const res = await setUserActiveAction(u.id, next);
+      if (!res.ok) {
+        setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, isActive: u.isActive } : x)));
+        toast({ variant: "destructive", title: "Could not update user", description: res.message });
+      }
+    } catch {
       setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, isActive: u.isActive } : x)));
-      toast({ variant: "destructive", title: "Could not update user", description: e?.message });
+      toast({ variant: "destructive", title: "Could not update user", description: "We couldn't reach the server. Please try again." });
     }
   }
 
@@ -142,11 +167,16 @@ export function UsersManager({
     const prev = users;
     setUsers((p) => p.filter((x) => x.id !== u.id));
     try {
-      await deleteUserAction(u.id);
+      const res = await deleteUserAction(u.id);
+      if (!res.ok) {
+        setUsers(prev);
+        toast({ variant: "destructive", title: "Could not delete user", description: res.message });
+        return;
+      }
       toast({ title: "User deleted" });
-    } catch (e: any) {
+    } catch {
       setUsers(prev);
-      toast({ variant: "destructive", title: "Could not delete user", description: e?.message });
+      toast({ variant: "destructive", title: "Could not delete user", description: "We couldn't reach the server. Please try again." });
     }
   }
 

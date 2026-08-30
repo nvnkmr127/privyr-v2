@@ -17,11 +17,16 @@ export function SequenceRowActions({ id, name }: { id: string; name: string }) {
     if (!confirm(`Delete sequence "${name}"? Active enrollments will stop.`)) return;
     setBusy(true);
     try {
-      await deleteSequenceAction(id);
+      const res = await deleteSequenceAction(id);
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Couldn't delete", description: res.message });
+        setBusy(false);
+        return;
+      }
       toast({ title: "Sequence deleted" });
       router.refresh();
     } catch {
-      toast({ variant: "destructive", title: "Couldn't delete" });
+      toast({ variant: "destructive", title: "Couldn't delete", description: "We couldn't reach the server. Please try again." });
       setBusy(false);
     }
   }

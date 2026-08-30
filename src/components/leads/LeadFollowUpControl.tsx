@@ -23,16 +23,20 @@ export function LeadFollowUpControl({ leadId, nextFollowUpAt }: LeadFollowUpCont
   const handleSetFollowUp = async (targetDate: Date | null) => {
     setLoading(true);
     try {
-      await updateLeadFollowUpAction(leadId, targetDate ? targetDate.toISOString() : null);
+      const res = await updateLeadFollowUpAction(leadId, targetDate ? targetDate.toISOString() : null);
+      if (!res.ok) {
+        toast({ title: "Failed to update follow-up", description: res.message, variant: "destructive" });
+        return;
+      }
       toast({
         title: "Follow-up updated",
         description: targetDate ? `Scheduled for ${targetDate.toLocaleDateString()}` : "Follow-up cleared.",
       });
       setOpen(false);
-    } catch (err: any) {
+    } catch {
       toast({
         title: "Failed to update follow-up",
-        description: err.message || "Something went wrong.",
+        description: "We couldn't reach the server. Please try again.",
         variant: "destructive",
       });
     } finally {

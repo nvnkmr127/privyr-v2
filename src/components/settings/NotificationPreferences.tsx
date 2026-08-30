@@ -14,10 +14,14 @@ export function NotificationPreferences({ initialOptOut }: { initialOptOut: stri
     const prev = optOut;
     setOptOut(next);
     try {
-      await setEmailOptOutAction(next);
-    } catch (e: any) {
+      const res = await setEmailOptOutAction(next);
+      if (!res.ok) {
+        setOptOut(prev);
+        toast({ variant: "destructive", title: "Could not save", description: res.message });
+      }
+    } catch {
       setOptOut(prev);
-      toast({ variant: "destructive", title: "Could not save", description: e?.message });
+      toast({ variant: "destructive", title: "Could not save", description: "We couldn't reach the server. Please try again." });
     }
   }
 

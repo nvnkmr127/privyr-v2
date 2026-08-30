@@ -51,24 +51,31 @@ export function QuickResponseDialog({ leadId, leadName, email, phone }: QuickRes
 
   const handleSend = async () => {
     if (!body.trim()) return;
+    if (channel === "whatsapp" && !phone) {
+      toast({ title: "Can't send", description: "This lead has no phone number on file.", variant: "destructive" });
+      return;
+    }
+    if (channel === "email" && !email) {
+      toast({ title: "Can't send", description: "This lead has no email address on file.", variant: "destructive" });
+      return;
+    }
     setSending(true);
     try {
-      if (channel === "whatsapp") {
-        if (!phone) throw new Error("Lead has no phone number attached");
-        await sendWhatsAppAction({ leadId, body });
-        toast({ title: "WhatsApp response sent" });
-      } else {
-        if (!email) throw new Error("Lead has no email address attached");
-        await sendEmailAction({ leadId, subject: subject || `Update for ${leadName}`, body });
-        toast({ title: "Email response sent" });
+      const res = channel === "whatsapp"
+        ? await sendWhatsAppAction({ leadId, body })
+        : await sendEmailAction({ leadId, subject: subject || `Update for ${leadName}`, body });
+      if (!res.ok) {
+        toast({ title: "Failed to send response", description: res.message, variant: "destructive" });
+        return;
       }
+      toast({ title: channel === "whatsapp" ? "WhatsApp response sent" : "Email response sent" });
       setOpen(false);
       setBody("");
       setSubject("");
-    } catch (err: any) {
+    } catch {
       toast({
         title: "Failed to send response",
-        description: err.message,
+        description: "We couldn't reach the server. Please try again.",
         variant: "destructive",
       });
     } finally {

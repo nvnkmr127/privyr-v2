@@ -40,18 +40,22 @@ export function SaveViewDialog({
 
     setBusy(true);
     try {
-      const view = await createSavedViewAction({
+      const res = await createSavedViewAction({
         name: name.trim(),
         filters,
         sortField,
         sortOrder,
       });
-      toast({ title: "Saved view created", description: `"${view.name}" is now available.` });
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Failed to save view", description: res.message });
+        return;
+      }
+      toast({ title: "Saved view created", description: `"${res.data.name}" is now available.` });
       setName("");
       onOpenChange(false);
-      onSaved?.(view.id);
+      onSaved?.(res.data.id);
     } catch {
-      toast({ variant: "destructive", title: "Failed to save view" });
+      toast({ variant: "destructive", title: "Failed to save view", description: "We couldn't reach the server. Please try again." });
     } finally {
       setBusy(false);
     }

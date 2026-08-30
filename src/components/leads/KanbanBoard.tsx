@@ -86,10 +86,7 @@ export function KanbanBoard({
       };
     });
 
-    try {
-      await changeLeadStatusAction(id, targetStatus);
-    } catch {
-      // Revert optimistic update
+    const revert = (description?: string) => {
       setStages((prev) => {
         if (!movedCard) return prev;
         const targetData = (prev[targetStatus]?.data || []).filter((c) => c.id !== id);
@@ -100,7 +97,14 @@ export function KanbanBoard({
           [targetStatus]: { ...prev[targetStatus], data: targetData, total: Math.max((prev[targetStatus]?.total || 1) - 1, 0) },
         };
       });
-      toast({ variant: "destructive", title: "Could not move lead" });
+      toast({ variant: "destructive", title: "Could not move lead", description });
+    };
+
+    try {
+      const res = await changeLeadStatusAction(id, targetStatus);
+      if (!res.ok) revert(res.message);
+    } catch {
+      revert("We couldn't reach the server. Please try again.");
     }
   }
 

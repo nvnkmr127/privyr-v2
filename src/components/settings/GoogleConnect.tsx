@@ -13,11 +13,15 @@ export function GoogleConnect({ connected, configured }: { connected: boolean; c
 
   async function disconnect() {
     try {
-      await disconnectGoogleAction();
+      const res = await disconnectGoogleAction();
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Could not disconnect", description: res.message });
+        return;
+      }
       setConnected(false);
       toast({ title: "Google Calendar disconnected" });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Could not disconnect", description: e?.message });
+    } catch {
+      toast({ variant: "destructive", title: "Could not disconnect", description: "We couldn't reach the server. Please try again." });
     }
   }
 

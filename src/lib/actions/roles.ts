@@ -5,6 +5,7 @@ import { RoleService } from "@/domains/roles/service";
 import { AuditService } from "@/domains/audit/service";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { ok, fail, actionFail } from "@/lib/actions/result";
 
 export async function listRolesAction() {
   const { organizationId } = await requireOrg();
@@ -18,23 +19,37 @@ const roleSchema = z.object({
 
 export async function createRoleAction(input: z.infer<typeof roleSchema>) {
   const { organizationId, userId } = await requirePermission("roles.manage");
-  const data = roleSchema.parse(input);
-  const role = await RoleService.create(organizationId, data.name, data.permissions);
-  await AuditService.log({ organizationId, userId, action: "role.create", entityType: "role", entityId: role?.id, metadata: { name: data.name } });
-  revalidatePath("/settings/users");
-  return role;
+  const parsed = roleSchema.safeParse(input);
+  if (!parsed.success) return fail("VALIDATION", "Please enter a role name.");
+  try {
+    const role = await RoleService.create(organizationId, parsed.data.name, parsed.data.permissions);
+    await AuditService.log({ organizationId, userId, action: "role.create", entityType: "role", entityId: role?.id, metadata: { name: parsed.data.name } });
+    revalidatePath("/settings/users");
+    return ok(role);
+  } catch (e) {
+    return actionFail(e);
+  }
 }
 
 export async function updateRoleAction(id: string, input: Partial<z.infer<typeof roleSchema>>) {
   const { organizationId } = await requirePermission("roles.manage");
-  const role = await RoleService.update(organizationId, id, input);
-  revalidatePath("/settings/users");
-  return role;
+  try {
+    const role = await RoleService.update(organizationId, id, input);
+    revalidatePath("/settings/users");
+    return ok(role);
+  } catch (e) {
+    return actionFail(e);
+  }
 }
 
 export async function deleteRoleAction(id: string) {
   const { organizationId, userId } = await requirePermission("roles.manage");
-  await RoleService.remove(organizationId, id);
-  await AuditService.log({ organizationId, userId, action: "role.delete", entityType: "role", entityId: id });
-  revalidatePath("/settings/users");
+  try {
+    await RoleService.remove(organizationId, id);
+    await AuditService.log({ organizationId, userId, action: "role.delete", entityType: "role", entityId: id });
+    revalidatePath("/settings/users");
+    return ok({ deleted: true });
+  } catch (e) {
+    return actionFail(e);
+  }
 }

@@ -37,19 +37,23 @@ export function ShareContentCard({
     if (!title.trim() || (!url.trim() && !message.trim())) return;
     setBusy(true);
     try {
-      const share = await createShareAction({
+      const res = await createShareAction({
         leadId,
         title: title.trim(),
         targetUrl: url.trim() || undefined,
         bodyText: message.trim() || undefined,
       });
-      setShares((s) => [share, ...s]);
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Couldn't create link", description: res.message });
+        return;
+      }
+      setShares((s) => [res.data, ...s]);
       setTitle("");
       setUrl("");
       setMessage("");
       toast({ title: "Trackable page created", description: "Share it — you'll be alerted when it's opened." });
-    } catch (err) {
-      toast({ variant: "destructive", title: "Couldn't create link", description: (err as Error).message });
+    } catch {
+      toast({ variant: "destructive", title: "Couldn't create link", description: "We couldn't reach the server. Please try again." });
     } finally {
       setBusy(false);
     }

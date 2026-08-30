@@ -9,6 +9,7 @@ import { revalidatePath } from "next/cache";
 import { UserService } from "@/domains/users/service";
 import { AuditService } from "@/domains/audit/service";
 import { PlanService } from "@/domains/billing/planService";
+import { ok, fail, actionFail, zodFieldErrors } from "@/lib/actions/result";
 
 // Active users of the caller's org for owner/assignee pickers. Returns a display name, not the raw record.
 export async function listUsersAction() {
@@ -40,47 +41,71 @@ const createUserSchema = z.object({
 
 export async function createUserAction(input: z.infer<typeof createUserSchema>) {
   const { organizationId, userId } = await requirePermission("users.manage");
-  const data = createUserSchema.parse(input);
-  await PlanService.assertCanAddSeat(organizationId);
+  const parsed = createUserSchema.safeParse(input);
+  if (!parsed.success) {
+    return fail("VALIDATION", "Please provide a valid email and a password of at least 6 characters.", zodFieldErrors(parsed.error));
+  }
+  const data = parsed.data;
   try {
+    await PlanService.assertCanAddSeat(organizationId);
     const user = await UserService.create(organizationId, data);
     await AuditService.log({ organizationId, userId, action: "user.create", entityType: "user", entityId: user.id, metadata: { email: data.email } });
     revalidatePath("/settings/users");
-    return user;
+    return ok(user);
   } catch (e: any) {
     // Unique violation on email.
     if (String(e?.message || e).includes("duplicate") || e?.code === "23505") {
-      throw new Error("A user with that email already exists");
+      return fail("CONFLICT", "A user with that email already exists.", { email: "This email is already in use." });
     }
-    throw e;
+    return actionFail(e);
   }
 }
 
 export async function setUserActiveAction(id: string, isActive: boolean) {
   const { organizationId, userId } = await requirePermission("users.manage");
-  if (id === userId && !isActive) throw new Error("You cannot deactivate your own account");
-  await UserService.setActive(organizationId, id, isActive);
-  revalidatePath("/settings/users");
+  if (id === userId && !isActive) return fail("VALIDATION", "You can't deactivate your own account.");
+  try {
+    await UserService.setActive(organizationId, id, isActive);
+    revalidatePath("/settings/users");
+    return ok({ id, isActive });
+  } catch (e) {
+    return actionFail(e);
+  }
 }
 
 export async function setUserTeamAction(id: string, teamId: string | null) {
   const { organizationId } = await requirePermission("users.manage");
-  await UserService.setTeam(organizationId, id, teamId);
-  revalidatePath("/settings/users");
+  try {
+    await UserService.setTeam(organizationId, id, teamId);
+    revalidatePath("/settings/users");
+    return ok({ id, teamId });
+  } catch (e) {
+    return actionFail(e);
+  }
 }
 
 export async function setUserRoleAction(id: string, roleId: string | null) {
   const { organizationId, userId } = await requirePermission("users.manage");
-  if (id === userId) throw new Error("You cannot change your own role");
-  await UserService.setRole(organizationId, id, roleId);
-  await AuditService.log({ organizationId, userId, action: "user.role_change", entityType: "user", entityId: id, metadata: { roleId } });
-  revalidatePath("/settings/users");
+  if (id === userId) return fail("VALIDATION", "You can't change your own role.");
+  try {
+    await UserService.setRole(organizationId, id, roleId);
+    await AuditService.log({ organizationId, userId, action: "user.role_change", entityType: "user", entityId: id, metadata: { roleId } });
+    revalidatePath("/settings/users");
+    return ok({ id, roleId });
+  } catch (e) {
+    return actionFail(e);
+  }
 }
 
 export async function deleteUserAction(id: string) {
   const { organizationId, userId } = await requirePermission("users.manage");
-  if (id === userId) throw new Error("You cannot delete your own account");
-  await UserService.remove(organizationId, id);
-  await AuditService.log({ organizationId, userId, action: "user.delete", entityType: "user", entityId: id });
-  revalidatePath("/settings/users");
+  if (id === userId) return fail("VALIDATION", "You can't delete your own account.");
+  try {
+    await UserService.remove(organizationId, id);
+    await AuditService.log({ organizationId, userId, action: "user.delete", entityType: "user", entityId: id });
+    revalidatePath("/settings/users");
+    return ok({ id });
+  } catch (e) {
+    return actionFail(e);
+  }
 }

@@ -1,4 +1,19 @@
-import { pgTable, uuid, varchar, text, timestamp, jsonb, integer } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, timestamp, jsonb, integer, index } from 'drizzle-orm/pg-core';
+import { organizations } from './organizations';
+
+// Outbound webhook endpoints registered per org. On subscribed lead events we POST a signed
+// JSON payload to `url`; failures retry with backoff and land in the DLQ.
+export const webhookEndpoints = pgTable('webhook_endpoints', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id').references(() => organizations.id).notNull(),
+  url: varchar('url', { length: 2048 }).notNull(),
+  secret: varchar('secret', { length: 255 }).notNull(),
+  events: jsonb('events').$type<string[]>().default([]).notNull(),
+  isActive: integer('is_active').default(1).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (t) => ({
+  orgIdx: index('webhook_endpoints_org_idx').on(t.organizationId),
+}));
 
 export const integrations = pgTable('integrations', {
   id: uuid('id').defaultRandom().primaryKey(),

@@ -26,15 +26,26 @@ export function DeleteLeadButton({ leadId, leadName }: { leadId: string; leadNam
   async function handleConfirmDelete() {
     setBusy(true);
     try {
-      await deleteLeadAction(leadId);
+      const res = await deleteLeadAction(leadId);
+      if (!res.ok) {
+        toast({
+          variant: "destructive",
+          title: "Unable to delete lead",
+          description: res.code === "FORBIDDEN"
+            ? "You don't have permission to delete leads. Contact an admin."
+            : res.message,
+        });
+        setBusy(false);
+        return;
+      }
       toast({ title: "Moved to recycle bin", description: "This lead can be restored at any time within 30 days." });
       setOpen(false);
       router.push("/leads");
-    } catch (err: any) {
+    } catch {
       toast({
         variant: "destructive",
         title: "Unable to delete lead",
-        description: err?.message || "You may not have sufficient permissions or a network error occurred.",
+        description: "We couldn't reach the server. Check your connection and try again.",
       });
       setBusy(false);
     }

@@ -30,12 +30,15 @@ export function AutomationBuilder({ initialData = null, automationId }: { initia
         actions: [{ type: actionType, config: JSON.parse(actionConfigStr) }],
       };
 
-      if (automationId) await updateAutomation(automationId, data);
-      else await createAutomation(data);
+      const res = automationId ? await updateAutomation(automationId, data) : await createAutomation(data);
+      if (!res.ok) {
+        alert(res.message);
+        return;
+      }
       router.push("/automations");
     } catch (e) {
       console.error(e);
-      alert("Failed to save automation");
+      alert("We couldn't reach the server. Please try again.");
     } finally {
       setLoading(false);
     }

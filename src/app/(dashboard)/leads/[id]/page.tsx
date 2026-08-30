@@ -5,6 +5,7 @@ import Link from "next/link";
 import { LeadService } from "@/domains/leads/service";
 import { NextBestActionService } from "@/domains/leads/nextBestActionService";
 import { ShareContentCard } from "@/components/leads/ShareContentCard";
+import { ReengagementPlanCard } from "@/components/leads/ReengagementPlanCard";
 import { listSharesAction } from "@/lib/actions/sharedContent";
 import { requireOrg } from "@/lib/rbac";
 import { ActivityService } from "@/domains/activities/service";
@@ -165,6 +166,9 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
 
           {/* Share & track content — read receipts on what you send */}
           <ShareContentCard leadId={lead.id} leadPhone={lead.phone} initialShares={shares} />
+
+          {/* Re-engagement cadence — only shows for cold leads */}
+          <ReengagementPlanCard leadId={lead.id} organizationId={organizationId} />
 
           {/* Quick Controls Card */}
           <div className="rounded-2xl border border-border p-5 bg-card space-y-4">

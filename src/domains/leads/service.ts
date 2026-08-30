@@ -56,17 +56,26 @@ export class LeadService {
       if (existing) throw new Error("Duplicate lead found with the same email or phone");
     }
 
-    const [newLead] = await db.insert(leads).values({
-      organizationId,
-      name: data.name,
-      email: data.email,
-      phone: data.phone,
-      company: data.company,
-      ownerId: data.ownerId || createdById || null,
-      teamId: data.teamId,
-      customData: data.customData ?? {},
-      status: "new",
-    }).returning();
+    let newLead;
+    try {
+      [newLead] = await db.insert(leads).values({
+        organizationId,
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        company: data.company,
+        ownerId: data.ownerId || createdById || null,
+        teamId: data.teamId,
+        customData: data.customData ?? {},
+        status: "new",
+      }).returning();
+    } catch (e: any) {
+      // The pre-check above is racy; the partial unique indexes (leads_org_email_unique /
+      // leads_org_phone_unique) are the real guard. Translate the constraint violation
+      // into the same duplicate message so concurrent inserts fail cleanly.
+      if (e?.code === "23505") throw new Error("Duplicate lead found with the same email or phone");
+      throw e;
+    }
 
     eventBus.emit('lead.created', { leadId: newLead.id, userId: createdById ?? undefined });
     return newLead;

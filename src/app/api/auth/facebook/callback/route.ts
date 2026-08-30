@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 import { MetaTokenRefreshService } from "@/domains/leads/metaTokenRefreshService";
+import { LeadSourceService } from "@/domains/leads/sourceService";
 
 export async function GET(req: NextRequest) {
   const searchParams = req.nextUrl.searchParams;
@@ -17,29 +20,42 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(new URL("/settings/integrations?error=missing_code", req.url));
   }
 
+  // Honest gate: without real Meta app credentials we cannot connect a Page. Don't fake it.
+  if (!MetaTokenRefreshService.isConfigured()) {
+    console.warn("[META_OAUTH_CALLBACK] Facebook integration not configured — set FACEBOOK_APP_ID / FACEBOOK_APP_SECRET");
+    return NextResponse.redirect(new URL("/settings/integrations?error=facebook_not_configured", req.url));
+  }
+
   try {
-    // 1. Exchange OAuth code for short-lived access token
-    // In production environment:
-    // const appId = process.env.FACEBOOK_APP_ID;
-    // const appSecret = process.env.FACEBOOK_APP_SECRET;
-    // const redirectUri = `${req.nextUrl.origin}/api/auth/facebook/callback`;
-    // const tokenRes = await fetch(`https://graph.facebook.com/v20.0/oauth/access_token?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&client_secret=${appSecret}&code=${code}`);
-    // const tokenData = await tokenRes.json();
+    const redirectUri = `${req.nextUrl.origin}/api/auth/facebook/callback`;
 
-    const mockShortLivedToken = `mock_st_${code}`;
+    // 1. Exchange OAuth code → short-lived user token.
+    const shortLived = await MetaTokenRefreshService.exchangeCodeForToken(code, redirectUri);
 
-    // 2. Exchange short-lived token for long-lived User Access Token (60 days)
-    const longLivedResult = await MetaTokenRefreshService.exchangeShortLivedToken(mockShortLivedToken);
+    // 2. Short-lived → long-lived (60-day) user token.
+    const longLivedResult = await MetaTokenRefreshService.exchangeShortLivedToken(shortLived.accessToken);
 
-    // 3. Fetch connected Meta Page access tokens
-    const mockPageId = "page_100200300";
+    // 3. Fetch the connected Page access token. `state` carries the target page/org context.
+    const pageId = searchParams.get("pageId") || state || "";
     const pageTokenResult = await MetaTokenRefreshService.fetchPageAccessToken(
       longLivedResult.accessToken,
-      mockPageId
+      pageId
     );
 
+    // Persist the connection as a lead source for the signed-in user's org so leadgen webhooks
+    // from this Page are attributed and can be pulled. Bound to the session, not the (untrusted) state.
+    const session = await getServerSession(authOptions);
+    const organizationId = session?.user?.organizationId;
+    if (organizationId) {
+      await LeadSourceService.upsertFacebookPageSource(organizationId, {
+        pageId: pageTokenResult.pageId,
+        pageAccessToken: pageTokenResult.pageAccessToken,
+        expiresAt: longLivedResult.expiresAt,
+      });
+    }
+
     console.log(
-      `[META_OAUTH_CALLBACK_SUCCESS] Connected Page ${pageTokenResult.pageId} (Org state: ${state ?? "default"})`
+      `[META_OAUTH_CALLBACK_SUCCESS] Connected Page ${pageTokenResult.pageId} (Org: ${organizationId ?? "none"})`
     );
 
     // Construct fallback redirect URL

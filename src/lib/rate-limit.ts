@@ -7,23 +7,31 @@ export class RateLimiter {
   static async checkLimit(key: string, limit: number, windowSeconds: number): Promise<{ success: boolean; limit: number; remaining: number; reset: number }> {
     const currentWindow = Math.floor(Date.now() / 1000 / windowSeconds);
     const redisKey = `ratelimit:${key}:${currentWindow}`;
-
-    // Increment the count for the current window
-    const count = await redis.incr(redisKey);
-    
-    // Set expiration on the key if it's the first increment
-    if (count === 1) {
-      await redis.expire(redisKey, windowSeconds);
-    }
-
-    const remaining = Math.max(0, limit - count);
     const resetTime = (currentWindow + 1) * windowSeconds * 1000;
 
-    return {
-      success: count <= limit,
-      limit,
-      remaining,
-      reset: resetTime,
-    };
+    try {
+      // Increment the count for the current window
+      const count = await redis.incr(redisKey);
+
+      // Set expiration on the key if it's the first increment
+      if (count === 1) {
+        await redis.expire(redisKey, windowSeconds);
+      }
+
+      return {
+        success: count <= limit,
+        limit,
+        remaining: Math.max(0, limit - count),
+        reset: resetTime,
+      };
+    } catch (e) {
+      // Redis unreachable — FAIL OPEN. Rate limiting is a safeguard, not a hard
+      // dependency; letting a cache outage block login/webhooks would be worse than
+      // briefly not throttling. The connection error is already logged by ioredis.
+      // ponytail: fail-open counter; add a fallback in-memory limiter if abuse during
+      // Redis outages becomes a real problem.
+      console.error("[rate-limit] check failed, allowing request", e);
+      return { success: true, limit, remaining: limit, reset: resetTime };
+    }
   }
 }

@@ -19,13 +19,11 @@ vi.mock("@/db", () => ({
 }));
 
 describe("End-to-End Facebook Integration Pipeline", () => {
-  it("1. Connects Facebook OAuth & resolves long-lived page token for tenant", async () => {
-    const longLived = await MetaTokenRefreshService.exchangeShortLivedToken("short_oauth_code_123");
-    expect(longLived.accessToken).toContain("long_lived");
-
-    const pageToken = await MetaTokenRefreshService.fetchPageAccessToken(longLived.accessToken, "fb_page_888");
-    expect(pageToken.pageId).toBe("fb_page_888");
-    expect(pageToken.pageAccessToken).toBe("EAAK_page_fb_page_888_token");
+  it("1. Facebook OAuth fails honestly (no fabricated tokens) when the app isn't configured", async () => {
+    delete process.env.FACEBOOK_APP_ID;
+    delete process.env.FACEBOOK_APP_SECRET;
+    expect(MetaTokenRefreshService.isConfigured()).toBe(false);
+    await expect(MetaTokenRefreshService.exchangeShortLivedToken("short_oauth_code_123")).rejects.toThrow(/not configured/i);
   });
 
   it("2. Maps Facebook leadgen payload to standard Privyr v2 lead structure", () => {

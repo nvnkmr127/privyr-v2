@@ -10,56 +10,84 @@ export interface MetaPageTokenResult {
   pageAccessToken: string;
 }
 
+const GRAPH = "https://graph.facebook.com/v20.0";
+
+function appId(): string {
+  return process.env.FACEBOOK_APP_ID || "";
+}
+function appSecret(): string {
+  return process.env.FACEBOOK_APP_SECRET || "";
+}
+
+// Real Meta credentials present? The old "mock_app_id"/"mock_app_secret" fallbacks are treated
+// as unconfigured so the flow fails honestly instead of fabricating tokens.
+function isConfigured(): boolean {
+  const id = appId();
+  const secret = appSecret();
+  return Boolean(id && secret && id !== "mock_app_id" && secret !== "mock_app_secret");
+}
+
+async function graphGet(url: string): Promise<any> {
+  const res = await fetch(url);
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const msg = json?.error?.message || `Meta Graph API error (${res.status})`;
+    throw new Error(msg);
+  }
+  return json;
+}
+
+function toResult(json: { access_token?: string; token_type?: string; expires_in?: number }): MetaTokenExchangeResult {
+  if (!json.access_token) throw new Error("Meta did not return an access token");
+  const expiresInSeconds = json.expires_in ?? 5184000; // Meta omits expires_in for some long-lived tokens
+  return {
+    accessToken: json.access_token,
+    tokenType: json.token_type || "bearer",
+    expiresInSeconds,
+    expiresAt: new Date(Date.now() + expiresInSeconds * 1000),
+  };
+}
+
 export class MetaTokenRefreshService {
-  /**
-   * Exchanges a short-lived Meta user access token (valid 1-2 hours) for a long-lived access token (valid 60 days).
-   */
-  static async exchangeShortLivedToken(
-    shortLivedToken: string,
-    appId: string = process.env.FACEBOOK_APP_ID || "mock_app_id",
-    appSecret: string = process.env.FACEBOOK_APP_SECRET || "mock_app_secret"
-  ): Promise<MetaTokenExchangeResult> {
+  static isConfigured = isConfigured;
+
+  /** Exchanges an OAuth authorization `code` (from the redirect) for a short-lived user token. */
+  static async exchangeCodeForToken(code: string, redirectUri: string): Promise<MetaTokenExchangeResult> {
+    if (!isConfigured()) throw new Error("Facebook integration is not configured");
+    if (!code) throw new Error("Authorization code is required");
+    const url =
+      `${GRAPH}/oauth/access_token?client_id=${encodeURIComponent(appId())}` +
+      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+      `&client_secret=${encodeURIComponent(appSecret())}` +
+      `&code=${encodeURIComponent(code)}`;
+    return toResult(await graphGet(url));
+  }
+
+  /** Exchanges a short-lived user token for a long-lived (~60-day) token. */
+  static async exchangeShortLivedToken(shortLivedToken: string): Promise<MetaTokenExchangeResult> {
+    if (!isConfigured()) throw new Error("Facebook integration is not configured");
     if (!shortLivedToken) throw new Error("Short-lived access token is required");
-
-    const endpointUrl = `https://graph.facebook.com/v20.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${appId}&client_secret=${appSecret}&fb_exchange_token=${shortLivedToken}`;
-    void endpointUrl;
-
-    const expiresInSeconds = 5184000; // 60 days
-    const expiresAt = new Date(Date.now() + expiresInSeconds * 1000);
-
-    return {
-      accessToken: `EAAG_${shortLivedToken.slice(-10)}_long_lived`,
-      tokenType: "bearer",
-      expiresInSeconds,
-      expiresAt,
-    };
+    const url =
+      `${GRAPH}/oauth/access_token?grant_type=fb_exchange_token` +
+      `&client_id=${encodeURIComponent(appId())}` +
+      `&client_secret=${encodeURIComponent(appSecret())}` +
+      `&fb_exchange_token=${encodeURIComponent(shortLivedToken)}`;
+    return toResult(await graphGet(url));
   }
 
-  /**
-   * Fetches a permanent Page Access Token using a long-lived Meta User Access Token.
-   */
-  static async fetchPageAccessToken(
-    longLivedUserToken: string,
-    pageId: string
-  ): Promise<MetaPageTokenResult> {
+  /** Fetches a (long-lived) Page Access Token using a long-lived user token. */
+  static async fetchPageAccessToken(longLivedUserToken: string, pageId: string): Promise<MetaPageTokenResult> {
+    if (!isConfigured()) throw new Error("Facebook integration is not configured");
     if (!longLivedUserToken || !pageId) throw new Error("Long-lived token and pageId are required");
-
-    // In production environment:
-    // const url = `https://graph.facebook.com/v20.0/${pageId}?fields=access_token&access_token=${longLivedUserToken}`;
-    // const res = await fetch(url);
-
-    return {
-      pageId,
-      pageAccessToken: `EAAK_page_${pageId}_token`,
-    };
+    const url = `${GRAPH}/${encodeURIComponent(pageId)}?fields=access_token&access_token=${encodeURIComponent(longLivedUserToken)}`;
+    const json = await graphGet(url);
+    if (!json.access_token) throw new Error("Meta did not return a Page access token");
+    return { pageId, pageAccessToken: json.access_token };
   }
 
-  /**
-   * Checks if a Meta OAuth access token is within the refresh warning buffer threshold (e.g. < 7 days remaining).
-   */
+  /** True if the token is within the refresh-warning buffer (e.g. < 7 days remaining). */
   static isTokenExpiringSoon(expiresAt: Date, bufferDays: number = 7): boolean {
-    const now = Date.now();
     const bufferMs = bufferDays * 24 * 60 * 60 * 1000;
-    return expiresAt.getTime() - now <= bufferMs;
+    return expiresAt.getTime() - Date.now() <= bufferMs;
   }
 }

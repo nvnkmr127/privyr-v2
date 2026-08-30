@@ -5,6 +5,7 @@ import { DedupService } from "@/domains/leads/dedupService";
 import { AuditService } from "@/domains/audit/service";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { ok, fail, actionFail } from "@/lib/actions/result";
 
 export async function findDuplicatesAction() {
   const { organizationId } = await requireOrg();
@@ -15,11 +16,18 @@ const mergeSchema = z.object({ primaryId: z.string().uuid(), duplicateId: z.stri
 
 export async function mergeLeadsAction(input: z.infer<typeof mergeSchema>) {
   const { organizationId, userId } = await requirePermission("leads.merge");
-  const { primaryId, duplicateId } = mergeSchema.parse(input);
-  await DedupService.merge(organizationId, primaryId, duplicateId);
-  await AuditService.log({
-    organizationId, userId, action: "lead.merge", entityType: "lead", entityId: primaryId, metadata: { duplicateId },
-  });
-  revalidatePath("/leads");
-  revalidatePath("/leads/duplicates");
+  const parsed = mergeSchema.safeParse(input);
+  if (!parsed.success) return fail("VALIDATION", "Select a primary and a duplicate lead to merge.");
+  const { primaryId, duplicateId } = parsed.data;
+  try {
+    await DedupService.merge(organizationId, primaryId, duplicateId);
+    await AuditService.log({
+      organizationId, userId, action: "lead.merge", entityType: "lead", entityId: primaryId, metadata: { duplicateId },
+    });
+    revalidatePath("/leads");
+    revalidatePath("/leads/duplicates");
+    return ok({ merged: true });
+  } catch (e) {
+    return actionFail(e);
+  }
 }

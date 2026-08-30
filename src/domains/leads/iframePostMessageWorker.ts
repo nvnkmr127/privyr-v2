@@ -1,13 +1,17 @@
-import { UniversalLeadMappingService } from "@/domains/leads/universalLeadMappingService";
+import { db } from "@/db";
+import { webhookEvents } from "@/db/schema";
+import { ingestionQueue } from "@/lib/jobs/workers/ingestionWorker";
 
 export interface IframeMessagePayload {
   type: string;
   tenantId?: string;
+  sourceId?: string;
   source?: string;
   data: {
     name?: string;
     email?: string;
     phone?: string;
+    sourceId?: string;
     budget?: string | number;
     [key: string]: any;
   };
@@ -15,7 +19,7 @@ export interface IframeMessagePayload {
 
 export interface IframeProcessingResult {
   success: boolean;
-  leadId?: string;
+  eventId?: string;
   error?: string;
   allowedOrigin: boolean;
 }
@@ -31,15 +35,17 @@ export class IframePostMessageWorker {
   }
 
   /**
-   * Processes cross-origin postMessage events sent from embedded iframe lead widgets.
+   * Processes cross-origin postMessage events from embedded iframe lead widgets. The lead is
+   * persisted through the SAME ingestion pipeline as webhooks/CSV (webhook_events → BullMQ →
+   * adapter → dedupe → lead), so it is created for real — not a stub. Requires the embed to carry
+   * its tenant + source id; a lead with no email or phone is rejected up front.
    */
   static async processIframePostMessage(
     origin: string,
     payload: IframeMessagePayload,
     allowedOrigins: string[] = ["*"]
   ): Promise<IframeProcessingResult> {
-    const isAllowed = this.isAllowedOrigin(origin, allowedOrigins);
-    if (!isAllowed) {
+    if (!this.isAllowedOrigin(origin, allowedOrigins)) {
       return { success: false, error: "Cross-origin domain not allowed", allowedOrigin: false };
     }
 
@@ -47,32 +53,43 @@ export class IframePostMessageWorker {
       return { success: false, error: "Invalid postMessage event type or payload structure", allowedOrigin: true };
     }
 
+    const organizationId = payload.tenantId;
+    const sourceId = payload.data.sourceId || payload.sourceId;
+    if (!organizationId || !sourceId) {
+      return { success: false, error: "This embed is misconfigured (missing tenant or source id).", allowedOrigin: true };
+    }
+    if (!payload.data.email && !payload.data.phone) {
+      return { success: false, error: "An email or phone number is required to capture this lead.", allowedOrigin: true };
+    }
+
     try {
-      const mappedLead = UniversalLeadMappingService.mapLeadByProvider("webhook", {
-        name: payload.data.name,
-        email: payload.data.email,
-        phone: payload.data.phone,
-        budget: payload.data.budget,
-        source: payload.source || `Embedded Iframe (${origin})`,
-        customData: {
-          ...payload.data,
-          embed_origin: origin,
-          tenant_id: payload.tenantId,
-        },
-      });
+      // Store the event and hand it to the ingestion worker (provider "generic_webhook" runs the
+      // GenericWebhookAdapter → dedupe → lead). sourceId + organizationId are folded into the payload
+      // so the worker can attribute and tenant-scope it.
+      const [event] = await db
+        .insert(webhookEvents)
+        .values({
+          provider: "generic_webhook",
+          payload: {
+            ...payload.data,
+            name: payload.data.name,
+            email: payload.data.email,
+            phone: payload.data.phone,
+            sourceId,
+            organizationId,
+            source: payload.source || `Embedded Iframe (${origin})`,
+            embed_origin: origin,
+          },
+        })
+        .returning({ id: webhookEvents.id });
 
-      const mockLeadId = `lead_iframe_${Date.now()}`;
+      await ingestionQueue.add(`ingest-${event.id}`, { webhookEventId: event.id });
 
-      return {
-        success: true,
-        leadId: mockLeadId,
-        allowedOrigin: true,
-        error: mappedLead ? undefined : "Mapping failed",
-      };
+      return { success: true, eventId: event.id, allowedOrigin: true };
     } catch (err: any) {
       return {
         success: false,
-        error: err.message || "Failed to process iframe lead submission",
+        error: err?.message || "Failed to process iframe lead submission",
         allowedOrigin: true,
       };
     }
@@ -81,11 +98,11 @@ export class IframePostMessageWorker {
   /**
    * Generates postMessage acknowledgment payload to post back to the parent iframe window.
    */
-  static createAckMessage(result: IframeProcessingResult): { type: string; status: string; leadId?: string; error?: string } {
+  static createAckMessage(result: IframeProcessingResult): { type: string; status: string; eventId?: string; error?: string } {
     return {
       type: "PRIVYR_LEAD_ACK",
       status: result.success ? "success" : "error",
-      leadId: result.leadId,
+      eventId: result.eventId,
       error: result.error,
     };
   }

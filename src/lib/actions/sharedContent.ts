@@ -4,6 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requireOrg } from "@/lib/rbac";
 import { ContentSharingService } from "@/domains/leads/contentSharingService";
+import { ok, fail, actionFail } from "@/lib/actions/result";
 
 const createSchema = z.object({
   leadId: z.string().uuid(),
@@ -15,37 +16,45 @@ const createSchema = z.object({
 
 export async function createShareAction(data: unknown) {
   const { organizationId, userId } = await requireOrg();
-  const { leadId, title, targetUrl, bodyText, imageUrl } = createSchema.parse(data);
+  const parsed = createSchema.safeParse(data);
+  if (!parsed.success) {
+    return fail("VALIDATION", "Please provide a title for what you're sharing.");
+  }
+  const { leadId, title, targetUrl, bodyText, imageUrl } = parsed.data;
 
   const body = bodyText?.trim() || undefined;
   const link = targetUrl?.trim() || undefined;
   const image = imageUrl?.trim() || undefined;
 
-  if (!link && !body) throw new Error("Add a link or a message to share.");
+  if (!link && !body) return fail("VALIDATION", "Add a link or a message to share.");
 
   // http(s) links only — blocks javascript:/data: open-redirects on the public page.
   let normalizedLink: string | null = null;
   if (link) {
     normalizedLink = ContentSharingService.normalizeUrl(link);
-    if (!normalizedLink) throw new Error("Enter a valid web link (http:// or https://).");
+    if (!normalizedLink) return fail("VALIDATION", "Enter a valid web link (http:// or https://).", { targetUrl: "Must be a valid http(s) link." });
   }
   let normalizedImage: string | null = null;
   if (image) {
     normalizedImage = ContentSharingService.normalizeUrl(image);
-    if (!normalizedImage) throw new Error("Enter a valid image URL (http:// or https://).");
+    if (!normalizedImage) return fail("VALIDATION", "Enter a valid image URL (http:// or https://).", { imageUrl: "Must be a valid http(s) link." });
   }
 
-  const share = await ContentSharingService.createShare({
-    organizationId,
-    leadId,
-    ownerId: userId,
-    title,
-    targetUrl: normalizedLink,
-    bodyText: body ?? null,
-    imageUrl: normalizedImage,
-  });
-  revalidatePath(`/leads/${leadId}`);
-  return share;
+  try {
+    const share = await ContentSharingService.createShare({
+      organizationId,
+      leadId,
+      ownerId: userId,
+      title,
+      targetUrl: normalizedLink,
+      bodyText: body ?? null,
+      imageUrl: normalizedImage,
+    });
+    revalidatePath(`/leads/${leadId}`);
+    return ok(share);
+  } catch (e) {
+    return actionFail(e);
+  }
 }
 
 export async function listSharesAction(leadId: string) {

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requireOrg } from "@/lib/rbac";
 import { ActivityService } from "@/domains/activities/service";
+import { ok, fail, actionFail } from "@/lib/actions/result";
 
 const schema = z.object({
   leadIds: z.array(z.string().uuid()).min(1).max(500),
@@ -15,25 +16,34 @@ const schema = z.object({
 // auto-send isn't possible, so failures fall back to a logged nudge on each lead's timeline.
 export async function sendCampaignAction(input: unknown) {
   const { organizationId, userId } = await requireOrg();
-  const { leadIds, body } = schema.parse(input);
-  const { WhatsAppService } = await import("@/lib/messaging/whatsapp/service");
-
-  let sent = 0;
-  let failed = 0;
-  for (const leadId of leadIds) {
-    try {
-      await WhatsAppService.send({ leadId, body, userId });
-      sent++;
-    } catch {
-      failed++;
-      await ActivityService.addActivity({
-        leadId,
-        userId,
-        type: "note",
-        content: `Campaign message queued for manual send: ${body.slice(0, 160)}`,
-      });
-    }
+  const parsed = schema.safeParse(input);
+  if (!parsed.success) {
+    return fail("VALIDATION", "Select up to 500 leads and enter a message (max 2,000 characters).");
   }
-  revalidatePath("/leads");
-  return { sent, failed, total: leadIds.length };
+  const { leadIds, body } = parsed.data;
+
+  try {
+    const { WhatsAppService } = await import("@/lib/messaging/whatsapp/service");
+
+    let sent = 0;
+    let failed = 0;
+    for (const leadId of leadIds) {
+      try {
+        await WhatsAppService.send({ leadId, body, userId });
+        sent++;
+      } catch {
+        failed++;
+        await ActivityService.addActivity({
+          leadId,
+          userId,
+          type: "note",
+          content: `Campaign message queued for manual send: ${body.slice(0, 160)}`,
+        });
+      }
+    }
+    revalidatePath("/leads");
+    return ok({ sent, failed, total: leadIds.length });
+  } catch (e) {
+    return actionFail(e);
+  }
 }

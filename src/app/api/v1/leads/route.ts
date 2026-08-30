@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/db";
 import { leads } from "@/db/schema";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull, ilike, or, sql } from "drizzle-orm";
 import { LeadService } from "@/domains/leads/service";
 import { CustomFieldService } from "@/domains/customFields/service";
 import { PlanService } from "@/domains/billing/planService";
@@ -14,7 +14,23 @@ export async function GET(req: NextRequest) {
   const auth = await authorize(req);
   if ("error" in auth) return auth.error;
 
-  const limit = Math.min(Number(new URL(req.url).searchParams.get("limit")) || 50, 200);
+  const sp = new URL(req.url).searchParams;
+  const limit = Math.min(Number(sp.get("limit")) || 50, 200);
+  const search = (sp.get("search") || "").trim();
+  const status = (sp.get("status") || "").trim();
+
+  const where = [eq(leads.organizationId, auth.organizationId), isNull(leads.deletedAt)];
+  if (status) where.push(eq(leads.status, status));
+  if (search) {
+    // Match name/email/company (case-insensitive) or phone digits, so mobile can search the
+    // whole org, not just the first page it happened to load.
+    const like = `%${search}%`;
+    const phoneDigits = search.replace(/\D/g, "");
+    const conds = [ilike(leads.name, like), ilike(leads.email, like), ilike(leads.company, like)];
+    if (phoneDigits) conds.push(sql`regexp_replace(${leads.phone}, '\\D', '', 'g') ILIKE ${`%${phoneDigits}%`}`);
+    where.push(or(...conds)!);
+  }
+
   const rows = await db
     .select({
       id: leads.id,
@@ -26,7 +42,7 @@ export async function GET(req: NextRequest) {
       createdAt: leads.createdAt,
     })
     .from(leads)
-    .where(and(eq(leads.organizationId, auth.organizationId), isNull(leads.deletedAt)))
+    .where(and(...where))
     .orderBy(desc(leads.createdAt))
     .limit(limit);
 
@@ -67,13 +83,20 @@ export async function POST(req: NextRequest) {
     );
     return NextResponse.json({ data: lead }, { status: 201 });
   } catch (e: any) {
-    const msg = e?.message || "Could not create lead";
-    if (msg.toLowerCase().includes("limit") || msg.toLowerCase().includes("plan")) {
+    // Only surface intentional business messages; never echo raw exception/DB text.
+    const msg = e?.message || "";
+    const m = msg.toLowerCase();
+    if (m.includes("limit") || m.includes("plan")) {
       return NextResponse.json({ error: msg }, { status: 402 });
     }
-    if (msg.toLowerCase().includes("required") || msg.toLowerCase().includes("invalid")) {
+    if (e?.code === "23505" || m.includes("duplicate")) {
+      return NextResponse.json({ error: "A lead with this email or phone already exists." }, { status: 409 });
+    }
+    if (m.includes("required") || m.includes("invalid")) {
       return NextResponse.json({ error: msg }, { status: 422 });
     }
-    return NextResponse.json({ error: msg }, { status: 500 });
+    const { logError } = await import("@/lib/log");
+    const ref = logError("api/v1/leads POST", e);
+    return NextResponse.json({ error: "Could not create lead. Please try again.", ref }, { status: 500 });
   }
 }

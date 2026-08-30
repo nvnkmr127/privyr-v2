@@ -29,20 +29,43 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     .where(eq(followUps.leadId, id))
     .orderBy(asc(followUps.dueAt));
 
+  const { TagService } = await import("@/domains/tags/service");
+  const tags = await TagService.getForLead(id);
+
   return NextResponse.json({
     data: {
       lead,
       activities: activities.map((a) => ({ id: a.id, type: a.type, content: a.content, createdAt: a.createdAt })),
       followUps: fus,
+      tags,
     },
   });
 }
 
 const patchSchema = z
-  .object({ status: z.string().min(1).optional(), ownerId: z.string().uuid().nullable().optional() })
-  .refine((v) => v.status !== undefined || v.ownerId !== undefined, { message: "Provide status or ownerId" });
+  .object({
+    status: z.string().min(1).optional(),
+    ownerId: z.string().uuid().nullable().optional(),
+    // Contact-field edits (used by the mobile "Edit lead" screen).
+    name: z.string().min(1).max(255).optional(),
+    email: z.string().email().optional().or(z.literal("")),
+    phone: z.string().max(50).optional().or(z.literal("")),
+    company: z.string().max(255).optional().or(z.literal("")),
+    customData: z.record(z.string(), z.unknown()).optional(),
+  })
+  .refine(
+    (v) =>
+      v.status !== undefined ||
+      v.ownerId !== undefined ||
+      v.name !== undefined ||
+      v.email !== undefined ||
+      v.phone !== undefined ||
+      v.company !== undefined ||
+      v.customData !== undefined,
+    { message: "Provide at least one field to update" },
+  );
 
-// Update a lead: change status and/or (re)assign its owner.
+// Update a lead: edit contact fields, change status, and/or (re)assign its owner.
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authorizeApiRequest(req);
   if ("error" in auth) return auth.error;
@@ -57,6 +80,34 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!parsed.success) return NextResponse.json({ error: "Invalid body", details: parsed.error.issues }, { status: 422 });
 
   try {
+    const { name, email, phone, company } = parsed.data;
+    if (name !== undefined || email !== undefined || phone !== undefined || company !== undefined) {
+      const updated = await LeadService.updateLead(
+        id,
+        {
+          ...(name !== undefined ? { name } : {}),
+          ...(email !== undefined ? { email: email || undefined } : {}),
+          ...(phone !== undefined ? { phone: phone || undefined } : {}),
+          ...(company !== undefined ? { company: company || undefined } : {}),
+        },
+        auth.userId ?? "",
+        auth.organizationId,
+      );
+      if (!updated) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+    }
+    if (parsed.data.customData !== undefined) {
+      const current = await LeadService.getLead(id, auth.organizationId);
+      if (!current) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+      const { CustomFieldService } = await import("@/domains/customFields/service");
+      const merged = { ...((current.customData as Record<string, unknown>) ?? {}), ...parsed.data.customData };
+      let clean: Record<string, unknown>;
+      try {
+        clean = await CustomFieldService.validate(auth.organizationId, merged);
+      } catch (e: any) {
+        return NextResponse.json({ error: e?.message || "Invalid custom field value" }, { status: 422 });
+      }
+      await LeadService.updateCustomData(id, clean, auth.organizationId);
+    }
     if (parsed.data.ownerId !== undefined) {
       const { AssignmentService } = await import("@/domains/leads/assignmentService");
       await AssignmentService.assignLead({
@@ -73,7 +124,30 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const lead = await LeadService.getLead(id, auth.organizationId);
     if (!lead) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     return NextResponse.json({ data: lead });
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message ?? "Could not update lead" }, { status: 400 });
+  } catch (e) {
+    const { logError } = await import("@/lib/log");
+    const ref = logError("api/v1/leads/[id] PATCH", e, { leadId: id });
+    return NextResponse.json({ error: "Could not update lead. Please try again.", ref }, { status: 500 });
+  }
+}
+
+// Soft-delete a lead to the recycle bin (recoverable for 30 days in the web app).
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await authorizeApiRequest(req);
+  if ("error" in auth) return auth.error;
+  const { id } = await params;
+
+  if (!idSchema.safeParse(id).success) {
+    return NextResponse.json({ error: "Invalid lead ID format. Expected a valid UUID." }, { status: 400 });
+  }
+
+  try {
+    const deleted = await LeadService.deleteLead(id, auth.userId ?? "", auth.organizationId);
+    if (!deleted) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+    return NextResponse.json({ data: { deleted: true } });
+  } catch (e) {
+    const { logError } = await import("@/lib/log");
+    const ref = logError("api/v1/leads/[id] DELETE", e, { leadId: id });
+    return NextResponse.json({ error: "Could not delete lead. Please try again.", ref }, { status: 500 });
   }
 }

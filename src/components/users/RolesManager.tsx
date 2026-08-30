@@ -23,12 +23,16 @@ export function RolesManager({ initialRoles }: { initialRoles: Role[] }) {
     if (!name.trim()) return;
     setSaving(true);
     try {
-      const r = await createRoleAction({ name: name.trim(), permissions: [] });
-      setRoles((prev) => [...prev, r as Role]);
+      const res = await createRoleAction({ name: name.trim(), permissions: [] });
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Could not create role", description: res.message });
+        return;
+      }
+      setRoles((prev) => [...prev, res.data as Role]);
       setName("");
       toast({ title: "Role created" });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Could not create role", description: e?.message });
+    } catch {
+      toast({ variant: "destructive", title: "Could not create role", description: "We couldn't reach the server. Please try again." });
     } finally {
       setSaving(false);
     }
@@ -40,10 +44,14 @@ export function RolesManager({ initialRoles }: { initialRoles: Role[] }) {
       : [...role.permissions, key];
     setRoles((prev) => prev.map((r) => (r.id === role.id ? { ...r, permissions } : r)));
     try {
-      await updateRoleAction(role.id, { permissions });
-    } catch (e: any) {
+      const res = await updateRoleAction(role.id, { permissions });
+      if (!res.ok) {
+        setRoles((prev) => prev.map((r) => (r.id === role.id ? role : r)));
+        toast({ variant: "destructive", title: "Could not update permissions", description: res.message });
+      }
+    } catch {
       setRoles((prev) => prev.map((r) => (r.id === role.id ? role : r)));
-      toast({ variant: "destructive", title: "Could not update permissions", description: e?.message });
+      toast({ variant: "destructive", title: "Could not update permissions", description: "We couldn't reach the server. Please try again." });
     }
   }
 
@@ -52,11 +60,16 @@ export function RolesManager({ initialRoles }: { initialRoles: Role[] }) {
     const prev = roles;
     setRoles((p) => p.filter((r) => r.id !== role.id));
     try {
-      await deleteRoleAction(role.id);
+      const res = await deleteRoleAction(role.id);
+      if (!res.ok) {
+        setRoles(prev);
+        toast({ variant: "destructive", title: "Could not delete role", description: res.message });
+        return;
+      }
       toast({ title: "Role deleted" });
-    } catch (e: any) {
+    } catch {
       setRoles(prev);
-      toast({ variant: "destructive", title: "Could not delete role", description: e?.message });
+      toast({ variant: "destructive", title: "Could not delete role", description: "We couldn't reach the server. Please try again." });
     }
   }
 

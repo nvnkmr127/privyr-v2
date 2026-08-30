@@ -25,12 +25,17 @@ export function LeadAssignControl({ leadId, ownerId }: { leadId: string; ownerId
     setValue(next);
     setBusy(true);
     try {
-      await assignLeadAction({ leadId, ownerId: next, teamId: null });
+      const res = await assignLeadAction({ leadId, ownerId: next, teamId: null });
+      if (!res.ok) {
+        setValue(prev);
+        toast({ variant: "destructive", title: "Could not reassign", description: res.message });
+        return;
+      }
       toast({ title: "Lead reassigned" });
       router.refresh();
     } catch {
       setValue(prev);
-      toast({ variant: "destructive", title: "Could not reassign" });
+      toast({ variant: "destructive", title: "Could not reassign", description: "We couldn't reach the server. Please try again." });
     } finally {
       setBusy(false);
     }

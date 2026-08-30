@@ -48,8 +48,24 @@ async function dispatchTrigger(eventType: string, payload: EventPayload) {
 import { ActivityService } from "@/domains/activities/service";
 import { NotificationService } from "@/domains/notifications/service";
 import { LeadService } from "@/domains/leads/service";
+import { WebhookEndpointService } from "@/domains/integrations/webhookEndpointService";
 
 const isUuid = (str?: string) => !!str && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+
+// Fire an outbound webhook for a lead event to any org endpoint subscribed to it. Best-effort.
+async function fireLeadWebhook(leadId: string, event: "lead.created" | "lead.status_changed", extra: Record<string, any> = {}) {
+  const lead = await LeadService.getLeadById(leadId);
+  if (!lead?.organizationId) return;
+  await WebhookEndpointService.dispatch(lead.organizationId, event, {
+    id: lead.id,
+    name: lead.name,
+    email: lead.email,
+    phone: lead.phone,
+    company: lead.company,
+    status: lead.status,
+    ...extra,
+  });
+}
 
 // Bind events to the dispatcher and activity logger — exactly once per process, even if
 // this module is evaluated in more than one bundle.
@@ -60,6 +76,7 @@ if (!__handlerGuard.__eventHandlersBound) {
 eventBus.on('lead.created', async (p) => {
   dispatchTrigger('lead.created', p);
   await ActivityService.addActivity({ leadId: p.leadId, userId: isUuid(p.userId) ? p.userId : undefined, type: 'note', content: 'Lead was created manually.' });
+  await fireLeadWebhook(p.leadId, 'lead.created');
 });
 
 eventBus.on('lead.updated', async (p) => {
@@ -87,6 +104,7 @@ eventBus.on('lead.assigned', async (p) => {
 eventBus.on('lead.status_changed', async (p) => {
   dispatchTrigger('lead.status_changed', p);
   await ActivityService.addActivity({ leadId: p.leadId, userId: p.userId, type: 'note', content: `Status changed from ${p.oldStatus} to ${p.newStatus}.` });
+  await fireLeadWebhook(p.leadId, 'lead.status_changed', { oldStatus: p.oldStatus, newStatus: p.newStatus });
 });
 
 eventBus.on('lead.stage_changed', (p) => dispatchTrigger('lead.stage_changed', p));

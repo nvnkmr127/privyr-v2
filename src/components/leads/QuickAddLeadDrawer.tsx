@@ -71,7 +71,23 @@ export function QuickAddLeadDrawer({ children }: { children?: React.ReactNode })
       return;
     }
     try {
-      await createLeadAction({ ...values, customData: customValues });
+      const res = await createLeadAction({ ...values, customData: customValues });
+      if (!res.ok) {
+        // Map server field errors back onto the matching inputs for inline display.
+        if (res.fieldErrors) {
+          for (const [key, message] of Object.entries(res.fieldErrors)) {
+            if (key === "name" || key === "email" || key === "phone") {
+              form.setError(key, { message });
+            }
+          }
+        }
+        toast({
+          variant: "destructive",
+          title: "Unable to create lead",
+          description: res.message,
+        });
+        return;
+      }
       toast({
         title: "Lead Created",
         description: "The lead was successfully created.",
@@ -79,11 +95,12 @@ export function QuickAddLeadDrawer({ children }: { children?: React.ReactNode })
       setOpen(false);
       form.reset();
       setCustomValues({});
-    } catch (e: any) {
+    } catch {
+      // Transport-level failure (network offline, action unreachable).
       toast({
         variant: "destructive",
-        title: "Unable to create lead",
-        description: e?.message || "Please check your inputs and try again.",
+        title: "Connection problem",
+        description: "We couldn't reach the server. Check your connection and try again.",
       });
     }
   }

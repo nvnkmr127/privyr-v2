@@ -50,18 +50,23 @@ export function SequenceBuilder({ initial }: { initial?: { id: string; name: str
     }
     setSaving(true);
     try {
+      const res = initial?.id
+        ? await updateSequenceAction(initial.id, { name: name.trim(), steps: clean })
+        : await createSequenceAction({ name: name.trim(), steps: clean });
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Couldn't save", description: res.message });
+        return;
+      }
       if (initial?.id) {
-        await updateSequenceAction(initial.id, { name: name.trim(), steps: clean });
         toast({ title: "Sequence updated" });
         router.push("/sequences");
       } else {
-        await createSequenceAction({ name: name.trim(), steps: clean });
         toast({ title: "Sequence saved" });
         setName(""); setGoal(""); setSteps([{ ...BLANK }]);
         router.refresh();
       }
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Couldn't save", description: e?.message });
+    } catch {
+      toast({ variant: "destructive", title: "Couldn't save", description: "We couldn't reach the server. Please try again." });
     } finally {
       setSaving(false);
     }

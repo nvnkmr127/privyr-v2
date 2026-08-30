@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { CustomStatusSchemaService, StatusCategory } from "@/domains/leads/customStatusSchemaService";
 import { LeadStatusService, LeadStatus } from "@/domains/leads/leadStatusService";
 import { z } from "zod";
+import { ok, fail, actionFail, zodFieldErrors } from "@/lib/actions/result";
 
 const addStatusSchema = z.object({
   key: z.string().min(1).max(50),
@@ -29,21 +30,29 @@ export async function addOrUpdateStatusAction(input: {
   const { organizationId } = await requireOrg();
   const parsed = addStatusSchema.safeParse(input);
   if (!parsed.success) {
-    throw new Error("Invalid status configuration payload");
+    return fail("VALIDATION", "Please provide a key, label, color, and category for the status.", zodFieldErrors(parsed.error));
   }
 
-  const result = await CustomStatusSchemaService.addOrUpdateStatus(organizationId, parsed.data);
-  revalidatePath("/leads");
-  return result;
+  try {
+    const result = await CustomStatusSchemaService.addOrUpdateStatus(organizationId, parsed.data);
+    revalidatePath("/leads");
+    return ok(result);
+  } catch (e) {
+    return actionFail(e);
+  }
 }
 
 export async function deleteCustomStatusAction(statusKey: string) {
   const { organizationId } = await requireOrg();
-  if (!statusKey) throw new Error("Status key required");
+  if (!statusKey) return fail("VALIDATION", "No status was specified.");
 
-  const success = await CustomStatusSchemaService.deleteCustomStatus(organizationId, statusKey);
-  revalidatePath("/leads");
-  return { success };
+  try {
+    const success = await CustomStatusSchemaService.deleteCustomStatus(organizationId, statusKey);
+    revalidatePath("/leads");
+    return ok({ success });
+  } catch (e) {
+    return actionFail(e);
+  }
 }
 
 export async function bulkUpdateLeadStatusAction(leadIds: string[], newStatus: LeadStatus) {

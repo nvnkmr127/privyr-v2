@@ -6,6 +6,23 @@
 
 ---
 
+## 0. Status Corrections (2026-08-30)
+
+A later code-level review found that several items marked **COMPLETE** below were actually mocked,
+unwired, or unverified. This section is the source of truth where it conflicts with the tables below.
+
+| Item | Prior claim | Actual state (updated) |
+| :--- | :--- | :--- |
+| **Facebook/Meta OAuth, Page-token refresh, Callback** | COMPLETE | **Now real-when-configured + source-persisting.** Graph API calls are real and gated on `FACEBOOK_APP_ID`/`FACEBOOK_APP_SECRET`; unconfigured → fails honestly. The callback persists the Page connection as a lead source (`LeadSourceService.upsertFacebookPageSource`). **Still needs real Meta app credentials + live testing.** |
+| **Meta Deauthorization webhook** | COMPLETE | **Fixed.** `signed_request` HMAC signature is now actually verified (was bypassed with `void`). |
+| **Cross-Origin Iframe lead capture** | COMPLETE | **Fixed — persists** through the real ingestion pipeline (was returning a `mockLeadId`). Requires tenant + source id. |
+| **Outbound webhooks: dispatcher / retry-backoff / DLQ** | COMPLETE (×3) | **Now wired end-to-end.** Real HTTP dispatch, BullMQ retry/backoff, worker started in `instrumentation.ts`, event-bus producer on `lead.created`/`lead.status_changed`, per-org endpoint table + CRUD + settings UI at `/settings/webhooks`. DLQ is in-memory (also retained in Redis via `removeOnFail:false`). |
+| **Orphan services** | COMPLETE | `DuplicateResolutionService` **removed** (duplicated the live `DedupService`). `CapacityAssignmentService` + `FollowUpEscalationService` **surfaced on `/insights`**; `ReengagementCadenceService` **surfaced on the lead detail page** (cold leads). |
+| **Embeddable web-form widget** | implied | **Built** — public hosted form at `/f/[sourceId]` + copy-embed snippet in Lead Sources, submitting through the ingestion pipeline (rate-limited). |
+| **WhatsApp / Watxio send** | COMPLETE | Real API calls, but the wire format is assumed from the Meta-BSP pattern (`WATXIO_DOC` ×3). **Still unverified against Watxio's real API** (excluded from this pass). |
+
+---
+
 ## 1. Executive Summary
 
 Privyr V2 is a lead management platform centered strictly around **Leads** (Lead Capture → Deduplication → Assignment → Qualification → Follow-up → Automation → Messaging → Conversion). There are no Contact/Person/Organization CRM models in the core application logic.

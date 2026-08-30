@@ -19,11 +19,15 @@ export function EmailSendBox({ leadId, email }: { leadId: string; email: string 
     if (!subject.trim() || !body.trim()) return;
     setSending(true);
     try {
-      await sendEmailAction({ leadId, subject: subject.trim(), body: body.trim() });
+      const res = await sendEmailAction({ leadId, subject: subject.trim(), body: body.trim() });
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Could not send", description: res.message });
+        return;
+      }
       setSubject(""); setBody("");
       toast({ title: "Email sent", description: `Sent to ${email}` });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Could not send", description: e?.message });
+    } catch {
+      toast({ variant: "destructive", title: "Could not send", description: "We couldn't reach the server. Please try again." });
     } finally {
       setSending(false);
     }

@@ -16,6 +16,8 @@ import { ChannelAnalyticsService } from "@/domains/leads/channelAnalyticsService
 import { TeamPerformanceService } from "@/domains/leads/teamPerformanceService";
 import { ActivityDigestService } from "@/domains/leads/activityDigestService";
 import { PipelineScorecardService } from "@/domains/leads/pipelineScorecardService";
+import { CapacityAssignmentService } from "@/domains/leads/capacityAssignmentService";
+import { FollowUpEscalationService } from "@/domains/leads/followUpEscalationService";
 import { Clock, Filter, Gauge, Hourglass, Award, Layers3, Crown, MapPin, Radio, Activity, AlertOctagon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -55,6 +57,11 @@ export default async function InsightsPage() {
     ChannelAnalyticsService.getChannelMetrics(organizationId),
     TeamPerformanceService.getTeamLeaderboard(organizationId),
     ActivityDigestService.getDailyActivityDigest(organizationId),
+  ]);
+
+  const [capacities, overdue] = await Promise.all([
+    CapacityAssignmentService.getRepCapacities(organizationId),
+    FollowUpEscalationService.getOverdueFollowUps(organizationId),
   ]);
 
   const scorecard = await PipelineScorecardService.getPipelineScorecard(organizationId);
@@ -522,6 +529,78 @@ export default async function InsightsPage() {
                     <TableCell className="text-right tabular-nums">{s.winRatePercentage.toFixed(0)}%</TableCell>
                     <TableCell className="text-right tabular-nums">{money(s.totalRevenue)}</TableCell>
                     <TableCell className="text-right tabular-nums">{money(s.avgDealValue)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Rep workload & capacity */}
+      <Card className="rounded-2xl">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base"><Gauge className="h-4 w-4 text-primary" /> Rep workload &amp; capacity</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {capacities.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No active reps to show.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Rep</TableHead>
+                  <TableHead className="text-right">Active leads</TableHead>
+                  <TableHead className="text-right">Capacity</TableHead>
+                  <TableHead className="text-right">Remaining</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {capacities.map((r) => (
+                  <TableRow key={r.userId}>
+                    <TableCell>{r.email}</TableCell>
+                    <TableCell className="text-right tabular-nums">{r.activeLeadsCount}</TableCell>
+                    <TableCell className="text-right tabular-nums">{r.maxCapacity}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      <span className={r.isAvailable ? "text-emerald-500" : "text-rose-500"}>{r.capacityRemaining}</span>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Overdue follow-up escalations */}
+      <Card className="rounded-2xl">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base"><AlertOctagon className="h-4 w-4 text-rose-500" /> Overdue follow-ups ({overdue.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {overdue.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nothing overdue — every scheduled follow-up is on track.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Lead</TableHead>
+                  <TableHead>Severity</TableHead>
+                  <TableHead className="text-right">Hours overdue</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {overdue.slice(0, 25).map((o) => (
+                  <TableRow key={o.id}>
+                    <TableCell>
+                      <a href={`/leads/${o.leadId}`} className="hover:underline">{o.leadName}</a>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={
+                        o.severity === "critical" ? "text-rose-500" : o.severity === "high" ? "text-amber-500" : "text-muted-foreground"
+                      }>{o.severity}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">{Math.round(o.hoursOverdue)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

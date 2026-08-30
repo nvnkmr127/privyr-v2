@@ -9,22 +9,19 @@ interface ParsedMetaSignedRequest {
 
 function parseSignedRequest(
   signedRequest: string,
-  appSecret: string = process.env.FACEBOOK_APP_SECRET || "mock_app_secret"
+  appSecret: string = process.env.FACEBOOK_APP_SECRET || ""
 ): ParsedMetaSignedRequest | null {
   try {
+    // Not configured with a real secret → we cannot verify, so reject rather than trust it.
+    if (!appSecret || appSecret === "mock_app_secret") return null;
+
     const [encodedSig, payload] = signedRequest.split(".", 2);
     if (!encodedSig || !payload) return null;
 
-    const sig = Buffer.from(encodedSig.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("hex");
-    const expectedSig = crypto
-      .createHmac("sha256", appSecret)
-      .update(payload)
-      .digest("hex");
-
-    // In production environment:
-    // if (sig !== expectedSig) return null;
-    void sig;
-    void expectedSig;
+    // Meta signs the raw HMAC-SHA256 bytes, base64url-encoded. Verify with a constant-time compare.
+    const sig = Buffer.from(encodedSig.replace(/-/g, "+").replace(/_/g, "/"), "base64");
+    const expected = crypto.createHmac("sha256", appSecret).update(payload).digest();
+    if (sig.length !== expected.length || !crypto.timingSafeEqual(sig, expected)) return null;
 
     const dataJson = Buffer.from(payload.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf-8");
     return JSON.parse(dataJson) as ParsedMetaSignedRequest;

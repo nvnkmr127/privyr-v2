@@ -19,10 +19,14 @@ export function BookingForm({ slug }: { slug: string }) {
     if (!f.name.trim() || !f.when || (!f.email && !f.phone)) return;
     setSaving(true);
     try {
-      await requestMeetingAction({ slug, ...f });
+      const res = await requestMeetingAction({ slug, ...f });
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Could not book", description: res.message });
+        return;
+      }
       setDone(true);
-    } catch (err: any) {
-      toast({ variant: "destructive", title: "Could not book", description: err?.message });
+    } catch {
+      toast({ variant: "destructive", title: "Could not book", description: "We couldn't reach the server. Please try again." });
     } finally {
       setSaving(false);
     }

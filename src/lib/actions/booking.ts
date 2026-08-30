@@ -3,6 +3,7 @@
 import { BookingService } from "@/domains/booking/service";
 import { RateLimiter } from "@/lib/rate-limit";
 import { z } from "zod";
+import { ok, fail, actionFail, zodFieldErrors } from "@/lib/actions/result";
 
 // Public — no auth. The org slug in the URL is the only "credential"; it only lets a prospect
 // create a lead + meeting request, nothing more.
@@ -16,27 +17,35 @@ const schema = z.object({
 });
 
 export async function requestMeetingAction(input: z.input<typeof schema>) {
-  const data = schema.parse(input);
+  const parsed = schema.safeParse(input);
+  if (!parsed.success) {
+    return fail("VALIDATION", "Please check the highlighted fields and try again.", zodFieldErrors(parsed.error));
+  }
+  const data = parsed.data;
+
   if (!data.email && !data.phone) {
-    throw new Error("Please provide at least an email or phone number.");
+    return fail("VALIDATION", "Please provide at least an email or phone number so we can reach you.");
   }
 
   if (data.when.getTime() < Date.now() - 5 * 60 * 1000) {
-    throw new Error("Please select a date and time in the future.");
+    return fail("VALIDATION", "Please select a date and time in the future.");
   }
 
   const limit = await RateLimiter.checkLimit(`booking:${data.slug}`, 15, 60);
   if (!limit.success) {
-    throw new Error("Too many booking requests. Please wait a moment and try again.");
+    return fail("RATE_LIMIT", "Too many booking requests. Please wait a moment and try again.");
   }
 
-  await BookingService.request(data.slug, {
-    name: data.name,
-    email: data.email || undefined,
-    phone: data.phone || undefined,
-    when: data.when,
-    message: data.message,
-  });
-
-  return { ok: true };
+  try {
+    await BookingService.request(data.slug, {
+      name: data.name,
+      email: data.email || undefined,
+      phone: data.phone || undefined,
+      when: data.when,
+      message: data.message,
+    });
+    return ok({ requested: true });
+  } catch (e) {
+    return actionFail(e);
+  }
 }

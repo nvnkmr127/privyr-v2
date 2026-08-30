@@ -13,11 +13,21 @@ const nextConfig: NextConfig = {
 
   serverExternalPackages: NODE_ONLY,
 
-  webpack: (config, { isServer }) => {
+  webpack: (config, { isServer, nextRuntime }) => {
     config.resolve.alias = {
       ...config.resolve.alias,
       "@valkey/valkey-glide": false,
     };
+    // The Edge compile of instrumentation.ts follows the (Node-only) worker/producer chunks even
+    // though register() returns early on Edge. Stub the Node builtins/queues those chunks pull in
+    // so the Edge build resolves — they're never executed there.
+    if (nextRuntime === "edge") {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        crypto: false, stream: false, pg: false, http: false, https: false, net: false, tls: false,
+        dns: false, fs: false, child_process: false, bullmq: false, ioredis: false, "web-push": false,
+      };
+    }
     if (isServer) {
       const externals = config.externals || [];
       config.externals = [

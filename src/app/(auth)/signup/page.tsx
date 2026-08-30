@@ -35,9 +35,13 @@ export default function SignupPage() {
   const onSubmit = async (data: SignupValues) => {
     setError(null);
     try {
-      await signupAction(data);
-    } catch (e: any) {
-      setError(e?.message ?? "Could not create your workspace");
+      const res = await signupAction(data);
+      if (!res.ok) {
+        setError(res.message);
+        return;
+      }
+    } catch {
+      setError("We couldn't reach the server. Please try again.");
       return;
     }
     // Sign in immediately so the new session carries the org.

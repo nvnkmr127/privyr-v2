@@ -23,11 +23,14 @@ export default function DashboardError({
         </div>
         <div className="space-y-1">
           <h2 className="text-lg font-semibold text-foreground">Failed to load this view</h2>
+          {/* Never render raw error.message — it can carry internal/DB text. Show static copy
+              and surface only the digest as a support reference. */}
           <p className="text-sm text-muted-foreground">
-            {error?.message && !error.message.includes("digest")
-              ? error.message
-              : "An unexpected error occurred while loading this section. Your lead data is unaffected."}
+            An unexpected error occurred while loading this section. Your lead data is unaffected.
           </p>
+          {error?.digest && (
+            <p className="text-xs text-muted-foreground/70">Reference: {error.digest}</p>
+          )}
         </div>
         <div className="pt-2 flex justify-center">
           <Button onClick={() => reset()} className="gap-2">

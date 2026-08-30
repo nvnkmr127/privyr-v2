@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast"
 import { listSourcesAction } from "@/lib/actions/sources"
 import { uploadCsvAction } from "@/lib/actions/csv"
+import { validateCsvFile } from "@/lib/csvFile"
 
 type Source = { id: string; name: string };
 
@@ -29,16 +30,25 @@ export function ImportCsvDialog({ children }: { children: React.ReactNode }) {
 
   async function submit() {
     if (!sourceId || !file) return;
+    const problem = validateCsvFile(file);
+    if (problem) {
+      toast({ variant: "destructive", title: "Can't import this file", description: problem });
+      return;
+    }
     setBusy(true);
     try {
       const csvContent = await file.text();
-      const { count } = await uploadCsvAction({ sourceId, csvContent });
-      toast({ title: "Import queued", description: `${count} rows are being processed — they'll appear shortly.` });
+      const res = await uploadCsvAction({ sourceId, csvContent });
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Import failed", description: res.message });
+        return;
+      }
+      toast({ title: "Import queued", description: `${res.data.count} rows are being processed — they'll appear shortly.` });
       setOpen(false);
       setFile(null);
       setTimeout(() => router.refresh(), 1500); // let a few rows land, then refresh the list
-    } catch (err: any) {
-      toast({ variant: "destructive", title: "Import failed", description: err?.message ?? "Check the file format." });
+    } catch {
+      toast({ variant: "destructive", title: "Import failed", description: "We couldn't reach the server. Please try again." });
     } finally {
       setBusy(false);
     }

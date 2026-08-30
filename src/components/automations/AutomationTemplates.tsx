@@ -16,11 +16,15 @@ export function AutomationTemplates() {
   async function use(id: AutomationTemplateId) {
     setPending(id);
     try {
-      await createAutomationFromTemplate(id);
+      const res = await createAutomationFromTemplate(id);
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Couldn't create automation", description: res.message });
+        return;
+      }
       toast({ title: "Automation created", description: "Review and activate it below." });
       router.refresh();
     } catch {
-      toast({ variant: "destructive", title: "Couldn't create automation" });
+      toast({ variant: "destructive", title: "Couldn't create automation", description: "We couldn't reach the server. Please try again." });
     } finally {
       setPending(null);
     }

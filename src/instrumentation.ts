@@ -4,6 +4,10 @@
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
 
+  // Fail fast on a misconfigured environment before anything touches the DB or signs a JWT.
+  const { validateEnv } = await import("@/lib/env");
+  validateEnv();
+
   // Event listeners + automation dispatch (lead.created, lead.assigned, status changes …).
   await import("@/lib/events/handlers");
 
@@ -35,6 +39,11 @@ export async function register() {
     const { createRecycleBinWorker, scheduleRecycleBinScan } = await import("@/lib/jobs/workers/recycleBinWorker");
     createRecycleBinWorker();
     await scheduleRecycleBinScan();
+
+    // Outbound webhooks: consumer that POSTs signed lead-event payloads to org endpoints, with
+    // BullMQ retry/backoff. Producer is the event bus (lead.created / lead.status_changed).
+    const { createWebhookRetryWorker } = await import("@/lib/jobs/workers/webhookRetryWorker");
+    createWebhookRetryWorker();
   } catch (err) {
     console.error("[instrumentation] failed to register repeatable job schedulers:", err);
   }

@@ -42,7 +42,13 @@ export function BillingManager({
     }
     setBusy(target);
     try {
-      const { subscriptionId, keyId } = await startSubscriptionAction(target);
+      const startRes = await startSubscriptionAction(target);
+      if (!startRes.ok) {
+        toast({ variant: "destructive", title: "Could not start checkout", description: startRes.message });
+        setBusy(null);
+        return;
+      }
+      const { subscriptionId, keyId } = startRes.data;
       await loadCheckout();
       const rzp = new window.Razorpay({
         key: keyId,
@@ -51,16 +57,20 @@ export function BillingManager({
         description: `${target} plan`,
         handler: async (resp: any) => {
           try {
-            await verifySubscriptionAction({
+            const res = await verifySubscriptionAction({
               plan: target,
               subscriptionId,
               paymentId: resp.razorpay_payment_id,
               signature: resp.razorpay_signature,
             });
+            if (!res.ok) {
+              toast({ variant: "destructive", title: "Verification failed", description: res.message });
+              return;
+            }
             setCurrent(target);
             toast({ title: "Subscription active", description: `You're now on the ${target} plan.` });
-          } catch (e: any) {
-            toast({ variant: "destructive", title: "Verification failed", description: e?.message });
+          } catch {
+            toast({ variant: "destructive", title: "Verification failed", description: "We couldn't reach the server. Please try again." });
           }
         },
         modal: { ondismiss: () => setBusy(null) },
@@ -77,11 +87,15 @@ export function BillingManager({
     if (!confirm("Cancel your subscription? You'll drop to the free plan.")) return;
     setBusy("cancel");
     try {
-      await cancelSubscriptionAction();
+      const res = await cancelSubscriptionAction();
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Could not cancel", description: res.message });
+        return;
+      }
       setCurrent("free");
       toast({ title: "Subscription cancelled" });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Could not cancel", description: e?.message });
+    } catch {
+      toast({ variant: "destructive", title: "Could not cancel", description: "We couldn't reach the server. Please try again." });
     } finally {
       setBusy(null);
     }

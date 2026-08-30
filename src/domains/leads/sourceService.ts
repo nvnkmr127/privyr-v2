@@ -40,6 +40,33 @@ export class LeadSourceService {
     return { ok: true };
   }
 
+  // Upsert a Facebook Lead Ads source for this org, keyed by Page id, storing the current Page
+  // access token in `config`. Called from the OAuth callback after a successful connection.
+  static async upsertFacebookPageSource(
+    organizationId: string,
+    page: { pageId: string; pageAccessToken: string; expiresAt?: Date | null },
+  ) {
+    const rows = await db
+      .select()
+      .from(leadSources)
+      .where(and(eq(leadSources.organizationId, organizationId), eq(leadSources.type, "facebook_lead_ads")));
+    const existing = rows.find((s) => (s.config as any)?.pageId === page.pageId);
+    const config = {
+      pageId: page.pageId,
+      pageAccessToken: page.pageAccessToken,
+      expiresAt: page.expiresAt ? page.expiresAt.toISOString() : null,
+    };
+    if (existing) {
+      const [updated] = await db
+        .update(leadSources)
+        .set({ config, isActive: 1 })
+        .where(eq(leadSources.id, existing.id))
+        .returning();
+      return updated;
+    }
+    return this.createSource({ name: `Facebook Page ${page.pageId}`, type: "facebook_lead_ads", organizationId, config });
+  }
+
   static async updateSource(
     id: string,
     data: { name?: string; isActive?: number; config?: any },

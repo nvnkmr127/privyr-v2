@@ -15,6 +15,10 @@ vi.mock("@/lib/jobs/workers/scoreDecayWorker", () => ({
 describe("Instrumentation worker registration", () => {
   beforeEach(() => {
     process.env.NEXT_RUNTIME = "nodejs";
+    // register() now validates required env at boot — provide them so the test exercises
+    // worker registration, not env validation (which has its own coverage).
+    process.env.DATABASE_URL ||= "postgres://test";
+    process.env.NEXTAUTH_SECRET ||= "test-secret";
     vi.clearAllMocks();
   });
 

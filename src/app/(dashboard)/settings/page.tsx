@@ -1,7 +1,7 @@
 import { getOrganizationAction } from "@/lib/actions/organizations";
 import { GeneralSettingsForm } from "@/components/settings/GeneralSettingsForm";
 import Link from "next/link";
-import { Sliders, Database, MessageSquare, Users, ListPlus, KeyRound, ScrollText, CreditCard, Plug } from "lucide-react";
+import { Sliders, Database, MessageSquare, Users, ListPlus, KeyRound, ScrollText, CreditCard, Plug, Webhook } from "lucide-react";
 
 export default async function SettingsPage() {
   const organization = await getOrganizationAction();
@@ -63,6 +63,13 @@ export default async function SettingsPage() {
           >
             <KeyRound className="h-4 w-4" />
             API Access
+          </Link>
+          <Link
+            href="/settings/webhooks"
+            className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground dark:text-muted-foreground hover:bg-accent dark:hover:bg-accent"
+          >
+            <Webhook className="h-4 w-4" />
+            Webhooks
           </Link>
           <Link
             href="/settings/audit"

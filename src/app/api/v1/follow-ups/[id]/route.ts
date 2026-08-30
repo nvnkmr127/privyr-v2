@@ -40,7 +40,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
 
     return NextResponse.json({ data: result });
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message ?? "Could not update follow-up" }, { status: 400 });
+  } catch (e) {
+    const { logError } = await import("@/lib/log");
+    const ref = logError("api/v1/follow-ups/[id]", e, { followUpId: id });
+    return NextResponse.json({ error: "Could not update follow-up. Please try again.", ref }, { status: 500 });
   }
 }

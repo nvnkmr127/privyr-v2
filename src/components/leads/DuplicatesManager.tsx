@@ -17,7 +17,11 @@ export function DuplicatesManager({ initial }: { initial: Group[] }) {
   async function merge(group: Group, primaryId: string, duplicateId: string) {
     setBusy(duplicateId);
     try {
-      await mergeLeadsAction({ primaryId, duplicateId });
+      const res = await mergeLeadsAction({ primaryId, duplicateId });
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Merge failed", description: res.message });
+        return;
+      }
       // Drop the merged lead from the group; remove groups that fall below 2.
       setGroups((prev) =>
         prev
@@ -25,8 +29,8 @@ export function DuplicatesManager({ initial }: { initial: Group[] }) {
           .filter((g) => g.leads.length > 1),
       );
       toast({ title: "Leads merged" });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Merge failed", description: e?.message });
+    } catch {
+      toast({ variant: "destructive", title: "Merge failed", description: "We couldn't reach the server. Please try again." });
     } finally {
       setBusy(null);
     }

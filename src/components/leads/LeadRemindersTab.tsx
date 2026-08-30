@@ -47,15 +47,19 @@ export function LeadRemindersTab({ leadId, initialReminders }: LeadRemindersTabP
 
     setSubmitting(true);
     try {
-      const newReminder = await createReminderAction({
+      const res = await createReminderAction({
         leadId,
         title,
         description,
         type,
         dueAt: new Date(dueDate),
       });
+      if (!res.ok) {
+        toast({ title: "Failed to create reminder", description: res.message, variant: "destructive" });
+        return;
+      }
 
-      setReminders((prev) => [newReminder as ReminderItem, ...prev]);
+      setReminders((prev) => [res.data as ReminderItem, ...prev]);
       setTitle("");
       setDescription("");
       setShowAdd(false);
@@ -63,10 +67,10 @@ export function LeadRemindersTab({ leadId, initialReminders }: LeadRemindersTabP
         title: "Reminder created",
         description: `Scheduled for ${new Date(dueDate).toLocaleString()}`,
       });
-    } catch (err: any) {
+    } catch {
       toast({
         title: "Failed to create reminder",
-        description: err.message || "Something went wrong.",
+        description: "We couldn't reach the server. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -77,17 +81,21 @@ export function LeadRemindersTab({ leadId, initialReminders }: LeadRemindersTabP
   const handleToggle = async (id: string, currentStatus: string) => {
     const newStatus = currentStatus === "completed" ? "pending" : "completed";
     try {
-      await toggleReminderStatusAction(id, leadId, newStatus);
+      const res = await toggleReminderStatusAction(id, leadId, newStatus);
+      if (!res.ok) {
+        toast({ title: "Failed to update status", description: res.message, variant: "destructive" });
+        return;
+      }
       setReminders((prev) =>
         prev.map((r) => (r.id === id ? { ...r, status: newStatus, completedAt: newStatus === "completed" ? new Date() : null } : r))
       );
       toast({
         title: newStatus === "completed" ? "Reminder completed" : "Reminder reopened",
       });
-    } catch (err: any) {
+    } catch {
       toast({
         title: "Failed to update status",
-        description: err.message,
+        description: "We couldn't reach the server. Please try again.",
         variant: "destructive",
       });
     }
@@ -95,13 +103,17 @@ export function LeadRemindersTab({ leadId, initialReminders }: LeadRemindersTabP
 
   const handleDelete = async (id: string) => {
     try {
-      await deleteReminderAction(id, leadId);
+      const res = await deleteReminderAction(id, leadId);
+      if (!res.ok) {
+        toast({ title: "Failed to delete reminder", description: res.message, variant: "destructive" });
+        return;
+      }
       setReminders((prev) => prev.filter((r) => r.id !== id));
       toast({ title: "Reminder deleted" });
-    } catch (err: any) {
+    } catch {
       toast({
         title: "Failed to delete reminder",
-        description: err.message,
+        description: "We couldn't reach the server. Please try again.",
         variant: "destructive",
       });
     }

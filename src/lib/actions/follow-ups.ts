@@ -4,6 +4,7 @@ import { requireOrg } from "@/lib/rbac";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { FollowUpService } from "@/domains/follow-ups/service";
+import { ok, fail, actionFail, zodFieldErrors } from "@/lib/actions/result";
 
 const followUpSchema = z.object({
   leadId: z.string().uuid(),
@@ -19,77 +20,91 @@ export async function createFollowUp(input: z.infer<typeof followUpSchema>) {
 
   const parsed = followUpSchema.safeParse(input);
   if (!parsed.success) {
-    throw new Error("Invalid input");
+    return fail("VALIDATION", "Please add a title, type, and a valid due date.", zodFieldErrors(parsed.error));
   }
 
   const { leadId, type, title, description, dueAt, userId } = parsed.data;
 
-  const followUp = await FollowUpService.createFollowUp({
-    leadId,
-    type,
-    title,
-    description,
-    dueAt,
-    userId: userId || sessionUserId,
-    organizationId,
-  });
+  try {
+    const followUp = await FollowUpService.createFollowUp({
+      leadId,
+      type,
+      title,
+      description,
+      dueAt,
+      userId: userId || sessionUserId,
+      organizationId,
+    });
 
-  revalidatePath(`/leads/${leadId}`);
-  revalidatePath('/follow-ups');
-  return followUp;
+    revalidatePath(`/leads/${leadId}`);
+    revalidatePath('/follow-ups');
+    return ok(followUp);
+  } catch (e) {
+    return actionFail(e);
+  }
 }
 
 export async function completeFollowUp(id: string) {
   const { organizationId } = await requireOrg();
-  const updated = await FollowUpService.completeFollowUp(id, organizationId);
-
-  if (updated) {
+  try {
+    const updated = await FollowUpService.completeFollowUp(id, organizationId);
+    if (!updated) return fail("NOT_FOUND", "This follow-up no longer exists.");
     revalidatePath(`/leads/${updated.leadId}`);
     revalidatePath('/follow-ups');
+    return ok(updated);
+  } catch (e) {
+    return actionFail(e);
   }
-  return updated;
 }
 
 export async function cancelFollowUp(id: string) {
   const { organizationId } = await requireOrg();
-  const updated = await FollowUpService.cancelFollowUp(id, organizationId);
-
-  if (updated) {
+  try {
+    const updated = await FollowUpService.cancelFollowUp(id, organizationId);
+    if (!updated) return fail("NOT_FOUND", "This follow-up no longer exists.");
     revalidatePath(`/leads/${updated.leadId}`);
     revalidatePath('/follow-ups');
+    return ok(updated);
+  } catch (e) {
+    return actionFail(e);
   }
-  return updated;
 }
 
 export async function snoozeFollowUp(id: string, snoozedUntil: Date) {
   const { organizationId } = await requireOrg();
-  const updated = await FollowUpService.snoozeFollowUp(id, snoozedUntil, organizationId);
-
-  if (updated) {
+  try {
+    const updated = await FollowUpService.snoozeFollowUp(id, snoozedUntil, organizationId);
+    if (!updated) return fail("NOT_FOUND", "This follow-up no longer exists.");
     revalidatePath(`/leads/${updated.leadId}`);
     revalidatePath('/follow-ups');
+    return ok(updated);
+  } catch (e) {
+    return actionFail(e);
   }
-  return updated;
 }
 
 export async function rescheduleFollowUp(id: string, dueAt: Date) {
   const { organizationId } = await requireOrg();
-  const updated = await FollowUpService.rescheduleFollowUp(id, dueAt, organizationId);
-
-  if (updated) {
+  try {
+    const updated = await FollowUpService.rescheduleFollowUp(id, dueAt, organizationId);
+    if (!updated) return fail("NOT_FOUND", "This follow-up no longer exists.");
     revalidatePath(`/leads/${updated.leadId}`);
     revalidatePath('/follow-ups');
+    return ok(updated);
+  } catch (e) {
+    return actionFail(e);
   }
-  return updated;
 }
 
 export async function assignFollowUp(id: string, userId: string) {
   const { organizationId } = await requireOrg();
-  const updated = await FollowUpService.assignFollowUp(id, userId, organizationId);
-
-  if (updated) {
+  try {
+    const updated = await FollowUpService.assignFollowUp(id, userId, organizationId);
+    if (!updated) return fail("NOT_FOUND", "This follow-up no longer exists.");
     revalidatePath(`/leads/${updated.leadId}`);
     revalidatePath('/follow-ups');
+    return ok(updated);
+  } catch (e) {
+    return actionFail(e);
   }
-  return updated;
 }

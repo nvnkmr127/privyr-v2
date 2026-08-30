@@ -186,17 +186,21 @@ export function GeneralSettingsForm({ organization }: { organization?: Org | nul
 
     setSaving(true);
     try {
-      await updateOrganizationAction({
+      const res = await updateOrganizationAction({
         ...f,
         name: f.name.trim(),
         whatsappMode: f.whatsappMode === "bsp" ? "bsp" : "personal",
         slaHours: f.slaHours === "" ? null : Number(f.slaHours),
         requiredLeadFields: requiredFields as ("name" | "email" | "phone" | "company")[],
       });
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Failed to save settings", description: res.message });
+        return;
+      }
       setDirty(false);
       toast({ title: "Settings saved", description: "Organization settings updated successfully." });
-    } catch (err: any) {
-      toast({ variant: "destructive", title: "Failed to save settings", description: err?.message || "Please check your inputs and try again." });
+    } catch {
+      toast({ variant: "destructive", title: "Failed to save settings", description: "We couldn't reach the server. Please try again." });
     } finally {
       setSaving(false);
     }

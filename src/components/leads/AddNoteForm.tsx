@@ -27,17 +27,22 @@ export function AddNoteForm({ leadId }: { leadId: string }) {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      await addNoteAction(values);
+      const res = await addNoteAction(values);
+      if (!res.ok) {
+        if (res.fieldErrors?.content) form.setError("content", { message: res.fieldErrors.content });
+        toast({ variant: "destructive", title: "Unable to add note", description: res.message });
+        return;
+      }
       toast({
         title: "Note Added",
         description: "Your note was successfully added to the timeline.",
       });
       form.reset({ leadId, content: "" });
-    } catch (e: any) {
+    } catch {
       toast({
         variant: "destructive",
-        title: "Unable to add note",
-        description: e?.message || "There was a problem adding this note. Please try again.",
+        title: "Connection problem",
+        description: "We couldn't reach the server. Check your connection and try again.",
       });
     }
   }

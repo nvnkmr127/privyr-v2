@@ -79,18 +79,22 @@ export function StatusManagementModal({
 
     setSaving(true);
     try {
-      await addOrUpdateStatusAction({
+      const res = await addOrUpdateStatusAction({
         key,
         label: newLabel.trim(),
         color: newColor,
         category: newCategory,
       });
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Could not save custom status", description: res.message });
+        return;
+      }
       toast({ title: "Status saved", description: `"${newLabel}" status updated successfully.` });
       setNewKey("");
       setNewLabel("");
       loadData();
     } catch {
-      toast({ variant: "destructive", title: "Could not save custom status" });
+      toast({ variant: "destructive", title: "Could not save custom status", description: "We couldn't reach the server. Please try again." });
     } finally {
       setSaving(false);
     }
@@ -112,11 +116,15 @@ export function StatusManagementModal({
 
   async function handleDelete(key: string) {
     try {
-      await deleteCustomStatusAction(key);
+      const res = await deleteCustomStatusAction(key);
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Failed to delete status", description: res.message });
+        return;
+      }
       toast({ title: "Status deleted" });
       loadData();
-    } catch (err: any) {
-      toast({ variant: "destructive", title: err.message || "Failed to delete status" });
+    } catch {
+      toast({ variant: "destructive", title: "Failed to delete status", description: "We couldn't reach the server. Please try again." });
     }
   }
 

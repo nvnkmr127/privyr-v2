@@ -4,6 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requireOrg } from "@/lib/rbac";
 import { SequenceService } from "@/domains/leads/sequenceService";
+import { ok, fail, actionFail } from "@/lib/actions/result";
 
 const stepSchema = z.object({
   dayOffset: z.coerce.number().int().min(0).max(365),
@@ -18,10 +19,17 @@ const createSchema = z.object({
 
 export async function createSequenceAction(input: unknown) {
   const { organizationId } = await requireOrg();
-  const { name, steps } = createSchema.parse(input);
-  const seq = await SequenceService.create(organizationId, name, steps);
-  revalidatePath("/sequences");
-  return seq;
+  const parsed = createSchema.safeParse(input);
+  if (!parsed.success) {
+    return fail("VALIDATION", "Add a name and at least one valid step (each with a message under 2,000 characters).");
+  }
+  try {
+    const seq = await SequenceService.create(organizationId, parsed.data.name, parsed.data.steps);
+    revalidatePath("/sequences");
+    return ok(seq);
+  } catch (e) {
+    return actionFail(e);
+  }
 }
 
 export async function listSequencesAction() {
@@ -31,10 +39,16 @@ export async function listSequencesAction() {
 
 export async function enrollLeadsAction(sequenceId: string, leadIds: string[]) {
   const { organizationId } = await requireOrg();
-  const res = await SequenceService.enroll(organizationId, sequenceId, leadIds);
-  revalidatePath("/sequences");
-  leadIds.forEach((id) => revalidatePath(`/leads/${id}`));
-  return res;
+  if (!sequenceId) return fail("VALIDATION", "Choose a sequence to enroll into.");
+  if (!leadIds?.length) return fail("VALIDATION", "Select at least one lead to enroll.");
+  try {
+    const res = await SequenceService.enroll(organizationId, sequenceId, leadIds);
+    revalidatePath("/sequences");
+    leadIds.forEach((id) => revalidatePath(`/leads/${id}`));
+    return ok(res);
+  } catch (e) {
+    return actionFail(e);
+  }
 }
 
 export async function getSequenceAction(sequenceId: string) {
@@ -44,22 +58,37 @@ export async function getSequenceAction(sequenceId: string) {
 
 export async function updateSequenceAction(sequenceId: string, input: unknown) {
   const { organizationId } = await requireOrg();
-  const { name, steps } = createSchema.parse(input);
-  const res = await SequenceService.update(organizationId, sequenceId, name, steps);
-  revalidatePath("/sequences");
-  return res;
+  const parsed = createSchema.safeParse(input);
+  if (!parsed.success) {
+    return fail("VALIDATION", "Add a name and at least one valid step (each with a message under 2,000 characters).");
+  }
+  try {
+    const res = await SequenceService.update(organizationId, sequenceId, parsed.data.name, parsed.data.steps);
+    revalidatePath("/sequences");
+    return ok(res);
+  } catch (e) {
+    return actionFail(e);
+  }
 }
 
 export async function deleteSequenceAction(sequenceId: string) {
   const { organizationId } = await requireOrg();
-  const res = await SequenceService.delete(organizationId, sequenceId);
-  revalidatePath("/sequences");
-  return res;
+  try {
+    const res = await SequenceService.delete(organizationId, sequenceId);
+    revalidatePath("/sequences");
+    return ok(res);
+  } catch (e) {
+    return actionFail(e);
+  }
 }
 
 export async function stopEnrollmentAction(enrollmentId: string, leadId?: string) {
   const { organizationId } = await requireOrg();
-  const res = await SequenceService.stop(organizationId, enrollmentId);
-  if (leadId) revalidatePath(`/leads/${leadId}`);
-  return res;
+  try {
+    const res = await SequenceService.stop(organizationId, enrollmentId);
+    if (leadId) revalidatePath(`/leads/${leadId}`);
+    return ok(res);
+  } catch (e) {
+    return actionFail(e);
+  }
 }

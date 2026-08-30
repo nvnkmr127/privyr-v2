@@ -160,37 +160,39 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
     setConnectingId(platform.id);
     try {
       if (platform.id === "facebook") {
-        // Redirect to Meta OAuth Authorization dialog
-        const appId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || "mock_app_id";
+        // Honest gate: without a real Meta app id we can't connect a Page. Don't fake a source.
+        const appId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
+        if (!appId || appId === "mock_app_id") {
+          toast({
+            variant: "destructive",
+            title: "Facebook Lead Ads isn't set up yet",
+            description: "Add your Meta app credentials (FACEBOOK_APP_ID / FACEBOOK_APP_SECRET) to enable this integration.",
+          });
+          return;
+        }
+        // Real OAuth. The source is created after the callback confirms the connection — not before.
         const redirectUri = encodeURIComponent(`${origin}/api/auth/facebook/callback`);
         const scope = encodeURIComponent("pages_show_list,leads_retrieval,pages_manage_ads");
-        const oauthUrl = `https://www.facebook.com/v20.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&state=tenant_oauth`;
-
-        // If in demo mode without live app id, create source row directly
-        const row = await createSourceAction({
-          name: `${platform.name} Connection`,
-          type: platform.typeKey as any,
-        });
-        setSources((prev) => [...prev, row as Source]);
-
-        toast({
-          title: "Facebook Lead Ads Connected",
-          description: "OAuth Page connection active. Form submissions will now pull instantly.",
-        });
-        window.open(oauthUrl, "_blank");
+        window.location.href =
+          `https://www.facebook.com/v20.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&state=tenant_oauth`;
+        return;
       } else {
-        const row = await createSourceAction({
+        const res = await createSourceAction({
           name: `${platform.name} Integration`,
           type: platform.typeKey as any,
         });
-        setSources((prev) => [...prev, row as Source]);
+        if (!res.ok) {
+          toast({ variant: "destructive", title: `Failed to connect ${platform.name}`, description: res.message });
+          return;
+        }
+        setSources((prev) => [...prev, res.data as Source]);
         toast({
           title: `${platform.name} Connected`,
           description: `Integration endpoint activated. Use the webhook URL below to receive leads.`,
         });
       }
     } catch {
-      toast({ variant: "destructive", title: `Failed to connect ${platform.name}` });
+      toast({ variant: "destructive", title: `Failed to connect ${platform.name}`, description: "We couldn't reach the server. Please try again." });
     } finally {
       setConnectingId(null);
     }
@@ -200,10 +202,14 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
     const next = s.isActive ? 0 : 1;
     setSources((prev) => prev.map((x) => (x.id === s.id ? { ...x, isActive: next } : x)));
     try {
-      await toggleSourceAction(s.id, next === 1);
+      const res = await toggleSourceAction(s.id, next === 1);
+      if (!res.ok) {
+        setSources((prev) => prev.map((x) => (x.id === s.id ? { ...x, isActive: s.isActive } : x)));
+        toast({ variant: "destructive", title: "Could not update source status", description: res.message });
+      }
     } catch {
       setSources((prev) => prev.map((x) => (x.id === s.id ? { ...x, isActive: s.isActive } : x)));
-      toast({ variant: "destructive", title: "Could not update source status" });
+      toast({ variant: "destructive", title: "Could not update source status", description: "We couldn't reach the server. Please try again." });
     }
   }
 
@@ -212,11 +218,16 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
     if (!name || name === s.name) return;
     setSources((prev) => prev.map((x) => (x.id === s.id ? { ...x, name } : x)));
     try {
-      await renameSourceAction(s.id, name);
+      const res = await renameSourceAction(s.id, name);
+      if (!res.ok) {
+        setSources((prev) => prev.map((x) => (x.id === s.id ? { ...x, name: s.name } : x)));
+        toast({ variant: "destructive", title: "Could not rename source", description: res.message });
+        return;
+      }
       toast({ title: "Source renamed" });
     } catch {
       setSources((prev) => prev.map((x) => (x.id === s.id ? { ...x, name: s.name } : x)));
-      toast({ variant: "destructive", title: "Could not rename source" });
+      toast({ variant: "destructive", title: "Could not rename source", description: "We couldn't reach the server. Please try again." });
     }
   }
 
@@ -225,11 +236,16 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
     const prev = sources;
     setSources((p) => p.filter((x) => x.id !== s.id));
     try {
-      await deleteSourceAction(s.id);
+      const res = await deleteSourceAction(s.id);
+      if (!res.ok) {
+        setSources(prev);
+        toast({ variant: "destructive", title: "Could not delete source", description: res.message });
+        return;
+      }
       toast({ title: "Source deleted" });
-    } catch (e: any) {
+    } catch {
       setSources(prev);
-      toast({ variant: "destructive", title: "Could not delete source", description: e?.message });
+      toast({ variant: "destructive", title: "Could not delete source", description: "We couldn't reach the server. Please try again." });
     }
   }
 
@@ -363,6 +379,27 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
                           {s.webhookSecret}
                         </code>
                         <Button variant="ghost" size="icon" onClick={() => copy(s.webhookSecret!, "Secret")}>
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {(s.type === "generic_webhook" || s.type === "webform") && (
+                    <div>
+                      <span className="text-xs font-semibold text-muted-foreground block mb-1">Hosted form &amp; embed code</span>
+                      <div className="flex items-center gap-2">
+                        <code className="flex-1 truncate bg-muted border rounded-2xl px-3 py-2 text-xs font-mono text-foreground">
+                          {origin}/f/{s.id}
+                        </code>
+                        <Button variant="ghost" size="icon" onClick={() => copy(`${origin}/f/${s.id}`, "Form URL")}>
+                          <ExternalLink className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => copy(`<iframe src="${origin}/f/${s.id}" style="border:0;width:100%;max-width:480px;height:520px" title="Lead form"></iframe>`, "Embed code")}
+                        >
                           <Copy className="h-4 w-4" />
                         </Button>
                       </div>

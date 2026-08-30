@@ -21,11 +21,15 @@ export function AcceptInviteForm({ token, email }: { token: string; email: strin
     if (password.length < 6) return;
     setSaving(true);
     try {
-      await acceptInvitationAction({ token, password, firstName: firstName || undefined, lastName: lastName || undefined });
+      const res = await acceptInvitationAction({ token, password, firstName: firstName || undefined, lastName: lastName || undefined });
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Could not accept invite", description: res.message });
+        return;
+      }
       toast({ title: "Account created", description: "You can now sign in." });
       router.push("/login");
-    } catch (err: any) {
-      toast({ variant: "destructive", title: "Could not accept invite", description: err?.message });
+    } catch {
+      toast({ variant: "destructive", title: "Could not accept invite", description: "We couldn't reach the server. Please try again." });
     } finally {
       setSaving(false);
     }

@@ -57,12 +57,17 @@ export function LeadStatusControl({ leadId, status }: { leadId: string; status: 
     setValue(next);
     setBusy(true);
     try {
-      await changeLeadStatusAction(leadId, next, lossReason);
+      const res = await changeLeadStatusAction(leadId, next, lossReason);
+      if (!res.ok) {
+        setValue(prev);
+        toast({ variant: "destructive", title: "Could not change status", description: res.message });
+        return;
+      }
       toast({ title: `Status → ${byKey.get(next)?.label ?? next}` });
       router.refresh();
     } catch {
       setValue(prev);
-      toast({ variant: "destructive", title: "Could not change status" });
+      toast({ variant: "destructive", title: "Could not change status", description: "We couldn't reach the server. Please try again." });
     } finally {
       setBusy(false);
     }

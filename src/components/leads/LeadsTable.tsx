@@ -99,12 +99,19 @@ export function LeadsTable({
   async function run(fn: () => Promise<unknown>, msg: string) {
     setBusy(true);
     try {
-      await fn();
-      toast({ title: msg });
+      const result = await fn();
+      // Actions on the ActionResult contract return {ok:false,...} instead of throwing.
+      if (result && typeof result === "object" && "ok" in result && (result as { ok: boolean }).ok === false) {
+        toast({ variant: "destructive", title: "Bulk action failed", description: (result as { message?: string }).message });
+        return;
+      }
+      // Surface partial-success counts when the action reports them.
+      const failed = (result as { data?: { failed?: number } } | undefined)?.data?.failed ?? 0;
+      toast({ title: msg, description: failed > 0 ? `${failed} could not be updated — check permissions and try again.` : undefined });
       setSelected(new Set());
       router.refresh();
     } catch {
-      toast({ variant: "destructive", title: "Bulk action failed" });
+      toast({ variant: "destructive", title: "Bulk action failed", description: "We couldn't reach the server. Please try again." });
     } finally {
       setBusy(false);
     }
@@ -158,15 +165,20 @@ export function LeadsTable({
   async function sendCampaign() {
     setMsgSending(true);
     try {
-      const { sent, failed } = await sendCampaignAction({ leadIds: ids(), body: msgBody });
+      const res = await sendCampaignAction({ leadIds: ids(), body: msgBody });
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Couldn't send", description: res.message });
+        return;
+      }
+      const { sent, failed } = res.data;
       toast({
         title: `Message sent to ${sent} lead${sent === 1 ? "" : "s"}`,
         description: failed ? `${failed} couldn't auto-send — logged for manual send.` : undefined,
       });
       setMsgBody(""); setMsgOpen(false); setSelected(new Set());
       router.refresh();
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Couldn't send", description: e?.message });
+    } catch {
+      toast({ variant: "destructive", title: "Couldn't send", description: "We couldn't reach the server. Please try again." });
     } finally {
       setMsgSending(false);
     }

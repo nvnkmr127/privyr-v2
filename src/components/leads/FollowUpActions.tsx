@@ -16,11 +16,15 @@ export function FollowUpActions({ id }: { id: string }) {
   async function run(fn: () => Promise<unknown>, msg: string) {
     setBusy(true);
     try {
-      await fn();
+      const result = await fn();
+      if (result && typeof result === "object" && "ok" in result && (result as { ok: boolean }).ok === false) {
+        toast({ variant: "destructive", title: "Action failed", description: (result as { message?: string }).message });
+        return;
+      }
       toast({ title: msg });
       router.refresh();
     } catch {
-      toast({ variant: "destructive", title: "Action failed" });
+      toast({ variant: "destructive", title: "Action failed", description: "We couldn't reach the server. Please try again." });
     } finally {
       setBusy(false);
     }

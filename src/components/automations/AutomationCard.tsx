@@ -18,12 +18,16 @@ export function AutomationCard({ id, name, isActive }: { id: string; name: strin
   async function toggle() {
     setBusy(true);
     try {
-      await toggleAutomation(id, !active);
+      const res = await toggleAutomation(id, !active);
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Couldn't update", description: res.message });
+        return;
+      }
       setActive(!active);
       toast({ title: !active ? "Automation activated" : "Automation paused" });
       router.refresh();
     } catch {
-      toast({ variant: "destructive", title: "Couldn't update" });
+      toast({ variant: "destructive", title: "Couldn't update", description: "We couldn't reach the server. Please try again." });
     } finally {
       setBusy(false);
     }
@@ -33,11 +37,16 @@ export function AutomationCard({ id, name, isActive }: { id: string; name: strin
     if (!confirm(`Delete automation "${name}"?`)) return;
     setBusy(true);
     try {
-      await deleteAutomation(id);
+      const res = await deleteAutomation(id);
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Couldn't delete", description: res.message });
+        setBusy(false);
+        return;
+      }
       toast({ title: "Automation deleted" });
       router.refresh();
     } catch {
-      toast({ variant: "destructive", title: "Couldn't delete" });
+      toast({ variant: "destructive", title: "Couldn't delete", description: "We couldn't reach the server. Please try again." });
       setBusy(false);
     }
   }

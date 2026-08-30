@@ -36,10 +36,14 @@ export function LeadStageAndValueControl({
     setCurrentStage(newStageId);
     setLoading(true);
     try {
-      await updateLeadStageAndValueAction(leadId, { stageId: targetStage });
+      const res = await updateLeadStageAndValueAction(leadId, { stageId: targetStage });
+      if (!res.ok) {
+        toast({ title: "Failed to update stage", description: res.message, variant: "destructive" });
+        return;
+      }
       toast({ title: "Lead stage updated" });
-    } catch (err: any) {
-      toast({ title: "Failed to update stage", description: err.message, variant: "destructive" });
+    } catch {
+      toast({ title: "Failed to update stage", description: "We couldn't reach the server. Please try again.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -49,10 +53,14 @@ export function LeadStageAndValueControl({
     setIsEditingVal(false);
     setLoading(true);
     try {
-      await updateLeadStageAndValueAction(leadId, { expectedValue: val ? val : null });
+      const res = await updateLeadStageAndValueAction(leadId, { expectedValue: val ? val : null });
+      if (!res.ok) {
+        toast({ title: "Failed to update value", description: res.message, variant: "destructive" });
+        return;
+      }
       toast({ title: "Opportunity value updated" });
-    } catch (err: any) {
-      toast({ title: "Failed to update value", description: err.message, variant: "destructive" });
+    } catch {
+      toast({ title: "Failed to update value", description: "We couldn't reach the server. Please try again.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
