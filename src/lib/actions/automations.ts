@@ -62,6 +62,36 @@ export async function createAutomation(data: unknown) {
   return newAutomation;
 }
 
+export async function updateAutomation(id: string, data: unknown) {
+  const { organizationId } = await requirePermission("automations.manage");
+  const { name, isActive, trigger, conditions, actions } = automationSchema.parse(data);
+
+  const [existing] = await db.select().from(automations).where(and(eq(automations.id, id), eq(automations.organizationId, organizationId)));
+  if (!existing) throw new Error("Automation not found");
+
+  await db.update(automations).set({ name, isActive: isActive ?? true }).where(eq(automations.id, id));
+
+  // Replace trigger/conditions/actions wholesale — simplest correct way to edit.
+  await db.delete(automationTriggers).where(eq(automationTriggers.automationId, id));
+  await db.delete(automationConditions).where(eq(automationConditions.automationId, id));
+  await db.delete(automationActions).where(eq(automationActions.automationId, id));
+
+  if (trigger) {
+    await db.insert(automationTriggers).values({ automationId: id, type: trigger.type, config: trigger.config || {} });
+  }
+  if (conditions) {
+    await db.insert(automationConditions).values({ automationId: id, config: conditions as Record<string, unknown> });
+  }
+  if (actions && actions.length > 0) {
+    for (let i = 0; i < actions.length; i++) {
+      await db.insert(automationActions).values({ automationId: id, type: actions[i].type, config: actions[i].config || {}, orderIndex: i });
+    }
+  }
+
+  revalidatePath("/automations");
+  return { id };
+}
+
 export async function createAutomationFromTemplate(id: AutomationTemplateId) {
   const payload = buildTemplatePayload(id);
   if (!payload) throw new Error("Unknown template");

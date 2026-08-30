@@ -169,6 +169,13 @@
       "when": 1788053312109,
       "tag": "0023_lead_recycle_bin",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1788056385406,
+      "tag": "0024_custom_field_extras",
+      "breakpoints": true
     }
   ]
 }

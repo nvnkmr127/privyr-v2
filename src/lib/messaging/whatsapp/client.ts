@@ -15,6 +15,11 @@ interface WatxioConfig {
 }
 
 // ponytail: creds from env — single WhatsApp number. Move to integrationAccounts when you
+// True when the WhatsApp Business API (Watxio BSP) env is fully set. Used by the integrations hub.
+export function isConfigured(): boolean {
+  return Boolean(process.env.WATXIO_BASE_URL && process.env.WATXIO_API_KEY && process.env.WATXIO_PHONE_NUMBER_ID);
+}
+
 // need multiple numbers / multi-tenant, then pass the resolved config into these methods.
 function config(): WatxioConfig {
   const baseUrl = process.env.WATXIO_BASE_URL;

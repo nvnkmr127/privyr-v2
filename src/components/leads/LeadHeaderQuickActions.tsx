@@ -5,6 +5,7 @@ import { Phone, Mail, MessageSquare, Calendar, Clock, Trash2, ChevronDown } from
 import { Button } from "@/components/ui/button";
 import { QuickResponseDialog } from "@/components/leads/QuickResponseDialog";
 import { EditLeadDialog } from "@/components/leads/EditLeadDialog";
+import { DeleteLeadButton } from "@/components/leads/DeleteLeadButton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { updateLeadFollowUpAction } from "@/lib/actions/leads";
@@ -213,6 +214,9 @@ export function LeadHeaderQuickActions({ lead }: LeadHeaderQuickActionsProps) {
 
         {/* Edit Lead Dialog */}
         <EditLeadDialog lead={lead} />
+
+        {/* Delete → recycle bin */}
+        <DeleteLeadButton leadId={lead.id} leadName={lead.name} />
       </div>
     </TooltipProvider>
   );

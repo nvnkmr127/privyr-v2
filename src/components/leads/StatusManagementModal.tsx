@@ -96,6 +96,20 @@ export function StatusManagementModal({
     }
   }
 
+  const formRef = React.useRef<HTMLFormElement>(null);
+
+  function startEdit(item: CustomStatusItem) {
+    setNewKey(item.key);
+    setNewLabel(item.label);
+    setNewColor(item.color);
+    setNewCategory(item.category);
+    // Scroll the edit form into view and focus the label so the user lands right on it.
+    requestAnimationFrame(() => {
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      (document.getElementById("status-label") as HTMLInputElement | null)?.focus();
+    });
+  }
+
   async function handleDelete(key: string) {
     try {
       await deleteCustomStatusAction(key);
@@ -172,15 +186,18 @@ export function StatusManagementModal({
                     </div>
 
                     <div className="flex items-center gap-2">
+                      <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => startEdit(item)}>
+                        Edit
+                      </Button>
                       {item.isSystemDefault ? (
                         <span className="text-xs px-2 py-0.5 rounded bg-muted dark:bg-secondary text-muted-foreground dark:text-muted-foreground font-medium">
-                          System Default
+                          System
                         </span>
                       ) : (
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-foreground hover:text-foreground hover:bg-accent h-8 text-xs"
+                          className="text-destructive hover:text-destructive hover:bg-accent h-8 text-xs"
                           onClick={() => handleDelete(item.key)}
                         >
                           Delete
@@ -193,9 +210,9 @@ export function StatusManagementModal({
             </div>
 
             {/* Add custom status form */}
-            <form onSubmit={handleAddStatus} className="p-4 rounded-lg border border-border dark:border-border space-y-4">
+            <form ref={formRef} onSubmit={handleAddStatus} className="p-4 rounded-lg border border-border dark:border-border space-y-4 scroll-mt-4">
               <h4 className="text-sm font-semibold text-foreground dark:text-foreground">
-                Add / Update Status
+                {newKey ? `Edit "${newLabel || newKey}"` : "Add / Update Status"}
               </h4>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">

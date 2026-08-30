@@ -9,18 +9,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { generateSequenceAction, type GeneratedSequenceStep } from "@/lib/actions/ai";
-import { createSequenceAction } from "@/lib/actions/sequences";
+import { createSequenceAction, updateSequenceAction } from "@/lib/actions/sequences";
 
 type Step = GeneratedSequenceStep;
 
 const BLANK: Step = { dayOffset: 0, channel: "whatsapp", body: "" };
 
-export function SequenceBuilder() {
+export function SequenceBuilder({ initial }: { initial?: { id: string; name: string; steps: Step[] } }) {
   const router = useRouter();
   const { toast } = useToast();
-  const [name, setName] = React.useState("");
+  const [name, setName] = React.useState(initial?.name ?? "");
   const [goal, setGoal] = React.useState("");
-  const [steps, setSteps] = React.useState<Step[]>([{ ...BLANK }]);
+  const [steps, setSteps] = React.useState<Step[]>(initial?.steps?.length ? initial.steps : [{ ...BLANK }]);
   const [generating, setGenerating] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
 
@@ -50,10 +50,16 @@ export function SequenceBuilder() {
     }
     setSaving(true);
     try {
-      await createSequenceAction({ name: name.trim(), steps: clean });
-      toast({ title: "Sequence saved" });
-      setName(""); setGoal(""); setSteps([{ ...BLANK }]);
-      router.refresh();
+      if (initial?.id) {
+        await updateSequenceAction(initial.id, { name: name.trim(), steps: clean });
+        toast({ title: "Sequence updated" });
+        router.push("/sequences");
+      } else {
+        await createSequenceAction({ name: name.trim(), steps: clean });
+        toast({ title: "Sequence saved" });
+        setName(""); setGoal(""); setSteps([{ ...BLANK }]);
+        router.refresh();
+      }
     } catch (e: any) {
       toast({ variant: "destructive", title: "Couldn't save", description: e?.message });
     } finally {
@@ -63,7 +69,7 @@ export function SequenceBuilder() {
 
   return (
     <div className="rounded-2xl border bg-card p-6 space-y-4">
-      <h3 className="text-lg font-medium">New sequence</h3>
+      <h3 className="text-lg font-medium">{initial?.id ? "Edit sequence" : "New sequence"}</h3>
 
       <div className="space-y-2">
         <Label htmlFor="seq-name">Name</Label>
@@ -115,7 +121,7 @@ export function SequenceBuilder() {
 
       <div className="flex justify-end">
         <Button onClick={save} disabled={saving} className="gap-2">
-          <Save className="h-4 w-4" /> {saving ? "Saving…" : "Save sequence"}
+          <Save className="h-4 w-4" /> {saving ? "Saving…" : initial?.id ? "Update sequence" : "Save sequence"}
         </Button>
       </div>
     </div>

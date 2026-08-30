@@ -1,6 +1,7 @@
 import { GitFork, Users, Layers } from "lucide-react";
 import { listSequencesAction } from "@/lib/actions/sequences";
 import { SequenceBuilder } from "@/components/sequences/SequenceBuilder";
+import { SequenceRowActions } from "@/components/sequences/SequenceRowActions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 
@@ -43,6 +44,7 @@ export default async function SequencesPage() {
                         <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5" /> {s.activeEnrollments} active</span>
                       </p>
                     </div>
+                    <SequenceRowActions id={s.id} name={s.name} />
                   </li>
                 ))}
               </ul>

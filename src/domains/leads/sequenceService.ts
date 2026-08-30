@@ -47,6 +47,38 @@ export class SequenceService {
     );
   }
 
+  static async getWithSteps(sequenceId: string, organizationId: string) {
+    const [seq] = await db.select().from(sequences).where(and(eq(sequences.id, sequenceId), eq(sequences.organizationId, organizationId)));
+    if (!seq) return null;
+    const steps = await db.select().from(sequenceSteps).where(eq(sequenceSteps.sequenceId, sequenceId)).orderBy(asc(sequenceSteps.stepIndex));
+    return {
+      id: seq.id,
+      name: seq.name,
+      steps: steps.map((s) => ({ dayOffset: s.dayOffset, channel: s.channel as "whatsapp" | "email", body: s.body })),
+    };
+  }
+
+  // Edit a sequence: rename + replace its steps wholesale. Active enrollments keep their
+  // current step index; the new step list applies to what they run from here on.
+  static async update(organizationId: string, sequenceId: string, name: string, steps: SequenceStepInput[]) {
+    const [seq] = await db.select({ id: sequences.id }).from(sequences).where(and(eq(sequences.id, sequenceId), eq(sequences.organizationId, organizationId)));
+    if (!seq) throw new Error("Sequence not found");
+    await db.update(sequences).set({ name }).where(eq(sequences.id, sequenceId));
+    await db.delete(sequenceSteps).where(eq(sequenceSteps.sequenceId, sequenceId));
+    if (steps.length) {
+      await db.insert(sequenceSteps).values(
+        steps.map((s, i) => ({
+          sequenceId,
+          stepIndex: i,
+          dayOffset: Math.max(0, Math.floor(s.dayOffset)),
+          channel: s.channel === "email" ? "email" : "whatsapp",
+          body: s.body,
+        }))
+      );
+    }
+    return { id: sequenceId };
+  }
+
   static async listForLead(leadId: string) {
     return db
       .select({
@@ -81,6 +113,12 @@ export class SequenceService {
       enrolled++;
     }
     return { enrolled };
+  }
+
+  // Deletes a sequence; its steps and enrollments cascade via their foreign keys.
+  static async delete(organizationId: string, sequenceId: string) {
+    await db.delete(sequences).where(and(eq(sequences.id, sequenceId), eq(sequences.organizationId, organizationId)));
+    return { ok: true };
   }
 
   static async stop(organizationId: string, enrollmentId: string) {

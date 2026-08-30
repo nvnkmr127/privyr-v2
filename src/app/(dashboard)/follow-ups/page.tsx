@@ -4,6 +4,7 @@ import { followUps, leads } from "@/db/schema";
 import { eq, asc } from "drizzle-orm";
 import { format } from "date-fns";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { FollowUpActions } from "@/components/leads/FollowUpActions";
 
 export default async function FollowUpsDashboard() {
   const session = await requireAuth();
@@ -63,8 +64,11 @@ export default async function FollowUpsDashboard() {
                   <p className="font-medium">{f.followUp.title} ({f.followUp.type})</p>
                   <p className="text-sm text-muted-foreground">Lead: {f.lead.name}</p>
                 </div>
-                <div className="text-sm font-semibold text-foreground">
-                  {format(new Date(f.followUp.dueAt), 'MMM d, h:mm a')}
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-semibold text-foreground">
+                    {format(new Date(f.followUp.dueAt), 'MMM d, h:mm a')}
+                  </span>
+                  <FollowUpActions id={f.followUp.id} />
                 </div>
               </div>
             ))}
@@ -80,8 +84,11 @@ export default async function FollowUpsDashboard() {
                   <p className="font-medium">{f.followUp.title} ({f.followUp.type})</p>
                   <p className="text-sm text-muted-foreground">Lead: {f.lead.name}</p>
                 </div>
-                <div className="text-sm font-semibold text-muted-foreground">
-                  {format(new Date(f.followUp.dueAt), 'MMM d, h:mm a')}
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-semibold text-muted-foreground">
+                    {format(new Date(f.followUp.dueAt), 'MMM d, h:mm a')}
+                  </span>
+                  <FollowUpActions id={f.followUp.id} />
                 </div>
               </div>
             ))}

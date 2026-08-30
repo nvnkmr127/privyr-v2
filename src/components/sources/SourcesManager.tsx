@@ -4,8 +4,8 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { createSourceAction, toggleSourceAction } from "@/lib/actions/sources";
-import { Copy, Globe, MessageSquare, ExternalLink, CheckCircle2, Sparkles, ShieldCheck } from "lucide-react";
+import { createSourceAction, toggleSourceAction, renameSourceAction, deleteSourceAction } from "@/lib/actions/sources";
+import { Copy, Globe, MessageSquare, ExternalLink, CheckCircle2, Sparkles, ShieldCheck, Pencil, Trash2 } from "lucide-react";
 
 function FacebookIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -207,6 +207,32 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
     }
   }
 
+  async function rename(s: Source) {
+    const name = window.prompt("Rename source", s.name)?.trim();
+    if (!name || name === s.name) return;
+    setSources((prev) => prev.map((x) => (x.id === s.id ? { ...x, name } : x)));
+    try {
+      await renameSourceAction(s.id, name);
+      toast({ title: "Source renamed" });
+    } catch {
+      setSources((prev) => prev.map((x) => (x.id === s.id ? { ...x, name: s.name } : x)));
+      toast({ variant: "destructive", title: "Could not rename source" });
+    }
+  }
+
+  async function remove(s: Source) {
+    if (!confirm(`Delete source "${s.name}"? Existing leads are kept but un-sourced.`)) return;
+    const prev = sources;
+    setSources((p) => p.filter((x) => x.id !== s.id));
+    try {
+      await deleteSourceAction(s.id);
+      toast({ title: "Source deleted" });
+    } catch (e: any) {
+      setSources(prev);
+      toast({ variant: "destructive", title: "Could not delete source", description: e?.message });
+    }
+  }
+
   return (
     <div className="space-y-8">
       {/* Header & Security Badge */}
@@ -302,9 +328,17 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
                       {s.isActive ? "Active" : "Inactive"}
                     </Badge>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => toggle(s)} className="rounded-2xl">
-                    {s.isActive ? "Deactivate" : "Activate"}
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button variant="outline" size="sm" onClick={() => toggle(s)} className="rounded-2xl">
+                      {s.isActive ? "Deactivate" : "Activate"}
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => rename(s)} title="Rename">
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => remove(s)} title="Delete" className="text-destructive hover:text-destructive">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="space-y-2 text-sm pt-1">

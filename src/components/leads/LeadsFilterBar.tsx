@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Search, SlidersHorizontal, X, Bookmark, ArrowUpDown } from "lucide-react";
 import { FilterBuilderModal, MetadataOptions } from "./FilterBuilderModal";
 import { SaveViewDialog } from "./SaveViewDialog";
+import { deleteSavedViewAction, updateSavedViewAction } from "@/lib/actions/savedViews";
 import { SavedViewData } from "@/domains/savedViews/service";
 import { FilterGroup, FilterRule } from "@/domains/savedViews/service";
 
@@ -137,18 +138,39 @@ export function LeadsFilterBar({
         {views.map((v) => {
           const isActive = currentViewId === v.id;
           return (
-            <Button
+            <div
               key={v.id}
-              type="button"
-              variant={isActive ? "default" : "outline"}
-              size="sm"
-              className={`h-7 text-xs rounded-full shrink-0 ${
-                isActive ? "bg-secondary text-foreground" : "text-muted-foreground bg-card"
-              }`}
-              onClick={() => handleSelectView(v)}
+              className={`flex items-center rounded-full shrink-0 ${isActive ? "bg-secondary" : "bg-card border"}`}
             >
-              {v.name}
-            </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className={`h-7 text-xs rounded-full ${isActive ? "text-foreground" : "text-muted-foreground"} ${isActive ? "pr-1" : ""}`}
+                onClick={() => handleSelectView(v)}
+              >
+                {v.name}
+              </Button>
+              {isActive && (
+                <button
+                  type="button"
+                  aria-label={`Delete view ${v.name}`}
+                  className="mr-1.5 rounded-full p-0.5 text-muted-foreground hover:text-destructive"
+                  onClick={async () => {
+                    if (!confirm(`Delete saved view "${v.name}"?`)) return;
+                    try {
+                      await deleteSavedViewAction(v.id);
+                      applyParams({ viewId: null, filters: null });
+                      router.refresh();
+                    } catch {
+                      /* noop */
+                    }
+                  }}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
           );
         })}
       </div>
@@ -222,6 +244,25 @@ export function LeadsFilterBar({
               onClick={() => setSaveModalOpen(true)}
             >
               Save View
+            </Button>
+          )}
+          {views.some((v) => v.id === currentViewId) && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-xs text-muted-foreground hover:text-foreground"
+              title="Save current filters & sort into this view"
+              onClick={async () => {
+                try {
+                  await updateSavedViewAction({ id: currentViewId, filters: activeFilterGroup, sortField: currentSort, sortOrder: currentOrder });
+                  router.refresh();
+                } catch {
+                  /* noop */
+                }
+              }}
+            >
+              Update View
             </Button>
           )}
         </div>

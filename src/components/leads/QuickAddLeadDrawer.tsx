@@ -16,6 +16,8 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { createLeadAction } from "@/lib/actions/leads"
+import { listCustomFieldsAction } from "@/lib/actions/customFields"
+import { CustomFieldInputs, defaultCustomValues, type CustomFieldDef } from "@/components/leads/CustomFieldInputs"
 import { useToast } from "@/hooks/use-toast"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 
@@ -28,7 +30,17 @@ const formSchema = z.object({
 export function QuickAddLeadDrawer({ children }: { children?: React.ReactNode }) {
   const [open, setOpen] = React.useState(false);
   const { toast } = useToast();
-  
+  const [defs, setDefs] = React.useState<CustomFieldDef[]>([]);
+  const [customValues, setCustomValues] = React.useState<Record<string, string>>({});
+
+  React.useEffect(() => {
+    if (open) listCustomFieldsAction().then((r) => {
+      const d = r as CustomFieldDef[];
+      setDefs(d);
+      setCustomValues(defaultCustomValues(d)); // prefill declared defaults
+    }).catch(() => {});
+  }, [open]);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -39,19 +51,25 @@ export function QuickAddLeadDrawer({ children }: { children?: React.ReactNode })
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    const missing = defs.filter((d) => d.required && !(customValues[d.key] ?? "").trim());
+    if (missing.length) {
+      toast({ variant: "destructive", title: "Required field missing", description: missing.map((m) => m.label).join(", ") });
+      return;
+    }
     try {
-      await createLeadAction(values);
+      await createLeadAction({ ...values, customData: customValues });
       toast({
         title: "Lead Created",
         description: "The lead was successfully created.",
       });
       setOpen(false);
       form.reset();
-    } catch {
+      setCustomValues({});
+    } catch (e: any) {
       toast({
         variant: "destructive",
         title: "Uh oh! Something went wrong.",
-        description: "There was a problem creating this lead.",
+        description: e?.message ?? "There was a problem creating this lead.",
       });
     }
   }
@@ -109,6 +127,12 @@ export function QuickAddLeadDrawer({ children }: { children?: React.ReactNode })
                 )}
               />
               
+              {defs.length > 0 && (
+                <div className="border-t pt-3">
+                  <CustomFieldInputs defs={defs} values={customValues} onChange={(k, v) => setCustomValues((s) => ({ ...s, [k]: v }))} />
+                </div>
+              )}
+
               <DrawerFooter className="px-0">
                 <Button type="submit" disabled={form.formState.isSubmitting}>
                   {form.formState.isSubmitting ? "Saving..." : "Save Lead"}

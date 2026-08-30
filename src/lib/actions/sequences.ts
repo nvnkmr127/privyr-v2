@@ -37,6 +37,26 @@ export async function enrollLeadsAction(sequenceId: string, leadIds: string[]) {
   return res;
 }
 
+export async function getSequenceAction(sequenceId: string) {
+  const { organizationId } = await requireOrg();
+  return SequenceService.getWithSteps(sequenceId, organizationId);
+}
+
+export async function updateSequenceAction(sequenceId: string, input: unknown) {
+  const { organizationId } = await requireOrg();
+  const { name, steps } = createSchema.parse(input);
+  const res = await SequenceService.update(organizationId, sequenceId, name, steps);
+  revalidatePath("/sequences");
+  return res;
+}
+
+export async function deleteSequenceAction(sequenceId: string) {
+  const { organizationId } = await requireOrg();
+  const res = await SequenceService.delete(organizationId, sequenceId);
+  revalidatePath("/sequences");
+  return res;
+}
+
 export async function stopEnrollmentAction(enrollmentId: string, leadId?: string) {
   const { organizationId } = await requireOrg();
   const res = await SequenceService.stop(organizationId, enrollmentId);

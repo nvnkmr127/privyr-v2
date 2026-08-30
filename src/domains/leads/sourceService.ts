@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { leadSources } from "@/db/schema/leads";
+import { leadSources, leads, assignmentRules } from "@/db/schema/leads";
 import { and, eq } from "drizzle-orm";
 import crypto from "crypto";
 
@@ -28,6 +28,16 @@ export class LeadSourceService {
     }).returning();
     
     return source;
+  }
+
+  // Deletes a source after detaching it from existing leads (FK is NO ACTION, so we null it)
+  // and removing its assignment rules. Existing leads are kept, just un-sourced.
+  static async deleteSource(id: string, organizationId: string) {
+    await db.update(leads).set({ sourceId: null })
+      .where(and(eq(leads.sourceId, id), eq(leads.organizationId, organizationId)));
+    await db.delete(assignmentRules).where(eq(assignmentRules.sourceId, id));
+    await db.delete(leadSources).where(and(eq(leadSources.id, id), eq(leadSources.organizationId, organizationId)));
+    return { ok: true };
   }
 
   static async updateSource(

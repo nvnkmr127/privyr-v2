@@ -6,8 +6,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { createTemplateAction, deleteTemplateAction } from "@/lib/actions/messaging"
-import { Plus, Trash2 } from "lucide-react"
+import { createTemplateAction, updateTemplateAction, deleteTemplateAction } from "@/lib/actions/messaging"
+import { Plus, Trash2, Pencil, X } from "lucide-react"
 
 type Template = {
   id: string;
@@ -27,20 +27,36 @@ export function TemplatesManager({ initialTemplates }: { initialTemplates: Templ
   const [subject, setSubject] = React.useState("");
   const [body, setBody] = React.useState("");
   const [saving, setSaving] = React.useState(false);
+  const [editingId, setEditingId] = React.useState<string | null>(null);
 
-  async function create() {
+  function resetForm() {
+    setEditingId(null); setName(""); setChannel("whatsapp"); setSubject(""); setBody("");
+  }
+
+  function startEdit(t: Template) {
+    setEditingId(t.id); setName(t.name); setChannel(t.channel as any); setSubject(t.subject ?? ""); setBody(t.body);
+  }
+
+  async function save() {
     if (!name.trim() || !body.trim()) return;
     setSaving(true);
+    const payload = {
+      name: name.trim(),
+      channel,
+      subject: channel === "email" && subject.trim() ? subject.trim() : undefined,
+      body,
+    };
     try {
-      const row = await createTemplateAction({
-        name: name.trim(),
-        channel,
-        subject: channel === "email" && subject.trim() ? subject.trim() : undefined,
-        body,
-      });
-      setTemplates((prev) => [row as Template, ...prev]);
-      setName(""); setSubject(""); setBody("");
-      toast({ title: "Template saved" });
+      if (editingId) {
+        const row = await updateTemplateAction({ id: editingId, ...payload });
+        setTemplates((prev) => prev.map((t) => (t.id === editingId ? (row as Template) : t)));
+        toast({ title: "Template updated" });
+      } else {
+        const row = await createTemplateAction(payload);
+        setTemplates((prev) => [row as Template, ...prev]);
+        toast({ title: "Template saved" });
+      }
+      resetForm();
     } catch {
       toast({ variant: "destructive", title: "Could not save template" });
     } finally {
@@ -62,7 +78,14 @@ export function TemplatesManager({ initialTemplates }: { initialTemplates: Templ
   return (
     <div className="space-y-6">
       <div className="border rounded-2xl p-6 bg-card space-y-4">
-        <h3 className="font-semibold">New template</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold">{editingId ? "Edit template" : "New template"}</h3>
+          {editingId && (
+            <Button variant="ghost" size="sm" onClick={resetForm} className="gap-1 text-xs">
+              <X className="h-3.5 w-3.5" /> Cancel edit
+            </Button>
+          )}
+        </div>
         <div className="flex flex-col sm:flex-row gap-3">
           <Input placeholder="Template name" value={name} onChange={(e) => setName(e.target.value)} className="flex-1" />
           <Select value={channel} onValueChange={(v) => setChannel(v as any)}>
@@ -78,8 +101,8 @@ export function TemplatesManager({ initialTemplates }: { initialTemplates: Templ
         <Textarea placeholder="Message body — use {{first_name}}, {{name}}, {{email}}, {{phone}}, {{company}}"
           className="min-h-[120px]" value={body} onChange={(e) => setBody(e.target.value)} />
         <div className="flex justify-end">
-          <Button onClick={create} disabled={saving || !name.trim() || !body.trim()} className="gap-2">
-            <Plus className="h-4 w-4" />{saving ? "Saving…" : "Save template"}
+          <Button onClick={save} disabled={saving || !name.trim() || !body.trim()} className="gap-2">
+            <Plus className="h-4 w-4" />{saving ? "Saving…" : editingId ? "Update template" : "Save template"}
           </Button>
         </div>
       </div>
@@ -95,9 +118,14 @@ export function TemplatesManager({ initialTemplates }: { initialTemplates: Templ
                   <span className="font-medium">{t.name}</span>
                   <Badge variant="secondary">{t.channel}</Badge>
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => remove(t.id)}>
-                  <Trash2 className="h-4 w-4 text-muted-foreground" />
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="icon" onClick={() => startEdit(t)} title="Edit">
+                    <Pencil className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => remove(t.id)} title="Delete" className="text-destructive hover:text-destructive">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
               {t.subject && <div className="text-sm text-muted-foreground mb-1">Subject: {t.subject}</div>}
               <div className="text-sm text-muted-foreground whitespace-pre-wrap">{t.body}</div>

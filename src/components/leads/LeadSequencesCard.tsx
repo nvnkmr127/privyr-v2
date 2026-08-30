@@ -7,7 +7,7 @@ import { GitFork, Plus, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { enrollLeadsAction } from "@/lib/actions/sequences";
+import { enrollLeadsAction, stopEnrollmentAction } from "@/lib/actions/sequences";
 
 interface SequenceOption {
   id: string;
@@ -116,7 +116,25 @@ export function LeadSequencesCard({ leadId, availableSequences = [], initialEnro
                 <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
                 <span className="font-medium">{seq.name}</span>
               </div>
-              <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">{seq.status}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">{seq.status}</span>
+                {seq.status === "active" && seq.enrollmentId !== "new" && (
+                  <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" disabled={pending === seq.enrollmentId}
+                    onClick={async () => {
+                      setPending(seq.enrollmentId);
+                      try {
+                        await stopEnrollmentAction(seq.enrollmentId, leadId);
+                        setEnrolled((cur) => cur.map((e) => e.enrollmentId === seq.enrollmentId ? { ...e, status: "stopped" } : e));
+                        toast({ title: "Sequence stopped" });
+                        router.refresh();
+                      } catch {
+                        toast({ variant: "destructive", title: "Couldn't stop" });
+                      } finally { setPending(null); }
+                    }}>
+                    Stop
+                  </Button>
+                )}
+              </div>
             </div>
           ))}
         </div>

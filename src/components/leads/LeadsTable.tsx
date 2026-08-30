@@ -8,19 +8,30 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { ChevronLeft, ChevronRight, Download, Tag, MessageCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Tag, MessageCircle, Trash } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { sendCampaignAction } from "@/lib/actions/campaigns";
 import { useToast } from "@/hooks/use-toast";
 import { listUsersAction } from "@/lib/actions/users";
-import { bulkAssignLeadAction, bulkChangeLeadStatusAction } from "@/lib/actions/leads";
+import { bulkAssignLeadAction, bulkChangeLeadStatusAction, bulkDeleteLeadsAction, deleteLeadAction } from "@/lib/actions/leads";
+import { EditLeadDialog } from "@/components/leads/EditLeadDialog";
 import { bulkAddTagAction } from "@/lib/actions/tags";
 import { NextBestActionService, type ActionPriority } from "@/domains/leads/nextBestActionService";
+import { getTenantStatusSchemaAction } from "@/lib/actions/customStatuses";
 
 type Lead = {
   id: string; name: string; email: string | null; phone: string | null; status: string; createdAt: Date;
+  company?: string | null;
+  customData?: unknown;
   score?: number | null; lastContactedAt?: Date | null; nextFollowUpAt?: Date | null;
 };
+
+function renderCustom(v: unknown): string {
+  if (v == null || v === "") return "—";
+  if (Array.isArray(v)) return v.join(", ");
+  if (v === true) return "✓"; if (v === false) return "—";
+  return String(v);
+}
 
 const PRIORITY_VARIANT: Record<ActionPriority, "destructive" | "default" | "secondary"> = {
   high: "destructive",
@@ -31,23 +42,35 @@ type User = { id: string; name: string };
 
 const STATUSES = ["new", "active", "won", "lost", "unqualified"];
 
+type CustomColumn = { key: string; label: string };
+
 export function LeadsTable({
   leads,
   page = 1,
   pageSize = 20,
   total = 0,
   totalPages = 1,
+  customColumns = [],
 }: {
   leads: Lead[];
   page?: number;
   pageSize?: number;
   total?: number;
   totalPages?: number;
+  customColumns?: CustomColumn[];
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
+  const [statusMap, setStatusMap] = React.useState<Map<string, { label: string; color: string }>>(new Map());
+
+  // Load the tenant status schema once so status badges show their configured label + colour.
+  React.useEffect(() => {
+    getTenantStatusSchemaAction()
+      .then((s) => setStatusMap(new Map((s as any[]).map((x) => [x.key, { label: x.label, color: x.color }]))))
+      .catch(() => {});
+  }, []);
   const [users, setUsers] = React.useState<User[]>([]);
   const [busy, setBusy] = React.useState(false);
 
@@ -184,10 +207,8 @@ export function LeadsTable({
               <SelectValue placeholder="Set status…" />
             </SelectTrigger>
             <SelectContent>
-              {STATUSES.map((s) => (
-                <SelectItem key={s} value={s}>
-                  {s[0].toUpperCase() + s.slice(1)}
-                </SelectItem>
+              {(statusMap.size ? [...statusMap.entries()].map(([key, v]) => ({ key, label: v.label })) : STATUSES.map((s) => ({ key: s, label: s[0].toUpperCase() + s.slice(1) }))).map((s) => (
+                <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -232,6 +253,20 @@ export function LeadsTable({
             <Download className="h-4 w-4" />
             Export CSV
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={busy}
+            onClick={() => {
+              if (confirm(`Move ${selected.size} lead${selected.size === 1 ? "" : "s"} to the recycle bin?`)) {
+                run(() => bulkDeleteLeadsAction({ leadIds: ids() }), "Leads moved to recycle bin");
+              }
+            }}
+            className="h-9 gap-1.5 text-destructive hover:text-destructive"
+          >
+            <Trash className="h-4 w-4" />
+            Delete
+          </Button>
         </div>
       )}
 
@@ -270,6 +305,7 @@ export function LeadsTable({
               <TableHead>Email</TableHead>
               <TableHead>Phone</TableHead>
               <TableHead>Status</TableHead>
+              {customColumns.map((c) => <TableHead key={c.key}>{c.label}</TableHead>)}
               <TableHead>Next Action</TableHead>
               <TableHead>Created</TableHead>
               <TableHead className="text-right">Action</TableHead>
@@ -294,10 +330,23 @@ export function LeadsTable({
                 <TableCell>{lead.email || "-"}</TableCell>
                 <TableCell>{lead.phone || "-"}</TableCell>
                 <TableCell>
-                  <Badge variant={lead.status === "new" ? "default" : "secondary"}>
-                    {lead.status}
-                  </Badge>
+                  {statusMap.get(lead.status) ? (
+                    <Badge
+                      variant="secondary"
+                      className="border-transparent"
+                      style={{ backgroundColor: `${statusMap.get(lead.status)!.color}22`, color: statusMap.get(lead.status)!.color }}
+                    >
+                      {statusMap.get(lead.status)!.label}
+                    </Badge>
+                  ) : (
+                    <Badge variant={lead.status === "new" ? "default" : "secondary"}>{lead.status}</Badge>
+                  )}
                 </TableCell>
+                {customColumns.map((c) => (
+                  <TableCell key={c.key} className="text-sm text-muted-foreground max-w-[12rem] truncate">
+                    {renderCustom((lead.customData as Record<string, unknown> | null)?.[c.key])}
+                  </TableCell>
+                ))}
                 <TableCell>
                   {(() => {
                     const nba = NextBestActionService.getRecommendation({
@@ -319,11 +368,25 @@ export function LeadsTable({
                   {new Date(lead.createdAt).toLocaleDateString()}
                 </TableCell>
                 <TableCell className="text-right">
-                  <Link href={`/leads/${lead.id}`}>
-                    <Button variant="ghost" size="sm">
-                      View
+                  <div className="flex items-center justify-end gap-1">
+                    <Button asChild variant="ghost" size="sm">
+                      <Link href={`/leads/${lead.id}`}>View</Link>
                     </Button>
-                  </Link>
+                    <EditLeadDialog lead={lead} />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive hover:text-destructive"
+                      title="Move to recycle bin"
+                      onClick={() => {
+                        if (confirm(`Move ${lead.name || "this lead"} to the recycle bin?`)) {
+                          run(() => deleteLeadAction(lead.id), "Moved to recycle bin");
+                        }
+                      }}
+                    >
+                      <Trash className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}

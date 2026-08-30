@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { updateOrganizationAction } from "@/lib/actions/organizations";
 import { StatusManagementModal } from "@/components/leads/StatusManagementModal";
-import { Sliders, Building, Tag, Users, MessageSquare, Database, Globe } from "lucide-react";
+import { Sliders, Building, Tag, Users, MessageSquare, Database, Globe, LocateFixed, Lock, Check } from "lucide-react";
 import Link from "next/link";
 
 type Org = {
@@ -38,9 +38,52 @@ const LEAD_FIELDS: { key: string; label: string }[] = [
   { key: "company", label: "Company" },
 ];
 
-const CURRENCIES = ["USD", "EUR", "GBP", "INR", "AUD", "CAD", "SGD", "AED", "JPY"];
+const CURRENCIES: { code: string; name: string; symbol: string }[] = [
+  { code: "USD", name: "US Dollar", symbol: "$" },
+  { code: "EUR", name: "Euro", symbol: "€" },
+  { code: "GBP", name: "British Pound", symbol: "£" },
+  { code: "INR", name: "Indian Rupee", symbol: "₹" },
+  { code: "AUD", name: "Australian Dollar", symbol: "A$" },
+  { code: "CAD", name: "Canadian Dollar", symbol: "C$" },
+  { code: "SGD", name: "Singapore Dollar", symbol: "S$" },
+  { code: "AED", name: "UAE Dirham", symbol: "د.إ" },
+  { code: "JPY", name: "Japanese Yen", symbol: "¥" },
+];
+
 const DATE_FORMATS = ["MM/DD/YYYY", "DD/MM/YYYY", "YYYY-MM-DD", "DD-MMM-YYYY"];
-const LOCALES = ["en", "en-GB", "es", "fr", "de", "pt", "hi", "ar", "zh"];
+
+const LOCALES: { code: string; name: string }[] = [
+  { code: "en", name: "English (US)" },
+  { code: "en-GB", name: "English (UK)" },
+  { code: "es", name: "Español" },
+  { code: "fr", name: "Français" },
+  { code: "de", name: "Deutsch" },
+  { code: "pt", name: "Português" },
+  { code: "hi", name: "हिन्दी (Hindi)" },
+  { code: "ar", name: "العربية (Arabic)" },
+  { code: "zh", name: "中文 (Chinese)" },
+];
+
+// Real IANA timezone list from the runtime; fall back to a curated set on older browsers.
+function timezoneList(): string[] {
+  try {
+    const zones = (Intl as any).supportedValuesOf?.("timeZone");
+    if (Array.isArray(zones) && zones.length) return zones;
+  } catch { /* fall through */ }
+  return ["UTC", "America/New_York", "America/Chicago", "America/Los_Angeles", "Europe/London", "Europe/Berlin", "Asia/Kolkata", "Asia/Singapore", "Asia/Dubai", "Australia/Sydney"];
+}
+
+// Renders a Date per the chosen MM/DD/YYYY-style token string.
+function formatDate(d: Date, fmt: string): string {
+  const MMM = d.toLocaleString("en-US", { month: "short" });
+  const map: Record<string, string> = {
+    YYYY: String(d.getFullYear()),
+    MM: String(d.getMonth() + 1).padStart(2, "0"),
+    DD: String(d.getDate()).padStart(2, "0"),
+    MMM,
+  };
+  return fmt.replace(/YYYY|MMM|MM|DD/g, (t) => map[t] ?? t);
+}
 
 // A native <select> — no dependency, correct on edge cases, themable via the same classes as Input.
 function NativeSelect(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
@@ -78,6 +121,32 @@ export function GeneralSettingsForm({ organization }: { organization?: Org | nul
   });
 
   const set = (k: keyof typeof f, v: string) => setF((s) => ({ ...s, [k]: v }));
+
+  const tzList = React.useMemo(() => timezoneList(), []);
+  // `now` is client-only: the live clock differs between server render and client hydration,
+  // so we keep it null until mounted to avoid a hydration mismatch, then tick it each minute.
+  const [now, setNow] = React.useState<Date | null>(null);
+  React.useEffect(() => {
+    setNow(new Date());
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const preview = React.useMemo(() => {
+    const ref = now ?? new Date();
+    let tzTime = "";
+    try {
+      tzTime = now
+        ? new Intl.DateTimeFormat(f.locale || "en", { hour: "2-digit", minute: "2-digit", timeZone: f.timezone || "UTC" }).format(now)
+        : "—:—";
+    } catch { tzTime = "—:—"; }
+    const date = formatDate(ref, f.dateFormat || "MM/DD/YYYY");
+    let money = "";
+    try {
+      money = new Intl.NumberFormat(f.locale || "en", { style: "currency", currency: f.currency || "USD" }).format(1234.5);
+    } catch { money = `${f.currency} 1,234.50`; }
+    return { tzTime, date, money };
+  }, [now, f.locale, f.timezone, f.dateFormat, f.currency]);
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -185,28 +254,42 @@ export function GeneralSettingsForm({ organization }: { organization?: Org | nul
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="timezone">Timezone (IANA)</Label>
-              <Input id="timezone" value={f.timezone} onChange={(e) => set("timezone", e.target.value)}
-                placeholder="e.g. America/New_York" />
+              <Label htmlFor="timezone">Timezone</Label>
+              <div className="flex gap-2">
+                <Input id="timezone" list="tz-list" value={f.timezone} onChange={(e) => set("timezone", e.target.value)}
+                  placeholder="Search e.g. America/New_York" className="flex-1" />
+                <Button type="button" variant="outline" size="icon" title="Detect my timezone"
+                  onClick={() => { try { set("timezone", Intl.DateTimeFormat().resolvedOptions().timeZone); } catch {} }}>
+                  <LocateFixed className="h-4 w-4" />
+                </Button>
+              </div>
+              <datalist id="tz-list">{tzList.map((z) => <option key={z} value={z} />)}</datalist>
             </div>
             <div className="space-y-2">
               <Label htmlFor="locale">Language / Locale</Label>
               <NativeSelect id="locale" value={f.locale} onChange={(e) => set("locale", e.target.value)}>
-                {LOCALES.map((l) => <option key={l} value={l}>{l}</option>)}
+                {LOCALES.map((l) => <option key={l.code} value={l.code}>{l.name} — {l.code}</option>)}
               </NativeSelect>
             </div>
             <div className="space-y-2">
               <Label htmlFor="currency">Currency</Label>
               <NativeSelect id="currency" value={f.currency} onChange={(e) => set("currency", e.target.value)}>
-                {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                {CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.code} — {c.name} ({c.symbol})</option>)}
               </NativeSelect>
             </div>
             <div className="space-y-2">
               <Label htmlFor="dateFormat">Date Format</Label>
               <NativeSelect id="dateFormat" value={f.dateFormat} onChange={(e) => set("dateFormat", e.target.value)}>
-                {DATE_FORMATS.map((d) => <option key={d} value={d}>{d}</option>)}
+                {DATE_FORMATS.map((d) => <option key={d} value={d}>{d} — {formatDate(new Date(), d)}</option>)}
               </NativeSelect>
             </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-1 rounded-xl bg-muted/50 px-4 py-3 text-sm">
+            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Preview</span>
+            <span>🕑 {preview.tzTime}</span>
+            <span>📅 {preview.date}</span>
+            <span>💰 {preview.money}</span>
           </div>
         </div>
 
@@ -215,8 +298,8 @@ export function GeneralSettingsForm({ organization }: { organization?: Org | nul
           <div className="flex items-center gap-3 border-b border-border dark:border-border pb-4">
             <Sliders className="h-5 w-5 text-muted-foreground" />
             <div>
-              <h3 className="text-lg font-semibold text-foreground dark:text-foreground">Required Lead Information</h3>
-              <p className="text-xs text-muted-foreground">Fields that must be filled in when a lead is created.</p>
+              <h3 className="text-lg font-semibold text-foreground dark:text-foreground">Lead Capture &amp; Workflow</h3>
+              <p className="text-xs text-muted-foreground">Which fields are required on new leads, plus SLA and messaging defaults.</p>
             </div>
           </div>
           <div className="space-y-2 max-w-xs">
@@ -235,26 +318,34 @@ export function GeneralSettingsForm({ organization }: { organization?: Org | nul
               Personal opens WhatsApp with the message ready to send from your own number. Business API sends directly and needs BSP setup.
             </p>
           </div>
-          <div className="flex flex-wrap gap-4 pt-2 border-t border-border dark:border-border">
-            <label className="flex items-center gap-2 text-sm text-muted-foreground">
-              <input type="checkbox" checked disabled className="h-4 w-4 rounded border-border" />
-              Name (always required)
-            </label>
-            {LEAD_FIELDS.map(({ key, label }) => (
-              <label key={key} className="flex items-center gap-2 text-sm text-muted-foreground dark:text-foreground">
-                <input
-                  type="checkbox"
-                  checked={requiredFields.includes(key)}
-                  onChange={(e) =>
-                    setRequiredFields((prev) =>
-                      e.target.checked ? [...prev, key] : prev.filter((k) => k !== key),
-                    )
-                  }
-                  className="h-4 w-4 rounded border-border"
-                />
-                {label}
-              </label>
-            ))}
+          <div className="space-y-2 pt-2 border-t border-border dark:border-border">
+            <Label className="text-sm">Required fields on new leads</Label>
+            <div className="flex flex-wrap gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted px-3 py-1.5 text-sm text-muted-foreground">
+                <Lock className="h-3.5 w-3.5" /> Name
+              </span>
+              {LEAD_FIELDS.map(({ key, label }) => {
+                const on = requiredFields.includes(key);
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setRequiredFields((prev) => (on ? prev.filter((k) => k !== key) : [...prev, key]))}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors ${
+                      on ? "border-primary bg-primary/10 text-foreground" : "border-border text-muted-foreground hover:border-foreground/30"
+                    }`}
+                  >
+                    {on ? <Check className="h-3.5 w-3.5 text-primary" /> : <span className="h-3.5 w-3.5" />}
+                    {label}
+                    <span className="text-xs opacity-70">{on ? "required" : "optional"}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Name is always required. Need more? Mark any field required in{" "}
+              <Link href="/settings/custom-fields" className="underline underline-offset-2">Custom Fields</Link>.
+            </p>
           </div>
         </div>
 

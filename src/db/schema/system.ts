@@ -37,9 +37,13 @@ export const customFieldDefs = pgTable('custom_field_defs', {
   organizationId: uuid('organization_id').references(() => organizations.id).notNull(),
   key: varchar('key', { length: 50 }).notNull(), // slug used in custom_data
   label: varchar('label', { length: 100 }).notNull(),
-  type: varchar('type', { length: 20 }).notNull().default('text'), // text, number, date, select
-  options: jsonb('options').$type<string[]>().default([]), // for type=select
+  type: varchar('type', { length: 20 }).notNull().default('text'), // text, textarea, number, date, datetime, select, multiselect, checkbox, url
+  options: jsonb('options').$type<string[]>().default([]), // for type=select / multiselect
   required: boolean('required').notNull().default(false),
+  defaultValue: text('default_value'), // prefilled on new leads
+  disabled: boolean('disabled').notNull().default(false), // keep the def but hide it from forms
+  adminOnly: boolean('admin_only').notNull().default(false), // only admins see/edit
+  showOnTable: boolean('show_on_table').notNull().default(false), // render as a column in the leads list
   orderIndex: integer('order_index').notNull().default(0),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (t) => ({

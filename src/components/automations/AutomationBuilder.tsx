@@ -6,9 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useRouter } from "next/navigation";
-import { createAutomation } from "@/lib/actions/automations";
+import { createAutomation, updateAutomation } from "@/lib/actions/automations";
 
-export function AutomationBuilder({ initialData = null }: { initialData?: any }) {
+export function AutomationBuilder({ initialData = null, automationId }: { initialData?: any; automationId?: string }) {
   const router = useRouter();
   const [name, setName] = useState(initialData?.name || "");
   const [trigger, setTrigger] = useState(initialData?.trigger?.type || "lead.created");
@@ -24,13 +24,14 @@ export function AutomationBuilder({ initialData = null }: { initialData?: any })
     try {
       const data = {
         name,
-        isActive: true,
+        isActive: initialData?.isActive ?? true,
         trigger: { type: trigger, config: {} },
         conditions: conditionField ? { field: conditionField, operator: conditionOp, value: conditionVal } : null,
         actions: [{ type: actionType, config: JSON.parse(actionConfigStr) }],
       };
 
-      await createAutomation(data);
+      if (automationId) await updateAutomation(automationId, data);
+      else await createAutomation(data);
       router.push("/automations");
     } catch (e) {
       console.error(e);

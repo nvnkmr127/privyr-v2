@@ -107,6 +107,23 @@ export async function deleteLeadAction(id: string) {
   return deleted;
 }
 
+const bulkDeleteSchema = z.object({ leadIds: z.array(z.string().uuid()).min(1) });
+
+// Soft-delete many leads to the recycle bin at once.
+export async function bulkDeleteLeadsAction(input: z.infer<typeof bulkDeleteSchema>) {
+  const { userId, organizationId } = await requirePermission("leads.delete");
+  const { leadIds } = bulkDeleteSchema.parse(input);
+  let deleted = 0;
+  for (const id of leadIds) {
+    const row = await LeadService.deleteLead(id, userId, organizationId);
+    if (row) deleted++;
+  }
+  await AuditService.log({ organizationId, userId, action: "lead.bulk_delete", entityType: "organization", entityId: organizationId });
+  revalidatePath("/leads");
+  revalidatePath("/leads/recycle-bin");
+  return { deleted };
+}
+
 // Recycle bin: list, restore, and (super-admin only) permanent removal.
 export async function listDeletedLeadsAction() {
   const { organizationId } = await requireOrg();

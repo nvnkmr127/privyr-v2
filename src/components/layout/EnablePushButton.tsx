@@ -3,7 +3,7 @@ import * as React from "react"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { Bell, BellOff } from "lucide-react"
-import { subscribePushAction } from "@/lib/actions/push"
+import { subscribePushAction, unsubscribePushAction } from "@/lib/actions/push"
 
 // VAPID public key is base64url; PushManager wants a Uint8Array.
 function urlBase64ToUint8Array(base64: string) {
@@ -53,13 +53,31 @@ export function EnablePushButton() {
     }
   }
 
+  async function disable() {
+    setBusy(true);
+    try {
+      const reg = await navigator.serviceWorker.getRegistration();
+      const sub = await reg?.pushManager.getSubscription();
+      if (sub) {
+        await unsubscribePushAction(sub.endpoint);
+        await sub.unsubscribe();
+      }
+      setEnabled(false);
+      toast({ title: "Push notifications turned off" });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Could not turn off push", description: e?.message });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!supported) return null;
 
   return (
-    <Button variant="ghost" size="icon" onClick={enable} disabled={busy || enabled}
-      title={enabled ? "Push notifications on" : "Enable push notifications"}>
-      {enabled ? <Bell className="h-5 w-5 text-muted-foreground" /> : <BellOff className="h-5 w-5" />}
-      <span className="sr-only">Enable push</span>
+    <Button variant="ghost" size="icon" onClick={enabled ? disable : enable} disabled={busy}
+      title={enabled ? "Push on — click to turn off" : "Enable push notifications"}>
+      {enabled ? <Bell className="h-5 w-5 text-emerald-500" /> : <BellOff className="h-5 w-5" />}
+      <span className="sr-only">{enabled ? "Disable push" : "Enable push"}</span>
     </Button>
   );
 }

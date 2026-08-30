@@ -33,6 +33,20 @@ export async function createTemplateAction(input: z.infer<typeof createSchema>) 
   return row;
 }
 
+const updateSchema = createSchema.extend({ id: z.string().uuid() });
+
+export async function updateTemplateAction(input: z.infer<typeof updateSchema>) {
+  const { organizationId } = await requirePermission("templates.manage");
+  const { id, ...data } = updateSchema.parse(input);
+  const [row] = await db
+    .update(messageTemplates)
+    .set(data)
+    .where(and(eq(messageTemplates.id, id), eq(messageTemplates.organizationId, organizationId)))
+    .returning();
+  revalidatePath("/templates");
+  return row;
+}
+
 export async function deleteTemplateAction(id: string) {
   const { organizationId } = await requirePermission("templates.manage");
   await db

@@ -8,12 +8,13 @@ import { LeadService } from "@/domains/leads/service";
 import { SavedViewService } from "@/domains/savedViews/service";
 import { requireOrg } from "@/lib/rbac";
 import { QuickAddLeadDrawer } from "@/components/leads/QuickAddLeadDrawer";
-import { ImportCsvDialog } from "@/components/leads/ImportCsvDialog";
+import { LeadImportWizard } from "@/components/leads/LeadImportWizard";
 import { LeadsFilterBar } from "@/components/leads/LeadsFilterBar";
 import { LeadsTable } from "@/components/leads/LeadsTable";
 import { listUsersAction } from "@/lib/actions/users";
 import { listSourcesAction } from "@/lib/actions/sources";
 import { listTagsAction } from "@/lib/actions/tags";
+import { listCustomFieldsAction } from "@/lib/actions/customFields";
 
 export default async function LeadsPage({
   searchParams,
@@ -42,11 +43,12 @@ export default async function LeadsPage({
     }
   }
 
-  const [views, usersList, sourcesList, tagsList, leadResult] = await Promise.all([
+  const [views, usersList, sourcesList, tagsList, customFieldDefs, leadResult] = await Promise.all([
     SavedViewService.listViews(organizationId, userId),
     listUsersAction().catch(() => []),
     listSourcesAction().catch(() => []),
     listTagsAction().catch(() => []),
+    listCustomFieldsAction().catch(() => []),
     LeadService.listLeads({
       organizationId,
       search,
@@ -91,11 +93,11 @@ export default async function LeadsPage({
               <Trash2 className="mr-2 h-4 w-4" /> Recycle Bin
             </Button>
           </Link>
-          <ImportCsvDialog>
+          <LeadImportWizard>
             <Button variant="outline">
-              <Upload className="mr-2 h-4 w-4" /> Import CSV
+              <Upload className="mr-2 h-4 w-4" /> Import Leads
             </Button>
-          </ImportCsvDialog>
+          </LeadImportWizard>
           <QuickAddLeadDrawer>
             <Button>
               <Plus className="mr-2 h-4 w-4" /> Add Lead
@@ -135,11 +137,11 @@ export default async function LeadsPage({
             title="No leads found"
             description="Get started by creating a new lead manually or importing from a CSV."
             action={
-              <ImportCsvDialog>
+              <LeadImportWizard>
                 <Button variant="outline">
-                  <Upload className="mr-2 h-4 w-4" /> Import CSV
+                  <Upload className="mr-2 h-4 w-4" /> Import Leads
                 </Button>
-              </ImportCsvDialog>
+              </LeadImportWizard>
             }
           />
         )
@@ -150,6 +152,9 @@ export default async function LeadsPage({
           pageSize={limit}
           total={total}
           totalPages={totalPages}
+          customColumns={(customFieldDefs as any[])
+            .filter((f) => f.showOnTable && !f.disabled)
+            .map((f) => ({ key: f.key, label: f.label }))}
         />
       )}
     </div>
