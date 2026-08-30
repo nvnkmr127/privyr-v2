@@ -19,6 +19,17 @@ export async function GET(req: NextRequest) {
   const search = (sp.get("search") || "").trim();
   const status = (sp.get("status") || "").trim();
 
+  // Recycle bin: the soft-deleted leads, most-recently-deleted first.
+  if (sp.get("deleted") === "1") {
+    const deleted = await LeadService.listDeletedLeads(auth.organizationId);
+    return NextResponse.json({
+      data: deleted.map((l) => ({
+        id: l.id, name: l.name, email: l.email, phone: l.phone, company: l.company,
+        status: l.status, createdAt: l.createdAt, deletedAt: l.deletedAt, daysLeft: l.daysLeft,
+      })),
+    });
+  }
+
   const where = [eq(leads.organizationId, auth.organizationId), isNull(leads.deletedAt)];
   if (status) where.push(eq(leads.status, status));
   if (search) {
