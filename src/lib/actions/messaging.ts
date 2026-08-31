@@ -115,7 +115,7 @@ export async function sendEmailAction(input: z.infer<typeof emailSchema>) {
     if (!lead.email) return fail("VALIDATION", "This lead has no email address on file.");
 
     const { sendEmail } = await import("@/lib/mail/mailer");
-    await sendEmail({ to: lead.email, subject: data.subject, html: `<p>${data.body.replace(/\n/g, "<br/>")}</p>` });
+    await sendEmail({ to: lead.email, subject: data.subject, html: `<p>${data.body.replace(/\n/g, "<br/>")}</p>` }, organizationId);
 
     await ActivityService.addActivity({
       leadId: data.leadId,

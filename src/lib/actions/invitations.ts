@@ -2,7 +2,11 @@
 
 import { requirePermission } from "@/lib/rbac";
 import { InvitationService } from "@/domains/invitations/service";
+import { OrgService } from "@/domains/organizations/service";
 import { AuditService } from "@/domains/audit/service";
+
+// Escape a tenant-controlled string before putting it in email HTML.
+const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 import { PlanService } from "@/domains/billing/planService";
 import { sendEmail, appUrl } from "@/lib/mail/mailer";
 import { revalidatePath } from "next/cache";
@@ -28,11 +32,15 @@ export async function inviteUserAction(input: z.infer<typeof inviteSchema>) {
     const { token } = await InvitationService.create(organizationId, data.email, data.roleId ?? null, userId);
     const link = appUrl(`/invite/${token}`);
 
+    // Tenant-branded: name the inviting workspace, not the platform.
+    const org = await OrgService.getOrganization(organizationId);
+    const orgName = esc(org?.name || "your workspace");
+
     await sendEmail({
       to: data.email,
-      subject: "You've been invited to Privyr",
-      html: `<p>You've been invited to join a Privyr workspace.</p><p><a href="${link}">Accept your invitation</a> (expires in 7 days).</p>`,
-    });
+      subject: `You've been invited to ${orgName}`,
+      html: `<p>You've been invited to join <strong>${orgName}</strong>.</p><p><a href="${link}">Accept your invitation</a> (expires in 7 days).</p>`,
+    }, organizationId);
     await AuditService.log({ organizationId, userId, action: "user.invite", entityType: "invitation", metadata: { email: data.email } });
 
     revalidatePath("/settings/users");

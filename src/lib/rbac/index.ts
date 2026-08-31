@@ -16,13 +16,44 @@ export async function requireAuth() {
 
 // The tenant boundary. Returns the caller's org + identity; every tenant-scoped service
 // takes organizationId from HERE, never from user input — this is the centralized scoping point.
+//
+// Super-admin impersonation: when a platform super-admin has an active "impersonate_org" cookie,
+// requireOrg returns THAT org, so the super-admin operates inside the tenant through the normal UI.
 export async function requireOrg() {
   const session = await requireAuth();
-  const organizationId = session.user.organizationId;
+  let organizationId = session.user.organizationId;
+
+  if (session.user.isSuperAdmin) {
+    const orgId = await getImpersonatedOrgId();
+    if (orgId) organizationId = orgId;
+  }
+
   if (!organizationId) {
     redirect("/login");
   }
   return { userId: session.user.id, organizationId, roleId: session.user.roleId };
+}
+
+const IMPERSONATE_COOKIE = "impersonate_org";
+
+// The org a super-admin is currently impersonating (null if none / not a super-admin).
+export async function getImpersonatedOrgId(): Promise<string | null> {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.isSuperAdmin) return null;
+  const { cookies } = await import("next/headers");
+  return (await cookies()).get(IMPERSONATE_COOKIE)?.value ?? null;
+}
+
+// Platform operator gate. Throws "Forbidden" unless the caller is a super-admin.
+export async function requireSuperAdmin() {
+  const session = await requireAuth();
+  if (!session.user.isSuperAdmin) throw new Error("Forbidden");
+  return session;
+}
+
+export async function isSuperAdmin(): Promise<boolean> {
+  const session = await getServerSession(authOptions);
+  return Boolean(session?.user?.isSuperAdmin);
 }
 
 // Resolve the current user's role (name + permissions) from the roleId carried in the JWT.
@@ -44,6 +75,9 @@ export async function currentRoleName(): Promise<string | null> {
 
 // admin implicitly has every permission; other roles must list the key explicitly.
 export async function hasPermission(key: PermissionKey): Promise<boolean> {
+  // Platform super-admins hold every permission (incl. inside an impersonated tenant).
+  const session = await getServerSession(authOptions);
+  if (session?.user?.isSuperAdmin) return true;
   const role = await currentRole();
   if (!role) return false;
   // Admin (any casing) and the "*" wildcard grant every permission — as the seed intends.

@@ -178,7 +178,7 @@ export class SequenceService {
       if (channel === "email") {
         if (!lead.email) throw new Error("no email");
         const { sendEmail } = await import("@/lib/mail/mailer");
-        await sendEmail({ to: lead.email, subject: "Following up", html: `<p>${rendered.replace(/\n/g, "<br/>")}</p>` });
+        await sendEmail({ to: lead.email, subject: "Following up", html: `<p>${rendered.replace(/\n/g, "<br/>")}</p>` }, lead.organizationId ?? undefined);
         await ActivityService.addActivity({ leadId, type: "email", content: `[sequence email] ${rendered.slice(0, 120)}` });
       } else {
         const { WhatsAppService } = await import("@/lib/messaging/whatsapp/service");

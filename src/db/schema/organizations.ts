@@ -6,6 +6,7 @@ export const organizations = pgTable('organizations', {
   name: varchar('name', { length: 255 }).notNull(),
   slug: varchar('slug', { length: 255 }).notNull().unique(),
   plan: varchar('plan', { length: 50 }).default('free').notNull(),
+  suspendedAt: timestamp('suspended_at'), // set by a platform super-admin; blocks the org's logins
 
   // Localisation
   timezone: varchar('timezone', { length: 64 }).default('UTC').notNull(),

@@ -33,6 +33,7 @@ export const users = pgTable('users', {
   roleId: uuid('role_id').references(() => roles.id),
   teamId: uuid('team_id').references(() => teams.id),
   isActive: boolean('is_active').default(true).notNull(),
+  isSuperAdmin: boolean('is_super_admin').default(false).notNull(), // platform operator — cross-tenant access
   deletedAt: timestamp('deleted_at'), // soft delete — hard delete would orphan lead/activity FKs
   emailOptOut: jsonb('email_opt_out').$type<string[]>().default([]).notNull(), // notification types the user muted for email
   createdAt: timestamp('created_at').defaultNow().notNull(),

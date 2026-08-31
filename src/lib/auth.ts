@@ -6,6 +6,7 @@ declare module "next-auth" {
       id: string;
       roleId: string | null;
       organizationId: string | null;
+      isSuperAdmin: boolean;
     } & DefaultSession["user"];
   }
 
@@ -13,13 +14,14 @@ declare module "next-auth" {
     id: string;
     roleId: string | null;
     organizationId: string | null;
+    isSuperAdmin: boolean;
   }
 }
 
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { db } from "@/db";
-import { users } from "@/db/schema";
+import { users, organizations } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
@@ -55,12 +57,23 @@ export const authOptions: NextAuthOptions = {
         const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
         if (!isPasswordValid) return null;
 
+        // Block sign-in for a suspended org (super-admins are exempt — they operate cross-tenant).
+        if (user.organizationId && !user.isSuperAdmin) {
+          const [org] = await db
+            .select({ suspendedAt: organizations.suspendedAt })
+            .from(organizations)
+            .where(eq(organizations.id, user.organizationId))
+            .limit(1);
+          if (org?.suspendedAt) return null;
+        }
+
         return {
           id: user.id,
           email: user.email,
           name: `${user.firstName} ${user.lastName}`,
           roleId: user.roleId,
           organizationId: user.organizationId,
+          isSuperAdmin: user.isSuperAdmin,
         };
       },
     }),
@@ -71,6 +84,7 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.roleId = user.roleId;
         token.organizationId = user.organizationId;
+        token.isSuperAdmin = user.isSuperAdmin;
       }
       return token;
     },
@@ -81,6 +95,7 @@ export const authOptions: NextAuthOptions = {
           id: token.id as string,
           roleId: token.roleId as string,
           organizationId: (token.organizationId as string) ?? null,
+          isSuperAdmin: Boolean(token.isSuperAdmin),
         };
       }
       return session;

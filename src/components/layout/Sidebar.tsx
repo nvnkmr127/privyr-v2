@@ -2,9 +2,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { ShieldCheck } from "lucide-react";
 import { navRoutes, navGroups } from "./nav";
 
-export function Sidebar() {
+export function Sidebar({ isSuperAdmin = false }: { isSuperAdmin?: boolean }) {
   const pathname = usePathname();
 
   // Hidden on mobile — the Header's hamburger opens the same nav as an overlay drawer there.
@@ -40,6 +41,24 @@ export function Sidebar() {
             })}
           </div>
         ))}
+
+        {isSuperAdmin && (
+          <div className="space-y-1">
+            <p className="px-3 mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">Platform</p>
+            <Link
+              href="/admin"
+              className={cn(
+                "group flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                pathname === "/admin"
+                  ? "bg-accent text-accent-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent/50",
+              )}
+            >
+              <ShieldCheck className="h-[18px] w-[18px] shrink-0" strokeWidth={1.75} />
+              Platform Admin
+            </Link>
+          </div>
+        )}
       </nav>
     </aside>
   );

@@ -14,3 +14,4 @@ export * from './savedViews';
 export * from './system';
 export * from './sharedContent';
 export * from './sequences';
+export * from './emailSettings';

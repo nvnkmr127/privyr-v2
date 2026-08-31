@@ -5,7 +5,7 @@ import { withSentryConfig } from "@sentry/nextjs";
 // "Can't resolve 'http'/'pg'" and bullmq's broken ESM randomUUID export). Externalizing
 // them makes the server emit a plain require() at runtime — including in the
 // `instrumentation.ts` layer, which serverExternalPackages does not reach in Next 15.0.
-const NODE_ONLY = ["bullmq", "ioredis", "web-push", "postgres", "mysql2", "pg", "https-proxy-agent", "agent-base"];
+const NODE_ONLY = ["bullmq", "ioredis", "web-push", "postgres", "mysql2", "pg", "https-proxy-agent", "agent-base", "resend", "nodemailer"];
 
 const nextConfig: NextConfig = {
   // Style-lint (unused vars, unescaped entities) shouldn't fail the production build.
@@ -27,6 +27,8 @@ const nextConfig: NextConfig = {
         ...config.resolve.fallback,
         crypto: false, stream: false, pg: false, http: false, https: false, net: false, tls: false,
         dns: false, fs: false, child_process: false, bullmq: false, ioredis: false, "web-push": false,
+        // resend (+ its optional React-email renderer) and nodemailer are server-only; never on edge.
+        resend: false, "@react-email/render": false, nodemailer: false,
       };
     }
     if (isServer) {
