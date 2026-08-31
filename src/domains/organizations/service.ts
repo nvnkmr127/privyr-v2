@@ -65,6 +65,16 @@ export class OrgService {
     });
   }
 
+  // Cheap suspension check for the request path (single indexed PK lookup).
+  static async isSuspended(organizationId: string): Promise<boolean> {
+    const [o] = await db
+      .select({ s: organizations.suspendedAt })
+      .from(organizations)
+      .where(eq(organizations.id, organizationId))
+      .limit(1);
+    return !!o?.s;
+  }
+
   static async getOrganization(organizationId: string) {
     const [org] = await db
       .select()

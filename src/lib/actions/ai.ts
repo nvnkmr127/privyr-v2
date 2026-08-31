@@ -5,6 +5,7 @@ import { requireOrg } from "@/lib/rbac";
 import { LeadService } from "@/domains/leads/service";
 import { ActivityService } from "@/domains/activities/service";
 import { generateText, aiEnabled } from "@/lib/ai/client";
+import { buildLeadContext } from "@/lib/ai/leadBrief";
 
 const schema = z.object({ leadId: z.string().uuid() });
 
@@ -30,20 +31,9 @@ export async function draftLeadReplyAction(data: unknown): Promise<{ draft: stri
   }
 
   const activities = await ActivityService.getLeadActivities(leadId);
-  const recent = activities
-    .slice(0, 8)
-    .map((a) => `- ${a.type}${a.content ? `: ${a.content}` : ""}`)
-    .join("\n");
-
-  const prompt = [
-    `Lead: ${lead.name ?? "Unknown"}`,
-    `Status: ${lead.status}`,
-    lead.company ? `Company: ${lead.company}` : null,
-    recent ? `Recent activity (newest first):\n${recent}` : "No recorded activity yet.",
-    `\nWrite the next WhatsApp message to send this lead.`,
-  ]
-    .filter(Boolean)
-    .join("\n");
+  // Ground the draft in the same evidence the recap uses: lead facts, enrichment, and the
+  // heuristic next-best-action — so an enriched lead gets a sharper, more specific message.
+  const prompt = `${buildLeadContext(lead, activities)}\n\nWrite the next WhatsApp message to send this lead.`;
 
   const draft = await generateText(SYSTEM, prompt);
   if (!draft) {
@@ -77,15 +67,7 @@ export async function summarizeLeadAction(data: unknown): Promise<{ summary: str
     };
   }
 
-  const recent = activities.slice(0, 12).map((a) => `- ${a.type}${a.content ? `: ${a.content}` : ""}`).join("\n");
-  const prompt = [
-    `Lead: ${lead.name ?? "Unknown"}`,
-    `Status: ${lead.status}`,
-    lead.company ? `Company: ${lead.company}` : null,
-    `Activity (newest first):\n${recent}`,
-  ].filter(Boolean).join("\n");
-
-  const summary = await generateText(RECAP_SYSTEM, prompt, 200);
+  const summary = await generateText(RECAP_SYSTEM, buildLeadContext(lead, activities), 200);
   return summary ? { summary, ai: true } : { summary: `Status is ${lead.status}. Review recent activity and follow up.`, ai: false };
 }
 

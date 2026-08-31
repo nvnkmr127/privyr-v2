@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "db:seed": "tsx -r dotenv/config src/db/seed.ts",
-    "grant:superadmin": "tsx -r dotenv/config src/scripts/grant-super-admin.ts"
+    "grant:superadmin": "tsx -r dotenv/config src/scripts/grant-super-admin.ts",
+    "backfill:enrichment": "tsx -r dotenv/config src/scripts/backfill-enrichment.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.122.0",

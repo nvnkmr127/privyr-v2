@@ -15,3 +15,4 @@ export * from './system';
 export * from './sharedContent';
 export * from './sequences';
 export * from './emailSettings';
+export * from './tenantIntegrations';

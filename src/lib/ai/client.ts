@@ -23,7 +23,8 @@ export async function generateText(system: string, prompt: string, maxTokens = 1
   if (!c) return null;
   try {
     const res = await c.messages.create({
-      model: "claude-opus-5",
+      // Platform-level (super-admin) config; defaults to the latest Opus when unset.
+      model: process.env.ANTHROPIC_MODEL || "claude-opus-5",
       max_tokens: maxTokens,
       system,
       messages: [{ role: "user", content: prompt }],

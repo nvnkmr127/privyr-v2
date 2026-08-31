@@ -39,4 +39,20 @@ describe("ScoringService", () => {
     });
     expect(score).toBe(0);
   });
+
+  it("breakdown factors sum to the score and explain it", () => {
+    const bd = ScoringService.breakdown({
+      status: "active",
+      phone: "+1234567890",
+      lastContactedAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+    });
+    expect(bd.score).toBe(45);
+    expect(bd.factors.reduce((s, f) => s + f.points, 0)).toBe(45);
+    expect(bd.factors.map((f) => f.label)).toEqual(["Status: active", "Has phone"]);
+  });
+
+  it("breakdown omits zero-point factors", () => {
+    const bd = ScoringService.breakdown({ status: "unqualified" });
+    expect(bd.factors).toEqual([]);
+  });
 });

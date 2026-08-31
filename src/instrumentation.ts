@@ -51,6 +51,11 @@ export async function register() {
     // BullMQ retry/backoff. Producer is the event bus (lead.created / lead.status_changed).
     const { createWebhookRetryWorker } = await import("@/lib/jobs/workers/webhookRetryWorker");
     createWebhookRetryWorker();
+
+    // Lead enrichment: consumer for the enrichment queue. Producer is the event bus (lead.created).
+    // No-op per job when no provider is configured; the worker still runs cheaply.
+    const { createEnrichmentWorker } = await import("@/lib/jobs/workers/enrichmentWorker");
+    createEnrichmentWorker();
   } catch (err) {
     console.error("[instrumentation] failed to register repeatable job schedulers:", err);
   }

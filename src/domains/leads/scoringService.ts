@@ -13,57 +13,62 @@ export interface LeadScoreInput {
   hasInboundMsg?: boolean;
 }
 
+/** One observed contribution to a lead's score — the "why" behind the number. */
+export interface ScoreFactor {
+  label: string;
+  points: number;
+}
+
+export interface ScoreBreakdown {
+  score: number;
+  factors: ScoreFactor[];
+}
+
 export class ScoringService {
+  /**
+   * Explainable scoring: returns the 0-100 score AND the factors that produced it, so the number
+   * is never an opaque guess — a rep can see exactly why. `calculateScore` derives from this.
+   */
+  static breakdown(input: LeadScoreInput): ScoreBreakdown {
+    const factors: ScoreFactor[] = [];
+
+    // Status weighting
+    const statusPoints: Record<string, number> = { won: 50, active: 35, new: 20 };
+    const statusPts = statusPoints[input.status] ?? 0;
+    if (statusPts) factors.push({ label: `Status: ${input.status}`, points: statusPts });
+
+    // Profile completeness
+    if (input.phone) factors.push({ label: "Has phone", points: 10 });
+    if (input.email) factors.push({ label: "Has email", points: 10 });
+    if (input.company) factors.push({ label: "Has company", points: 10 });
+
+    // Recency of contact
+    if (input.lastContactedAt) {
+      const days = (Date.now() - new Date(input.lastContactedAt).getTime()) / (1000 * 60 * 60 * 24);
+      if (days <= 7) factors.push({ label: "Contacted in last 7 days", points: 10 });
+      else if (days <= 14) factors.push({ label: "Contacted in last 14 days", points: 5 });
+    }
+
+    // Scheduled follow-up adherence
+    if (input.nextFollowUpAt && new Date(input.nextFollowUpAt) >= new Date()) {
+      factors.push({ label: "Upcoming follow-up scheduled", points: 10 });
+    }
+
+    // Engagement signals
+    if (input.activitiesCount && input.activitiesCount > 0) {
+      factors.push({ label: `${input.activitiesCount} logged activities`, points: Math.min(10, input.activitiesCount * 2) });
+    }
+    if (input.hasInboundMsg) factors.push({ label: "Replied inbound", points: 10 });
+
+    const raw = factors.reduce((sum, f) => sum + f.points, 0);
+    return { score: Math.min(100, Math.max(0, raw)), factors };
+  }
+
   /**
    * Pure scoring logic: calculate engagement score (0-100) based on lead data and activity signals.
    */
   static calculateScore(input: LeadScoreInput): number {
-    let score = 0;
-
-    // Status weighting (max 40)
-    switch (input.status) {
-      case "won":
-        score += 50;
-        break;
-      case "active":
-        score += 35;
-        break;
-      case "new":
-        score += 20;
-        break;
-      default:
-        score += 0;
-    }
-
-    // Profile completeness (max 30)
-    if (input.phone) score += 10;
-    if (input.email) score += 10;
-    if (input.company) score += 10;
-
-    // Recency of contact (max 10)
-    if (input.lastContactedAt) {
-      const daysSinceContact = (Date.now() - new Date(input.lastContactedAt).getTime()) / (1000 * 60 * 60 * 24);
-      if (daysSinceContact <= 7) {
-        score += 10;
-      } else if (daysSinceContact <= 14) {
-        score += 5;
-      }
-    }
-
-    // Scheduled follow-up adherence (max 10)
-    if (input.nextFollowUpAt && new Date(input.nextFollowUpAt) >= new Date()) {
-      score += 10;
-    }
-
-    // Engagement signals (max 10)
-    if (input.activitiesCount && input.activitiesCount > 0) {
-      score += Math.min(10, input.activitiesCount * 2);
-    }
-    if (input.hasInboundMsg) {
-      score += 10;
-    }
-
-    return Math.min(100, Math.max(0, score));
+    return this.breakdown(input).score;
   }
 
   /**
@@ -84,7 +89,7 @@ export class ScoringService {
       .where(and(eq(whatsappMessages.leadId, leadId), eq(whatsappMessages.direction, "inbound")))
       .limit(1);
 
-    const score = this.calculateScore({
+    const { score, factors } = this.breakdown({
       status: lead.status,
       phone: lead.phone,
       email: lead.email,
@@ -95,7 +100,11 @@ export class ScoringService {
       hasInboundMsg: !!inbound,
     });
 
-    await db.update(leads).set({ score, updatedAt: new Date() }).where(eq(leads.id, leadId));
+    // Persist the number for sorting/filtering, and the "why" alongside it as evidence.
+    const customData = { ...((lead.customData as Record<string, unknown>) ?? {}) };
+    customData._scoreFactors = { score, factors, computedAt: new Date().toISOString() };
+
+    await db.update(leads).set({ score, customData, updatedAt: new Date() }).where(eq(leads.id, leadId));
     return score;
   }
 

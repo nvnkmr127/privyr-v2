@@ -211,6 +211,13 @@
       "when": 1788056390406,
       "tag": "0029_super_admin",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1788141699825,
+      "tag": "0030_tenant_integration_settings",
+      "breakpoints": true
     }
   ]
 }

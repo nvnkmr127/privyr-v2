@@ -18,6 +18,8 @@ const OPTIONAL_FEATURES: Record<string, string[]> = {
   "Google Calendar": ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"],
   "Facebook Lead Ads": ["FACEBOOK_APP_ID", "FACEBOOK_APP_SECRET"],
   "Email (Resend)": ["RESEND_API_KEY"],
+  // Note: lead enrichment and inbound email are configured PER TENANT in the app
+  // (Settings → Lead Intelligence), not via env — see tenantIntegrationsService.
 };
 
 let validated = false;

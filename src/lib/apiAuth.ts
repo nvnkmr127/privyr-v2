@@ -14,10 +14,25 @@ export async function authorizeApiRequest(req: NextRequest): Promise<ApiAuth | {
   const raw = header.startsWith("Bearer ") ? header.slice(7) : "";
 
   const mobile = verifyMobileToken(raw);
-  if (mobile) return { organizationId: mobile.org, userId: mobile.sub };
+  if (mobile) {
+    if (await suspended(mobile.org)) return { error: suspendedResponse() };
+    return { organizationId: mobile.org, userId: mobile.sub };
+  }
 
   const key = await ApiKeyService.verify(raw);
-  if (key) return { organizationId: key.organizationId };
+  if (key) {
+    if (await suspended(key.organizationId)) return { error: suspendedResponse() };
+    return { organizationId: key.organizationId };
+  }
 
   return { error: NextResponse.json({ error: "Invalid or missing credentials" }, { status: 401 }) };
+}
+
+async function suspended(organizationId: string): Promise<boolean> {
+  const { OrgService } = await import("@/domains/organizations/service");
+  return OrgService.isSuspended(organizationId);
+}
+
+function suspendedResponse() {
+  return NextResponse.json({ error: "This workspace has been suspended. Contact support." }, { status: 403 });
 }

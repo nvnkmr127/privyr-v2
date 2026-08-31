@@ -30,6 +30,7 @@ import { getAttachmentsAction } from "@/lib/actions/attachments";
 import { getLeadRemindersAction } from "@/lib/actions/reminders";
 import { getOrganizationAction } from "@/lib/actions/organizations";
 import { LeadAiRecap } from "@/components/leads/LeadAiRecap";
+import { LeadInsightsCard } from "@/components/leads/LeadInsightsCard";
 import { listSequencesAction } from "@/lib/actions/sequences";
 import { SequenceService } from "@/domains/leads/sequenceService";
 import { LeadHeaderQuickActions } from "@/components/leads/LeadHeaderQuickActions";
@@ -160,6 +161,9 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
             <p className="text-sm text-muted-foreground">{nba.reason}</p>
             <LeadAiRecap leadId={lead.id} />
           </div>
+
+          {/* Why this score + enrichment evidence — only renders when there's something to show */}
+          <LeadInsightsCard score={lead.score} customData={lead.customData} />
 
           {/* Follow Up Reminder Widget */}
           <LeadFollowUpControl leadId={lead.id} nextFollowUpAt={lead.nextFollowUpAt} />

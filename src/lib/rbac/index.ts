@@ -31,6 +31,14 @@ export async function requireOrg() {
   if (!organizationId) {
     redirect("/login");
   }
+
+  // Instant suspension: a suspended org is locked out immediately (even with a live session).
+  // Super-admins are exempt so they can still inspect/impersonate a suspended tenant.
+  if (!session.user.isSuperAdmin) {
+    const { OrgService } = await import("@/domains/organizations/service");
+    if (await OrgService.isSuspended(organizationId)) redirect("/suspended");
+  }
+
   return { userId: session.user.id, organizationId, roleId: session.user.roleId };
 }
 

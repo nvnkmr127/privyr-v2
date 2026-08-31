@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { automations, automationTriggers, leads } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { automationQueue } from "@/lib/jobs/workers/automationWorker";
+import { enrichmentQueue } from "@/lib/jobs/workers/enrichmentWorker";
 
 async function dispatchTrigger(eventType: string, payload: EventPayload) {
   if (!payload.leadId) return;
@@ -77,6 +78,9 @@ eventBus.on('lead.created', async (p) => {
   dispatchTrigger('lead.created', p);
   await ActivityService.addActivity({ leadId: p.leadId, userId: isUuid(p.userId) ? p.userId : undefined, type: 'note', content: 'Lead was created manually.' });
   await fireLeadWebhook(p.leadId, 'lead.created');
+  // Enrich in the background (no-op when no provider is configured). jobId = leadId dedupes a
+  // double-fire, and the worker itself is a no-op if enrichment is off, so this is always safe.
+  await enrichmentQueue.add(`enrich-${p.leadId}`, { leadId: p.leadId }, { jobId: `enrich-${p.leadId}` });
 });
 
 eventBus.on('lead.updated', async (p) => {

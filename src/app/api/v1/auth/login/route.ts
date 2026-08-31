@@ -43,6 +43,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
   }
 
+  const { OrgService } = await import("@/domains/organizations/service");
+  if (await OrgService.isSuspended(user.organizationId)) {
+    return NextResponse.json({ error: "This workspace has been suspended. Contact support." }, { status: 403 });
+  }
+
   const token = signMobileToken({ sub: user.id, org: user.organizationId, role: user.roleId, email: user.email });
 
   return NextResponse.json({
