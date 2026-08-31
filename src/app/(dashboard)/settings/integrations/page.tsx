@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, Calendar, MessageCircle, Megaphone, CreditCard, Bell, Webhook } from "lucide-react";
+import { ArrowLeft, Calendar, MessageCircle, Megaphone, CreditCard, Bell, Webhook, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { requireOrg } from "@/lib/rbac";
 import { getServerSession } from "next-auth/next";
@@ -11,13 +11,16 @@ import { isConfigured as razorpayConfigured } from "@/lib/billing/razorpay";
 import { IntegrationCard } from "@/components/settings/IntegrationCard";
 import { GoogleConnectButton } from "@/components/settings/GoogleConnectButton";
 import { EnablePushButton } from "@/components/layout/EnablePushButton";
+import { TenantIntegrationsService } from "@/domains/organizations/tenantIntegrationsService";
 
 function ManageLink({ href, label = "Manage" }: { href: string; label?: string }) {
   return <Button asChild variant="outline" size="sm"><Link href={href}>{label}</Link></Button>;
 }
 
 export default async function IntegrationsPage() {
-  await requireOrg();
+  const { organizationId } = await requireOrg();
+  const leadIntel = await TenantIntegrationsService.getView(organizationId);
+  const leadIntelOn = leadIntel.enrichmentEnabled || leadIntel.inboundEmailEnabled;
   const session = await getServerSession(authOptions);
   const googleConnected = session?.user?.id ? await GoogleCalendarService.isConnected(session.user.id) : false;
 
@@ -89,6 +92,14 @@ export default async function IntegrationsPage() {
           status={pushConfigured ? "configured" : "unconfigured"}
           action={pushConfigured ? <EnablePushButton /> : undefined}
           docsHint="Set NEXT_PUBLIC_VAPID_PUBLIC_KEY + VAPID_PRIVATE_KEY"
+        />
+
+        <IntegrationCard
+          name="Lead Intelligence"
+          description="Enrich new leads from your own data provider and pull inbound email onto the lead timeline."
+          icon={<Sparkles className="h-5 w-5 text-violet-500" />}
+          status={leadIntelOn ? "configured" : "unconfigured"}
+          action={<ManageLink href="/settings/lead-intelligence" />}
         />
       </div>
     </div>

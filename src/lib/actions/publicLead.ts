@@ -1,37 +1,27 @@
 "use server";
 
-import { z } from "zod";
 import { headers } from "next/headers";
 import { db } from "@/db";
 import { webhookEvents } from "@/db/schema";
 import { ingestionQueue } from "@/lib/jobs/workers/ingestionWorker";
 import { LeadSourceService } from "@/domains/leads/sourceService";
 import { RateLimiter } from "@/lib/rate-limit";
-import { ok, fail, actionFail, zodFieldErrors } from "@/lib/actions/result";
+import { ok, fail, actionFail } from "@/lib/actions/result";
+import { resolveFormFields, buildSubmission } from "@/lib/leads/formFields";
 
 // Public (no auth) lead capture from a hosted web form. The sourceId in the URL is the only
-// "credential"; it only lets a visitor create a lead. Rate-limited per source+IP.
-const schema = z.object({
-  name: z.string().trim().min(1, "Name is required").max(255),
-  email: z.string().email("Enter a valid email").optional().or(z.literal("")),
-  phone: z.string().trim().max(50).optional().or(z.literal("")),
-  message: z.string().trim().max(2000).optional(),
-});
-
-export async function submitPublicLeadAction(sourceId: string, input: z.infer<typeof schema>) {
-  const parsed = schema.safeParse(input);
-  if (!parsed.success) {
-    return fail("VALIDATION", "Please check the highlighted fields.", zodFieldErrors(parsed.error));
-  }
-  const data = parsed.data;
-  if (!data.email && !data.phone) {
-    return fail("VALIDATION", "Please provide an email or phone number so we can reach you.");
-  }
-
+// "credential"; it only lets a visitor create a lead. Fields are whatever the tenant configured
+// for this source — validated server-side against that saved schema, never the client's claim.
+// Rate-limited per source+IP.
+export async function submitPublicLeadAction(sourceId: string, input: Record<string, string>) {
   const source = await LeadSourceService.getSource(sourceId);
   if (!source || !source.isActive || !source.organizationId) {
     return fail("NOT_FOUND", "This form is no longer active.");
   }
+
+  const fields = resolveFormFields(source.config);
+  const built = buildSubmission(fields, input ?? {});
+  if (!built.ok) return fail("VALIDATION", built.error);
 
   const ip = (await headers()).get("x-forwarded-for") || "unknown";
   const limit = await RateLimiter.checkLimit(`public-form:${sourceId}:${ip}`, 10, 60);
@@ -44,11 +34,9 @@ export async function submitPublicLeadAction(sourceId: string, input: z.infer<ty
       .insert(webhookEvents)
       .values({
         provider: "generic_webhook",
+        // Standard keys map to lead columns; custom keys land in custom_data via the adapter.
         payload: {
-          name: data.name,
-          email: data.email || undefined,
-          phone: data.phone || undefined,
-          message: data.message || undefined,
+          ...built.values,
           sourceId,
           organizationId: source.organizationId,
           source: source.name,

@@ -218,6 +218,13 @@
       "when": 1788141699825,
       "tag": "0030_tenant_integration_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1788177219609,
+      "tag": "0031_meta_capi_settings",
+      "breakpoints": true
     }
   ]
 }

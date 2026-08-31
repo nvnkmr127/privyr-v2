@@ -16,6 +16,23 @@ export interface TenantIntegrationsView {
   enrichmentTimeoutMs: number | null;
   inboundEmailEnabled: boolean;
   inboundEmailToken: string | null;
+  capiEnabled: boolean;
+  capiPixelId: string | null;
+  hasCapiAccessToken: boolean;
+  capiTestEventCode: string | null;
+}
+
+export interface CapiConfig {
+  pixelId: string;
+  accessToken: string;
+  testEventCode?: string | null;
+}
+
+export interface CapiInputUpsert {
+  enabled?: boolean;
+  pixelId?: string | null;
+  accessToken?: string; // blank/undefined = keep existing
+  testEventCode?: string | null;
 }
 
 export interface EnrichmentConfig {
@@ -61,6 +78,10 @@ export class TenantIntegrationsService {
       enrichmentTimeoutMs: row?.enrichmentTimeoutMs ?? null,
       inboundEmailEnabled: row?.inboundEmailEnabled === 1,
       inboundEmailToken: row?.inboundEmailToken ?? null,
+      capiEnabled: row?.capiEnabled === 1,
+      capiPixelId: row?.capiPixelId ?? null,
+      hasCapiAccessToken: !!row?.capiAccessTokenEnc,
+      capiTestEventCode: row?.capiTestEventCode ?? null,
     };
   }
 
@@ -127,6 +148,58 @@ export class TenantIntegrationsService {
         set: { inboundEmailEnabled: values.inboundEmailEnabled, inboundEmailToken: token, updatedAt: values.updatedAt },
       });
     return this.getView(organizationId);
+  }
+
+  /** Upsert Meta CAPI config. Keeps the stored access token when the form leaves it blank. */
+  static async upsertCapi(organizationId: string, input: CapiInputUpsert): Promise<TenantIntegrationsView> {
+    const existing = await this.getRaw(organizationId);
+    const tokenEnc =
+      input.accessToken && input.accessToken.length > 0
+        ? encryptSecret(input.accessToken)
+        : existing?.capiAccessTokenEnc ?? null;
+
+    const values = {
+      organizationId,
+      enrichmentEnabled: existing?.enrichmentEnabled ?? 0,
+      enrichmentApiUrl: existing?.enrichmentApiUrl ?? null,
+      enrichmentAuthHeader: existing?.enrichmentAuthHeader ?? null,
+      enrichmentAuthValueEnc: existing?.enrichmentAuthValueEnc ?? null,
+      enrichmentTimeoutMs: existing?.enrichmentTimeoutMs ?? null,
+      inboundEmailEnabled: existing?.inboundEmailEnabled ?? 0,
+      inboundEmailToken: existing?.inboundEmailToken ?? null,
+      capiEnabled: (input.enabled ?? existing?.capiEnabled === 1) ? 1 : 0,
+      capiPixelId: input.pixelId ?? existing?.capiPixelId ?? null,
+      capiAccessTokenEnc: tokenEnc,
+      capiTestEventCode: input.testEventCode ?? existing?.capiTestEventCode ?? null,
+      updatedAt: new Date(),
+    };
+
+    await db
+      .insert(tenantIntegrationSettings)
+      .values(values)
+      .onConflictDoUpdate({
+        target: tenantIntegrationSettings.organizationId,
+        set: {
+          capiEnabled: values.capiEnabled,
+          capiPixelId: values.capiPixelId,
+          capiAccessTokenEnc: values.capiAccessTokenEnc,
+          capiTestEventCode: values.capiTestEventCode,
+          updatedAt: values.updatedAt,
+        },
+      });
+    return this.getView(organizationId);
+  }
+
+  /**
+   * Resolved CAPI config for the backend, or null when incomplete/undecryptable. `requireEnabled`
+   * (default) also returns null when the integration is off — pass false to test saved-but-off config.
+   */
+  static async getCapiConfig(organizationId: string, requireEnabled = true): Promise<CapiConfig | null> {
+    const row = await this.getRaw(organizationId);
+    if (!row || (requireEnabled && row.capiEnabled !== 1) || !row.capiPixelId || !row.capiAccessTokenEnc) return null;
+    const accessToken = decryptSecret(row.capiAccessTokenEnc);
+    if (!accessToken) return null;
+    return { pixelId: row.capiPixelId, accessToken, testEventCode: row.capiTestEventCode };
   }
 
   /** Rotate the inbound token (invalidates the old webhook URL). */

@@ -5,6 +5,7 @@ import { LeadSourceService } from "@/domains/leads/sourceService";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { ok, fail, actionFail } from "@/lib/actions/result";
+import { sanitizeFields } from "@/lib/leads/formFields";
 
 export async function listSourcesAction() {
   const { organizationId } = await requireOrg();
@@ -25,6 +26,21 @@ export async function createSourceAction(input: z.infer<typeof createSchema>) {
     const row = await LeadSourceService.createSource({ ...parsed.data, organizationId });
     revalidatePath("/settings/sources");
     return ok(row);
+  } catch (e) {
+    return actionFail(e);
+  }
+}
+
+export async function updateSourceFormAction(id: string, fields: unknown) {
+  const { organizationId } = await requirePermission("sources.manage");
+  const source = await LeadSourceService.getSource(id);
+  if (!source || source.organizationId !== organizationId) return fail("NOT_FOUND", "This form no longer exists.");
+  try {
+    const clean = sanitizeFields(fields);
+    const config = { ...((source.config as Record<string, unknown>) ?? {}), formFields: clean };
+    await LeadSourceService.updateSource(id, { config }, organizationId);
+    revalidatePath("/settings/sources");
+    return ok({ fields: clean });
   } catch (e) {
     return actionFail(e);
   }

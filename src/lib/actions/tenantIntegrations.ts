@@ -50,6 +50,50 @@ export async function updateEnrichmentAction(input: z.infer<typeof enrichmentSch
   }
 }
 
+const capiSchema = z.object({
+  pixelId: z.string().trim().max(64).optional().or(z.literal("")),
+  accessToken: z.string().max(1024).optional(), // blank = keep existing
+  testEventCode: z.string().trim().max(64).optional().or(z.literal("")),
+  enabled: z.boolean().optional(),
+});
+
+export async function updateCapiAction(input: z.infer<typeof capiSchema>) {
+  const { organizationId } = await requirePermission("settings.manage");
+  const parsed = capiSchema.safeParse(input);
+  if (!parsed.success) return fail("VALIDATION", "Please check the highlighted fields.", zodFieldErrors(parsed.error));
+  const d = parsed.data;
+
+  if (d.enabled) {
+    const existing = await TenantIntegrationsService.getView(organizationId);
+    const willHaveToken = (d.accessToken && d.accessToken.length > 0) || existing.hasCapiAccessToken;
+    const willHavePixel = (d.pixelId && d.pixelId.length > 0) || existing.capiPixelId;
+    if (!willHavePixel || !willHaveToken) {
+      return fail("VALIDATION", "To enable Meta CAPI, provide the Pixel/Dataset ID and access token.");
+    }
+  }
+
+  try {
+    const view = await TenantIntegrationsService.upsertCapi(organizationId, {
+      pixelId: d.pixelId || null,
+      accessToken: d.accessToken,
+      testEventCode: d.testEventCode || null,
+      enabled: d.enabled,
+    });
+    revalidatePath("/settings/lead-intelligence");
+    return ok(view);
+  } catch (e) {
+    return actionFail(e);
+  }
+}
+
+export async function sendTestCapiEventAction() {
+  const { organizationId } = await requirePermission("settings.manage");
+  const { MetaCapiService } = await import("@/domains/leads/metaCapiService");
+  const res = await MetaCapiService.sendTest(organizationId);
+  if (!res.ok) return fail("SERVER", res.error || "Test event failed.");
+  return ok({ sent: true });
+}
+
 export async function setInboundEmailAction(enabled: boolean) {
   const { organizationId } = await requirePermission("settings.manage");
   try {

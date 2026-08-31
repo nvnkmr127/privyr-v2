@@ -24,6 +24,13 @@ export const tenantIntegrationSettings = pgTable('tenant_integration_settings', 
   inboundEmailEnabled: integer('inbound_email_enabled').default(0).notNull(),
   inboundEmailToken: varchar('inbound_email_token', { length: 64 }).unique(),
 
+  // Meta Conversions API — server-side conversion events per tenant. Pixel/Dataset id + a
+  // system-user access token (encrypted). Optional test-event code routes to Meta's test tab.
+  capiEnabled: integer('capi_enabled').default(0).notNull(),
+  capiPixelId: varchar('capi_pixel_id', { length: 64 }),
+  capiAccessTokenEnc: text('capi_access_token_enc'),
+  capiTestEventCode: varchar('capi_test_event_code', { length: 64 }),
+
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

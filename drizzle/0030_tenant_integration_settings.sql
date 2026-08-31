@@ -1,4 +1,4 @@
-CREATE TABLE "tenant_integration_settings" (
+CREATE TABLE IF NOT EXISTS "tenant_integration_settings" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"organization_id" uuid NOT NULL,
 	"enrichment_enabled" integer DEFAULT 0 NOT NULL,

@@ -78,6 +78,9 @@ eventBus.on('lead.created', async (p) => {
   dispatchTrigger('lead.created', p);
   await ActivityService.addActivity({ leadId: p.leadId, userId: isUuid(p.userId) ? p.userId : undefined, type: 'note', content: 'Lead was created manually.' });
   await fireLeadWebhook(p.leadId, 'lead.created');
+  // Meta CAPI: report the lead capture so ad campaigns can optimise (no-op unless configured).
+  const { MetaCapiService } = await import("@/domains/leads/metaCapiService");
+  await MetaCapiService.track(p.leadId, 'Lead');
   // Enrich in the background (no-op when no provider is configured). jobId = leadId dedupes a
   // double-fire, and the worker itself is a no-op if enrichment is off, so this is always safe.
   await enrichmentQueue.add(`enrich-${p.leadId}`, { leadId: p.leadId }, { jobId: `enrich-${p.leadId}` });
@@ -109,6 +112,11 @@ eventBus.on('lead.status_changed', async (p) => {
   dispatchTrigger('lead.status_changed', p);
   await ActivityService.addActivity({ leadId: p.leadId, userId: p.userId, type: 'note', content: `Status changed from ${p.oldStatus} to ${p.newStatus}.` });
   await fireLeadWebhook(p.leadId, 'lead.status_changed', { oldStatus: p.oldStatus, newStatus: p.newStatus });
+  // Meta CAPI: a won lead is the conversion worth optimising toward.
+  if (p.newStatus === 'won') {
+    const { MetaCapiService } = await import("@/domains/leads/metaCapiService");
+    await MetaCapiService.track(p.leadId, 'Purchase');
+  }
 });
 
 eventBus.on('lead.stage_changed', (p) => dispatchTrigger('lead.stage_changed', p));

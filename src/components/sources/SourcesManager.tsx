@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { createSourceAction, toggleSourceAction, renameSourceAction, deleteSourceAction } from "@/lib/actions/sources";
-import { Copy, Globe, MessageSquare, ExternalLink, CheckCircle2, Sparkles, ShieldCheck, Pencil, Trash2 } from "lucide-react";
+import { Copy, Globe, MessageSquare, ExternalLink, CheckCircle2, Sparkles, ShieldCheck, Pencil, Trash2, FileText, Plus, SlidersHorizontal } from "lucide-react";
+import { FormFieldsEditor } from "./FormFieldsEditor";
 
 function FacebookIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -31,6 +32,7 @@ type Source = {
   type: string | null;
   isActive: number;
   webhookSecret: string | null;
+  config?: unknown;
 };
 
 interface IntegrationPlatformCard {
@@ -113,6 +115,8 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
   const { toast } = useToast();
   const [sources, setSources] = React.useState<Source[]>(initialSources);
   const [connectingId, setConnectingId] = React.useState<string | null>(null);
+  const [creatingForm, setCreatingForm] = React.useState(false);
+  const [editingFormId, setEditingFormId] = React.useState<string | null>(null);
   const [origin, setOrigin] = React.useState("");
 
   React.useEffect(() => setOrigin(window.location.origin), []);
@@ -198,6 +202,25 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
     }
   }
 
+  async function createWebForm() {
+    const name = window.prompt("Name your web form", "Website Enquiry Form")?.trim();
+    if (!name) return;
+    setCreatingForm(true);
+    try {
+      const res = await createSourceAction({ name, type: "webform" as any });
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Couldn't create form", description: res.message });
+        return;
+      }
+      setSources((prev) => [...prev, res.data as Source]);
+      toast({ title: "Web form created", description: "Copy its hosted link or embed code from the list below." });
+    } catch {
+      toast({ variant: "destructive", title: "Couldn't create form", description: "We couldn't reach the server. Please try again." });
+    } finally {
+      setCreatingForm(false);
+    }
+  }
+
   async function toggle(s: Source) {
     const next = s.isActive ? 0 : 1;
     setSources((prev) => prev.map((x) => (x.id === s.id ? { ...x, isActive: next } : x)));
@@ -264,6 +287,24 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
         <Badge variant="outline" className="text-muted-foreground border-border/30 bg-secondary/40 py-1.5 px-3">
           10,000 req/sec Zero Breakdown Queue
         </Badge>
+      </div>
+
+      {/* Hosted Web Form — create a no-code capture form on your own /f/<id> URL */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border rounded-2xl p-5 bg-card">
+        <div className="flex items-start gap-3">
+          <div className="p-3 rounded-2xl border bg-muted"><FileText className="h-6 w-6 text-violet-500" /></div>
+          <div>
+            <h5 className="font-bold text-foreground">Hosted Web Form</h5>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed max-w-prose">
+              Create a ready-to-share form that captures name, email, phone and a message straight
+              into your pipeline — no code. After creating it, copy the hosted link or iframe embed
+              from the list below.
+            </p>
+          </div>
+        </div>
+        <Button onClick={createWebForm} disabled={creatingForm} className="gap-2 rounded-2xl shrink-0">
+          <Plus className="h-4 w-4" /> {creatingForm ? "Creating…" : "Create Web Form"}
+        </Button>
       </div>
 
       {/* Platform Cards Section */}
@@ -402,7 +443,17 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
                         >
                           <Copy className="h-4 w-4" />
                         </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1 rounded-2xl"
+                          onClick={() => setEditingFormId((cur) => (cur === s.id ? null : s.id))}
+                        >
+                          <SlidersHorizontal className="h-3.5 w-3.5" />
+                          {editingFormId === s.id ? "Close" : "Customize fields"}
+                        </Button>
                       </div>
+                      {editingFormId === s.id && <FormFieldsEditor sourceId={s.id} initialConfig={s.config} />}
                     </div>
                   )}
                 </div>
