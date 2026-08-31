@@ -5,7 +5,11 @@ import Redis, { type RedisOptions } from "ioredis";
 //   1. a backoff retryStrategy, so we don't hammer the socket, and
 //   2. a throttled 'error' handler on every client — an unhandled ioredis 'error' event is what
 //      prints the raw connection stack, and there were connections created without one.
-const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
+/** Whether a Redis is actually configured. When false (e.g. a Vercel deploy with no managed Redis),
+ *  background jobs are disabled rather than looping ECONNREFUSED against localhost. */
+export function redisConfigured(): boolean {
+  return Boolean(process.env.REDIS_URL);
+}
 
 let lastLog = 0;
 function logConnError(err: Error): void {
@@ -17,11 +21,14 @@ function logConnError(err: Error): void {
   }
 }
 
-/** Build an ioredis client with backoff + a throttled error handler. Pass BullMQ's required
- *  `{ maxRetriesPerRequest: null }` for queue/worker connections; omit it for plain command clients. */
+/** Build an ioredis client with a throttled error handler. Pass BullMQ's required
+ *  `{ maxRetriesPerRequest: null }` for queue/worker connections; omit it for plain command clients.
+ *  When no REDIS_URL is configured it does NOT retry — one failed connect, then stop, so a
+ *  Redis-less deploy never floods the logs with reconnect attempts to localhost. */
 export function createRedis(opts: RedisOptions = {}, url?: string): Redis {
-  const client = new Redis(url || REDIS_URL, {
-    retryStrategy: (times) => Math.min(times * 500, 10_000),
+  const target = url || process.env.REDIS_URL;
+  const client = new Redis(target || "redis://localhost:6379", {
+    retryStrategy: target ? (times) => Math.min(times * 500, 10_000) : () => null,
     ...opts,
   });
   client.on("error", logConnError);

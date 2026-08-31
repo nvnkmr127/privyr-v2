@@ -18,46 +18,15 @@ export async function register() {
   // Event listeners + automation dispatch (lead.created, lead.assigned, status changes …).
   await import("@/lib/events/handlers");
 
-  // Follow-up reminders: producer is FollowUpService → reminderQueue; the consumer lives here.
-  await import("@/lib/jobs/workers/reminderWorker");
-
-  // Automation runs: consumer for the automations queue.
-  await import("@/lib/jobs/workers/automationWorker");
-
-  // SLA escalation: consumer + a 15-min repeating scan (the scan IS the producer).
-  // Lead score decay: consumer + a daily repeating recompute across all orgs.
-  // Registering the repeatable schedulers touches Redis; a boot-time hiccup must not crash the
-  // web server, so log and continue — the workers reconnect on their own.
+  // Background workers need a real Redis and an always-on process. On a serverless web deploy
+  // (Vercel) leave REDIS_URL unset here and run the workers separately (src/worker.ts, `npm run
+  // worker`); startWorkers() no-ops when REDIS_URL is absent. On a single long-lived Node server,
+  // setting REDIS_URL runs them in-process. A boot-time hiccup must not crash the web server.
   try {
-    const { createEscalationWorker, scheduleEscalationScan } = await import("@/lib/jobs/workers/escalationWorker");
-    createEscalationWorker();
-    await scheduleEscalationScan();
-
-    const { createScoreDecayWorker, scheduleScoreDecayScan } = await import("@/lib/jobs/workers/scoreDecayWorker");
-    createScoreDecayWorker();
-    await scheduleScoreDecayScan();
-
-    // Sequences: consumer + a 5-min repeating scan that delivers due drip steps.
-    const { createSequenceWorker, scheduleSequenceScan } = await import("@/lib/jobs/workers/sequenceWorker");
-    createSequenceWorker();
-    await scheduleSequenceScan();
-
-    // Recycle bin: consumer + a daily scan that permanently purges leads deleted 30+ days ago.
-    const { createRecycleBinWorker, scheduleRecycleBinScan } = await import("@/lib/jobs/workers/recycleBinWorker");
-    createRecycleBinWorker();
-    await scheduleRecycleBinScan();
-
-    // Outbound webhooks: consumer that POSTs signed lead-event payloads to org endpoints, with
-    // BullMQ retry/backoff. Producer is the event bus (lead.created / lead.status_changed).
-    const { createWebhookRetryWorker } = await import("@/lib/jobs/workers/webhookRetryWorker");
-    createWebhookRetryWorker();
-
-    // Lead enrichment: consumer for the enrichment queue. Producer is the event bus (lead.created).
-    // No-op per job when no provider is configured; the worker still runs cheaply.
-    const { createEnrichmentWorker } = await import("@/lib/jobs/workers/enrichmentWorker");
-    createEnrichmentWorker();
+    const { startWorkers } = await import("@/lib/jobs/startWorkers");
+    await startWorkers();
   } catch (err) {
-    console.error("[instrumentation] failed to register repeatable job schedulers:", err);
+    console.error("[instrumentation] failed to start background workers:", err);
   }
 
   // Note: webhookRetryWorker (outbound lead webhooks) is intentionally NOT started — it has no

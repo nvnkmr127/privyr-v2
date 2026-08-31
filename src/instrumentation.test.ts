@@ -19,6 +19,7 @@ describe("Instrumentation worker registration", () => {
     // worker registration, not env validation (which has its own coverage).
     process.env.DATABASE_URL ||= "postgres://test";
     process.env.NEXTAUTH_SECRET ||= "test-secret";
+    process.env.REDIS_URL = "redis://localhost:6379"; // workers require a configured Redis
     vi.clearAllMocks();
   });
 
@@ -33,6 +34,16 @@ describe("Instrumentation worker registration", () => {
     expect(scheduleEscalationScan).toHaveBeenCalledTimes(1);
     expect(createScoreDecayWorker).toHaveBeenCalledTimes(1);
     expect(scheduleScoreDecayScan).toHaveBeenCalledTimes(1);
+  });
+
+  it("should skip workers when REDIS_URL is not configured (e.g. serverless)", async () => {
+    delete process.env.REDIS_URL;
+    const { register } = await import("./instrumentation");
+    const { createEscalationWorker } = await import("@/lib/jobs/workers/escalationWorker");
+
+    await register();
+
+    expect(createEscalationWorker).not.toHaveBeenCalled();
   });
 
   it("should skip worker registration if not nodejs runtime", async () => {
