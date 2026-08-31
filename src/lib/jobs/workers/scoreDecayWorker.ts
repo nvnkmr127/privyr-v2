@@ -1,5 +1,5 @@
 import { Worker, Queue, Job } from "bullmq";
-import Redis from "ioredis";
+import { createRedis, quietErrors } from "../redis";
 import { ScoringService } from "@/domains/leads/scoringService";
 import { db } from "@/db";
 import { automationRuns } from "@/db/schema";
@@ -46,9 +46,7 @@ export async function processScoreDecayJob(job: Job<ScoreDecayJobData>) {
 }
 
 export function createScoreDecayWorker(redisUrl?: string) {
-  const connection = new Redis(redisUrl || process.env.REDIS_URL || "redis://localhost:6379", {
-    maxRetriesPerRequest: null,
-  });
+  const connection = createRedis({ maxRetriesPerRequest: null }, redisUrl);
 
   const worker = new Worker<ScoreDecayJobData>(
     SCORE_DECAY_QUEUE_NAME,
@@ -61,6 +59,7 @@ export function createScoreDecayWorker(redisUrl?: string) {
   worker.on("failed", (job, err) => {
     console.error(`[SCORE_DECAY_WORKER] Job ${job?.id} failed with error:`, err);
   });
+  quietErrors(worker);
 
   return worker;
 }
@@ -68,7 +67,7 @@ export function createScoreDecayWorker(redisUrl?: string) {
 // Producer: a daily repeating job that recalculates scores across all orgs. Without this the
 // worker has nothing to consume. Call once at startup alongside createScoreDecayWorker().
 export async function scheduleScoreDecayScan(redisUrl?: string) {
-  const connection = new Redis(redisUrl || process.env.REDIS_URL || "redis://localhost:6379", { maxRetriesPerRequest: null });
+  const connection = createRedis({ maxRetriesPerRequest: null }, redisUrl);
   const queue = new Queue(SCORE_DECAY_QUEUE_NAME, { connection });
   await queue.upsertJobScheduler("score-decay-daily", { every: 24 * 60 * 60 * 1000 }, { name: "decay", opts: { removeOnComplete: true, removeOnFail: 20 } });
   return queue;

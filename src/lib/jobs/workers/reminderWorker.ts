@@ -1,16 +1,13 @@
 import { Worker, Job } from "bullmq";
 import { REMINDER_QUEUE_NAME } from "../queue";
-import Redis from "ioredis";
+import { createRedis, quietErrors } from "../redis";
 import { db } from "@/db";
 import { reminders, followUps, leads } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { NotificationService } from "@/domains/notifications/service";
 import { ActivityService } from "@/domains/activities/service";
 
-const connection = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
-  maxRetriesPerRequest: null,
-});
-connection.on("error", () => {});
+const connection = createRedis({ maxRetriesPerRequest: null });
 
 export interface ReminderJobData {
   followUpId: string;
@@ -141,4 +138,5 @@ reminderWorker.on("completed", (job) => {
 reminderWorker.on("failed", (job, err) => {
   console.error(`Job ${job?.id} failed with error ${err.message}`);
 });
+quietErrors(reminderWorker);
 

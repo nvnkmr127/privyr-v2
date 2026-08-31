@@ -1,9 +1,8 @@
 import { Queue, Worker, Job } from "bullmq";
-import Redis from "ioredis";
+import { createRedis, quietErrors } from "../redis";
 import { EnrichmentService } from "@/domains/leads/enrichmentService";
 
-const connection = new Redis(process.env.REDIS_URL || "redis://localhost:6379", { maxRetriesPerRequest: null });
-connection.on("error", () => {});
+const connection = createRedis({ maxRetriesPerRequest: null });
 
 export const ENRICHMENT_QUEUE_NAME = "lead-enrichment";
 
@@ -25,9 +24,11 @@ export interface EnrichmentJobData {
 // slow external call, so it runs here off the ingestion path — a provider outage never blocks
 // lead creation, and BullMQ retries transient failures.
 export function createEnrichmentWorker() {
-  return new Worker<EnrichmentJobData>(
+  const worker = new Worker<EnrichmentJobData>(
     ENRICHMENT_QUEUE_NAME,
     async (job: Job<EnrichmentJobData>) => EnrichmentService.enrichLead(job.data.leadId),
     { connection, concurrency: 5 },
   );
+  quietErrors(worker);
+  return worker;
 }

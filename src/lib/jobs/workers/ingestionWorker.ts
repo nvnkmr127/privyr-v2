@@ -1,12 +1,11 @@
 import { Queue, Worker, Job } from "bullmq";
-import Redis from "ioredis";
+import { createRedis, quietErrors } from "../redis";
 import { db } from "@/db";
 import { webhookEvents } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { IngestionService } from "@/lib/leads/ingestion";
 
-const connection = new Redis(process.env.REDIS_URL || "redis://localhost:6379", { maxRetriesPerRequest: null });
-connection.on("error", () => {});
+const connection = createRedis({ maxRetriesPerRequest: null });
 
 export const INGESTION_QUEUE_NAME = "lead-ingestion";
 export const ingestionQueue = new Queue(INGESTION_QUEUE_NAME, { connection });
@@ -79,3 +78,4 @@ export const ingestionWorker = new Worker<IngestionJobData>(
   },
   { connection, concurrency: 5 }
 );
+quietErrors(ingestionWorker);

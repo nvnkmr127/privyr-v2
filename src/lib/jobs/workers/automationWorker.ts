@@ -1,13 +1,12 @@
 import { Queue, Worker, Job } from "bullmq";
-import Redis from "ioredis";
+import { createRedis, quietErrors } from "../redis";
 import { db } from "@/db";
 import { automationRuns } from "@/db/schema";
 import { eq, lt } from "drizzle-orm";
 import { AutomationEngine } from "@/lib/automation/engine";
 import { EventPayload } from "@/lib/events/emitter";
 
-const connection = new Redis(process.env.REDIS_URL || "redis://localhost:6379", { maxRetriesPerRequest: null });
-connection.on("error", () => {});
+const connection = createRedis({ maxRetriesPerRequest: null });
 
 export const AUTOMATION_QUEUE_NAME = "automations";
 export const automationQueue = new Queue(AUTOMATION_QUEUE_NAME, {
@@ -105,6 +104,7 @@ export const automationWorker = new Worker<AutomationJobData>(
   },
   { connection, concurrency: 3 }
 );
+quietErrors(automationWorker);
 
 /**
  * Retention cleanup for automation_runs table to prevent unbounded DB growth.

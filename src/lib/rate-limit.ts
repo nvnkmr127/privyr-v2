@@ -1,7 +1,7 @@
-import Redis from "ioredis";
+import { createRedis } from "@/lib/jobs/redis";
 
-const redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379");
-redis.on("error", () => {});
+// Plain command client (no maxRetriesPerRequest:null) so commands fail fast and checkLimit fails open.
+const redis = createRedis();
 
 export class RateLimiter {
   static async checkLimit(key: string, limit: number, windowSeconds: number): Promise<{ success: boolean; limit: number; remaining: number; reset: number }> {

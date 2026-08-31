@@ -1,5 +1,5 @@
 import { Queue, Worker, Job } from "bullmq";
-import Redis from "ioredis";
+import { createRedis, quietErrors } from "../redis";
 import { LeadWebhookEventService, WebhookEventPayload } from "@/domains/leads/leadWebhookEventService";
 import { WebhookDlqService } from "@/domains/leads/webhookDlqService";
 
@@ -13,8 +13,7 @@ export interface WebhookRetryJobData {
   payload: WebhookEventPayload;
 }
 
-const connection = new Redis(process.env.REDIS_URL || "redis://localhost:6379", { maxRetriesPerRequest: null });
-connection.on("error", () => {});
+const connection = createRedis({ maxRetriesPerRequest: null });
 
 // Deliveries retry with exponential backoff via BullMQ's own attempts/backoff. Failed jobs are
 // kept in Redis (removeOnFail:false) and mirrored into the DLQ service for the settings UI.
@@ -67,5 +66,6 @@ export function createWebhookRetryWorker(): Worker<WebhookRetryJobData> {
       payload: p,
     });
   });
+  quietErrors(worker);
   return worker;
 }
