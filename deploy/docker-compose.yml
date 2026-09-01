@@ -1,0 +1,67 @@
+# Droplet stack: Postgres + Redis + the BullMQ worker. Vercel (web) connects to Postgres and
+# Redis over the droplet's PUBLIC IP, so both are password-protected and port-published.
+#
+# Copy deploy/.env.example -> deploy/.env on the droplet and fill in real secrets, then:
+#   docker compose --env-file deploy/.env -f deploy/docker-compose.yml up -d --build
+#
+# ponytail: Postgres/Redis are exposed to the internet with passwords only (no TLS). Vercel's
+# free tier has no static egress IP, so you can't firewall by IP — password + a strong random
+# secret is the floor. Upgrade path when it matters: put Redis behind stunnel/TLS (rediss://)
+# and require SSL on Postgres, or move to a managed DB with a private link.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"          # published so Vercel can reach it
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # requirepass so an exposed 6379 isn't an open door. BullMQ needs keyspace eviction OFF
+    # (noeviction) — never let Redis drop job keys under memory pressure.
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}", "--maxmemory-policy", "noeviction"]
+    ports:
+      - "6379:6379"          # published so Vercel can enqueue
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  worker:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.worker
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # Worker talks to the sibling containers by service name (internal network).
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      NODE_ENV: production
+      # Add any feature secrets the workers actually use (mailer, enrichment API keys, etc.)
+      # here or via --env-file. Missing OPTIONAL vars just disable that feature.
+
+volumes:
+  pgdata:
+  redisdata:
