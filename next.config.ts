@@ -40,14 +40,18 @@ const nextConfig: NextConfig = {
         resend: false, "@react-email/render": false, nodemailer: false,
       };
     }
-    if (isServer) {
+    // NODE-SERVER ONLY (not Edge): externalize Node-only packages as runtime require()s.
+    // This MUST exclude the Edge compile — edge is isServer:true too, and webpack evaluates
+    // externals BEFORE resolve.alias, so without the `else` these requires would win over the
+    // `false` aliases above and reappear as "Edge Function references unsupported modules".
+    if (isServer && nextRuntime !== "edge") {
       const externals = config.externals || [];
       config.externals = [
         ...(Array.isArray(externals) ? externals : [externals]),
         ({ request }: { request?: string }, cb: (err?: unknown, result?: string) => void) =>
           request && NODE_ONLY.includes(request) ? cb(undefined, `commonjs ${request}`) : cb(),
       ];
-    } else {
+    } else if (!isServer) {
       // These server-only libs must never resolve in a client/fallback bundle. Stub them so
       // bullmq's optional pg transport + node builtins don't emit "can't resolve" warnings.
       config.resolve.fallback = {
