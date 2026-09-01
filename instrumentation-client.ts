@@ -8,7 +8,12 @@ const DSN =
 Sentry.init({
   dsn: DSN,
   enabled: !!DSN,
-  tracesSampleRate: Number(process.env.NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE ?? 0.1),
+  // Error monitoring only. Browser tracing is disabled because @sentry/nextjs@10's bundled
+  // web-vitals reporter throws "Cannot read properties of undefined (reading 'startTime')" in
+  // reportAllChanges. Dropping the BrowserTracing integration (and tracesSampleRate:0) removes
+  // that crash while keeping exception capture. Re-enable perf tracing after a Sentry upgrade fixes it.
+  tracesSampleRate: 0,
+  integrations: (defaults) => defaults.filter((i) => i.name !== "BrowserTracing"),
   replaysSessionSampleRate: 0,
   replaysOnErrorSampleRate: 1.0,
 });
