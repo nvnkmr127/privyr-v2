@@ -19,15 +19,24 @@ const nextConfig: NextConfig = {
       ...config.resolve.alias,
       "@valkey/valkey-glide": false,
     };
-    // The Edge compile of instrumentation.ts follows the (Node-only) worker/producer chunks even
-    // though register() returns early on Edge. Stub the Node builtins/queues those chunks pull in
-    // so the Edge build resolves — they're never executed there.
+    // The Edge compile of middleware.ts + instrumentation.ts follows the (Node-only) worker/
+    // producer/db/mailer chunks even though register() returns early on Edge and middleware never
+    // touches them. They're never executed on Edge, so stub them out of the Edge bundle.
     if (nextRuntime === "edge") {
+      // Node builtins: unresolvable on Edge → resolve.fallback is the right lever.
       config.resolve.fallback = {
         ...config.resolve.fallback,
-        crypto: false, stream: false, pg: false, http: false, https: false, net: false, tls: false,
-        dns: false, fs: false, child_process: false, bullmq: false, ioredis: false, "web-push": false,
-        // resend (+ its optional React-email renderer) and nodemailer are server-only; never on edge.
+        crypto: false, stream: false, http: false, https: false, net: false, tls: false,
+        dns: false, fs: false, child_process: false,
+      };
+      // INSTALLED npm packages resolve fine, so resolve.fallback never fires for them — they must
+      // be aliased to false to be dropped from the Edge bundle (this is what fixes the Vercel
+      // "Edge Function references unsupported modules: nodemailer, bullmq, web-push, resend,
+      // postgres, ioredis" error). `postgres` (postgres-js) is the driver; `pg` is bullmq's
+      // optional transport.
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        bullmq: false, ioredis: false, postgres: false, pg: false, "web-push": false,
         resend: false, "@react-email/render": false, nodemailer: false,
       };
     }
