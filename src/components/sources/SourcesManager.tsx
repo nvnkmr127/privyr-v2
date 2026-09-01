@@ -111,6 +111,111 @@ const PLATFORMS: IntegrationPlatformCard[] = [
   },
 ];
 
+// One connected-source row. Memoized so a state change to ONE source (toggle/rename/delete, or
+// opening the field editor) only re-renders that row, not all N cards. The parent's setSources
+// updaters preserve object identity for untouched rows, so React.memo's shallow compare skips them.
+// Every handler prop must be stable (useCallback) or memoization is defeated.
+type SourceCardProps = {
+  s: Source;
+  origin: string;
+  isEditing: boolean;
+  onToggle: (s: Source) => void;
+  onRename: (s: Source) => void;
+  onRemove: (s: Source) => void;
+  onCopy: (text: string, what: string) => void;
+  onToggleEdit: (id: string) => void;
+};
+
+const SourceCard = React.memo(function SourceCard({ s, origin, isEditing, onToggle, onRename, onRemove, onCopy, onToggleEdit }: SourceCardProps) {
+  const webhookUrl = `${origin}/api/webhooks/${s.type}?sourceId=${s.id}`;
+  return (
+    <div className="border rounded-2xl p-5 bg-card space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <span className="font-bold text-foreground">{s.name}</span>
+          <Badge variant="secondary" className="capitalize">
+            {s.type?.replace(/_/g, " ")}
+          </Badge>
+          <Badge variant={s.isActive ? "default" : "secondary"}>
+            {s.isActive ? "Active" : "Inactive"}
+          </Badge>
+        </div>
+        <div className="flex items-center gap-1">
+          <Button variant="outline" size="sm" onClick={() => onToggle(s)} className="rounded-2xl">
+            {s.isActive ? "Deactivate" : "Activate"}
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => onRename(s)} title="Rename">
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => onRemove(s)} title="Delete" className="text-destructive hover:text-destructive">
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      <div className="space-y-2 text-sm pt-1">
+        <div>
+          <span className="text-xs font-semibold text-muted-foreground block mb-1">Instant Webhook Endpoint URL</span>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 truncate bg-muted border rounded-2xl px-3 py-2 text-xs font-mono text-foreground">
+              {webhookUrl}
+            </code>
+            <Button variant="ghost" size="icon" onClick={() => onCopy(webhookUrl, "Webhook URL")}>
+              <Copy className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+        {s.webhookSecret && (
+          <div>
+            <span className="text-xs font-semibold text-muted-foreground block mb-1">
+              HMAC SHA-256 Signing Secret (Header <code>x-hub-signature-256</code>)
+            </span>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 truncate bg-muted border rounded-2xl px-3 py-2 text-xs font-mono text-foreground">
+                {s.webhookSecret}
+              </code>
+              <Button variant="ghost" size="icon" onClick={() => onCopy(s.webhookSecret!, "Secret")}>
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {(s.type === "generic_webhook" || s.type === "webform") && (
+          <div>
+            <span className="text-xs font-semibold text-muted-foreground block mb-1">Hosted form &amp; embed code</span>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 truncate bg-muted border rounded-2xl px-3 py-2 text-xs font-mono text-foreground">
+                {origin}/f/{s.id}
+              </code>
+              <Button variant="ghost" size="icon" onClick={() => onCopy(`${origin}/f/${s.id}`, "Form URL")}>
+                <ExternalLink className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onCopy(`<iframe src="${origin}/f/${s.id}" style="border:0;width:100%;max-width:480px;height:520px" title="Lead form"></iframe>`, "Embed code")}
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1 rounded-2xl"
+                onClick={() => onToggleEdit(s.id)}
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                {isEditing ? "Close" : "Customize fields"}
+              </Button>
+            </div>
+            {isEditing && <FormFieldsEditor sourceId={s.id} initialConfig={s.config} />}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
+
 export function SourcesManager({ initialSources }: { initialSources: Source[] }) {
   const { toast } = useToast();
   const [sources, setSources] = React.useState<Source[]>(initialSources);
@@ -149,16 +254,16 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
     return () => window.removeEventListener("message", handleOAuthMessage);
   }, [toast]);
 
-  function webhookUrl(s: Source) {
-    return `${origin}/api/webhooks/${s.type}?sourceId=${s.id}`;
-  }
-
-  function copy(text: string, what: string) {
+  const copy = React.useCallback((text: string, what: string) => {
     navigator.clipboard.writeText(text).then(
       () => toast({ title: `${what} copied to clipboard` }),
       () => toast({ variant: "destructive", title: "Copy failed" })
     );
-  }
+  }, [toast]);
+
+  const toggleEdit = React.useCallback((id: string) => {
+    setEditingFormId((cur) => (cur === id ? null : id));
+  }, []);
 
   async function handleConnectPlatform(platform: IntegrationPlatformCard) {
     setConnectingId(platform.id);
@@ -221,7 +326,7 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
     }
   }
 
-  async function toggle(s: Source) {
+  const toggle = React.useCallback(async (s: Source) => {
     const next = s.isActive ? 0 : 1;
     setSources((prev) => prev.map((x) => (x.id === s.id ? { ...x, isActive: next } : x)));
     try {
@@ -234,9 +339,9 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
       setSources((prev) => prev.map((x) => (x.id === s.id ? { ...x, isActive: s.isActive } : x)));
       toast({ variant: "destructive", title: "Could not update source status", description: "We couldn't reach the server. Please try again." });
     }
-  }
+  }, [toast]);
 
-  async function rename(s: Source) {
+  const rename = React.useCallback(async (s: Source) => {
     const name = window.prompt("Rename source", s.name)?.trim();
     if (!name || name === s.name) return;
     setSources((prev) => prev.map((x) => (x.id === s.id ? { ...x, name } : x)));
@@ -252,25 +357,27 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
       setSources((prev) => prev.map((x) => (x.id === s.id ? { ...x, name: s.name } : x)));
       toast({ variant: "destructive", title: "Could not rename source", description: "We couldn't reach the server. Please try again." });
     }
-  }
+  }, [toast]);
 
-  async function remove(s: Source) {
+  const remove = React.useCallback(async (s: Source) => {
     if (!confirm(`Delete source "${s.name}"? Existing leads are kept but un-sourced.`)) return;
-    const prev = sources;
-    setSources((p) => p.filter((x) => x.id !== s.id));
+    // Snapshot via the functional updater instead of closing over `sources`, so this callback
+    // stays stable (empty deps) and doesn't defeat SourceCard's memoization.
+    let snapshot: Source[] = [];
+    setSources((p) => { snapshot = p; return p.filter((x) => x.id !== s.id); });
     try {
       const res = await deleteSourceAction(s.id);
       if (!res.ok) {
-        setSources(prev);
+        setSources(snapshot);
         toast({ variant: "destructive", title: "Could not delete source", description: res.message });
         return;
       }
       toast({ title: "Source deleted" });
     } catch {
-      setSources(prev);
+      setSources(snapshot);
       toast({ variant: "destructive", title: "Could not delete source", description: "We couldn't reach the server. Please try again." });
     }
-  }
+  }, [toast]);
 
   return (
     <div className="space-y-8">
@@ -374,90 +481,17 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
         ) : (
           <div className="space-y-4">
             {sources.map((s) => (
-              <div key={s.id} className="border rounded-2xl p-5 bg-card space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="font-bold text-foreground">{s.name}</span>
-                    <Badge variant="secondary" className="capitalize">
-                      {s.type?.replace(/_/g, " ")}
-                    </Badge>
-                    <Badge variant={s.isActive ? "default" : "secondary"}>
-                      {s.isActive ? "Active" : "Inactive"}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Button variant="outline" size="sm" onClick={() => toggle(s)} className="rounded-2xl">
-                      {s.isActive ? "Deactivate" : "Activate"}
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => rename(s)} title="Rename">
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => remove(s)} title="Delete" className="text-destructive hover:text-destructive">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="space-y-2 text-sm pt-1">
-                  <div>
-                    <span className="text-xs font-semibold text-muted-foreground block mb-1">Instant Webhook Endpoint URL</span>
-                    <div className="flex items-center gap-2">
-                      <code className="flex-1 truncate bg-muted border rounded-2xl px-3 py-2 text-xs font-mono text-foreground">
-                        {webhookUrl(s)}
-                      </code>
-                      <Button variant="ghost" size="icon" onClick={() => copy(webhookUrl(s), "Webhook URL")}>
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  {s.webhookSecret && (
-                    <div>
-                      <span className="text-xs font-semibold text-muted-foreground block mb-1">
-                        HMAC SHA-256 Signing Secret (Header <code>x-hub-signature-256</code>)
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <code className="flex-1 truncate bg-muted border rounded-2xl px-3 py-2 text-xs font-mono text-foreground">
-                          {s.webhookSecret}
-                        </code>
-                        <Button variant="ghost" size="icon" onClick={() => copy(s.webhookSecret!, "Secret")}>
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  {(s.type === "generic_webhook" || s.type === "webform") && (
-                    <div>
-                      <span className="text-xs font-semibold text-muted-foreground block mb-1">Hosted form &amp; embed code</span>
-                      <div className="flex items-center gap-2">
-                        <code className="flex-1 truncate bg-muted border rounded-2xl px-3 py-2 text-xs font-mono text-foreground">
-                          {origin}/f/{s.id}
-                        </code>
-                        <Button variant="ghost" size="icon" onClick={() => copy(`${origin}/f/${s.id}`, "Form URL")}>
-                          <ExternalLink className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => copy(`<iframe src="${origin}/f/${s.id}" style="border:0;width:100%;max-width:480px;height:520px" title="Lead form"></iframe>`, "Embed code")}
-                        >
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="gap-1 rounded-2xl"
-                          onClick={() => setEditingFormId((cur) => (cur === s.id ? null : s.id))}
-                        >
-                          <SlidersHorizontal className="h-3.5 w-3.5" />
-                          {editingFormId === s.id ? "Close" : "Customize fields"}
-                        </Button>
-                      </div>
-                      {editingFormId === s.id && <FormFieldsEditor sourceId={s.id} initialConfig={s.config} />}
-                    </div>
-                  )}
-                </div>
-              </div>
+              <SourceCard
+                key={s.id}
+                s={s}
+                origin={origin}
+                isEditing={editingFormId === s.id}
+                onToggle={toggle}
+                onRename={rename}
+                onRemove={remove}
+                onCopy={copy}
+                onToggleEdit={toggleEdit}
+              />
             ))}
           </div>
         )}
