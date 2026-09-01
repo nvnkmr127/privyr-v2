@@ -18,15 +18,20 @@ export async function register() {
   // Event listeners + automation dispatch (lead.created, lead.assigned, status changes …).
   await import("@/lib/events/handlers");
 
-  // Background workers need a real Redis and an always-on process. On a serverless web deploy
-  // (Vercel) leave REDIS_URL unset here and run the workers separately (src/worker.ts, `npm run
-  // worker`); startWorkers() no-ops when REDIS_URL is absent. On a single long-lived Node server,
-  // setting REDIS_URL runs them in-process. A boot-time hiccup must not crash the web server.
-  try {
-    const { startWorkers } = await import("@/lib/jobs/startWorkers");
-    await startWorkers();
-  } catch (err) {
-    console.error("[instrumentation] failed to start background workers:", err);
+  // Background workers need a real Redis AND an always-on process. Two independent things:
+  //   • ENQUEUE (queue.add) — the web app always needs REDIS_URL so it can push jobs.
+  //   • RUN workers in-process — only valid on a long-lived host, never on Vercel serverless
+  //     (workers get frozen/killed between invocations, schedulers re-register on every cold start).
+  // So: on Vercel, REDIS_URL is set (to enqueue) but workers run in the standalone src/worker.ts
+  // process on the droplet, not here. Locally / on a single always-on Node server, run them in-process.
+  // A boot-time hiccup must not crash the web server.
+  if (!process.env.VERCEL) {
+    try {
+      const { startWorkers } = await import("@/lib/jobs/startWorkers");
+      await startWorkers();
+    } catch (err) {
+      console.error("[instrumentation] failed to start background workers:", err);
+    }
   }
 
   // Note: webhookRetryWorker (outbound lead webhooks) is intentionally NOT started — it has no
