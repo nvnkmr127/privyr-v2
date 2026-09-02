@@ -34,7 +34,19 @@ jobs:
       group: droplet-deploy
       cancel-in-progress: false
     steps:
+      # Skip (don't fail) when droplet secrets aren't configured yet — secrets can't be used
+      # directly in a job-level `if:`, so gate the SSH step on this check instead.
+      - name: Check droplet secrets
+        id: cfg
+        run: |
+          if [ -n "${{ secrets.DROPLET_HOST }}" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::DROPLET_HOST secret not set — skipping droplet deploy."
+          fi
       - name: Deploy worker to droplet over SSH
+        if: steps.cfg.outputs.ready == 'true'
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.DROPLET_HOST }}

@@ -41,7 +41,7 @@ export default async function ColdLeadsPage({
               <Snowflake className="h-6 w-6 text-sky-500" /> Going cold
             </h1>
             <p className="text-sm text-muted-foreground">
-              New or active leads with no contact in {days}+ days. Reach out before they're gone.
+              New or active leads with no contact in {days}+ days. Reach out before they&apos;re gone.
             </p>
           </div>
         </div>
