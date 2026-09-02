@@ -188,7 +188,7 @@ const SourceCard = React.memo(function SourceCard({ s, origin, isEditing, onTogg
               <code className="flex-1 truncate bg-muted border rounded-2xl px-3 py-2 text-xs font-mono text-foreground">
                 {origin}/f/{s.id}
               </code>
-              <Button variant="ghost" size="icon" onClick={() => onCopy(`${origin}/f/${s.id}`, "Form URL")}>
+              <Button variant="ghost" size="icon" title="Open form" onClick={() => window.open(`${origin}/f/${s.id}`, "_blank", "noopener")}>
                 <ExternalLink className="h-4 w-4" />
               </Button>
               <Button
