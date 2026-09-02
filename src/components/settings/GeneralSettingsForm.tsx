@@ -3,12 +3,12 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { updateOrganizationAction } from "@/lib/actions/organizations";
 import { StatusManagementModal } from "@/components/leads/StatusManagementModal";
-import { Sliders, Building, Tag, Users, MessageSquare, Database, Globe, LocateFixed, Lock, Check } from "lucide-react";
+import { AiContextDialog } from "@/components/settings/AiContextDialog";
+import { Sliders, Building, Tag, Users, MessageSquare, Database, Globe, LocateFixed, Lock, Check, Sparkles } from "lucide-react";
 import Link from "next/link";
 
 type Org = {
@@ -244,12 +244,19 @@ export function GeneralSettingsForm({ organization }: { organization?: Org | nul
               <Input id="website" value={f.website} onChange={(e) => set("website", e.target.value)} placeholder="https://example.com" />
             </div>
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="aiContext">What your business does (for AI)</Label>
-              <Textarea id="aiContext" value={f.aiContext} onChange={(e) => set("aiContext", e.target.value)}
-                rows={4} maxLength={4000}
-                placeholder="Describe what you sell, your key offerings, and tone — e.g. 'We're a driving school in Austin offering beginner and refresher courses, DMV test prep, and defensive driving. Friendly, no-pressure.'" />
+              <Label>What your business does (for AI)</Label>
+              <div className="flex items-start gap-3 rounded-md border border-input bg-background p-3">
+                <p className={`flex-1 text-sm whitespace-pre-wrap line-clamp-3 ${f.aiContext.trim() ? "text-foreground/90" : "text-muted-foreground"}`}>
+                  {f.aiContext.trim() || "Not set — AI stays generic and guesses from the lead. Add your business context so it speaks as you."}
+                </p>
+                <AiContextDialog initial={f.aiContext} onSaved={(t) => set("aiContext", t)}>
+                  <Button type="button" variant="outline" size="sm" className="gap-2 shrink-0">
+                    <Sparkles className="h-4 w-4" /> {f.aiContext.trim() ? "Edit" : "Add"} / improve
+                  </Button>
+                </AiContextDialog>
+              </div>
               <p className="text-xs text-muted-foreground">
-                AI drafts, recaps, and sequences use this to speak as your business instead of guessing from the lead. Leave blank to keep it generic.
+                Upload a doc, paste text, or start from a sample — then let AI tidy it up. Saved instantly from the popup; used by AI drafts, recaps, and sequences.
               </p>
             </div>
             <div className="space-y-2 md:col-span-2">
