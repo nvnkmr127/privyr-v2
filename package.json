@@ -26,6 +26,7 @@
     "@radix-ui/react-tooltip": "^1.2.16",
     "@sentry/nextjs": "^10.72.0",
     "@tanstack/react-query": "^5.102.0",
+    "ai": "^7.0.89",
     "bcryptjs": "^3.0.3",
     "bullmq": "^6.2.0",
     "class-variance-authority": "^0.7.1",
