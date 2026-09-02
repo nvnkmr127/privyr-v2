@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { updateOrganizationAction } from "@/lib/actions/organizations";
@@ -20,6 +21,7 @@ type Org = {
   currency?: string | null;
   dateFormat?: string | null;
   industry?: string | null;
+  aiContext?: string | null;
   phone?: string | null;
   website?: string | null;
   addressLine1?: string | null;
@@ -109,6 +111,7 @@ export function GeneralSettingsForm({ organization }: { organization?: Org | nul
     currency: organization?.currency ?? "USD",
     dateFormat: organization?.dateFormat ?? "MM/DD/YYYY",
     industry: organization?.industry ?? "",
+    aiContext: organization?.aiContext ?? "",
     phone: organization?.phone ?? "",
     website: organization?.website ?? "",
     addressLine1: organization?.addressLine1 ?? "",
@@ -239,6 +242,15 @@ export function GeneralSettingsForm({ organization }: { organization?: Org | nul
             <div className="space-y-2">
               <Label htmlFor="website">Website</Label>
               <Input id="website" value={f.website} onChange={(e) => set("website", e.target.value)} placeholder="https://example.com" />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="aiContext">What your business does (for AI)</Label>
+              <Textarea id="aiContext" value={f.aiContext} onChange={(e) => set("aiContext", e.target.value)}
+                rows={4} maxLength={4000}
+                placeholder="Describe what you sell, your key offerings, and tone — e.g. 'We're a driving school in Austin offering beginner and refresher courses, DMV test prep, and defensive driving. Friendly, no-pressure.'" />
+              <p className="text-xs text-muted-foreground">
+                AI drafts, recaps, and sequences use this to speak as your business instead of guessing from the lead. Leave blank to keep it generic.
+              </p>
             </div>
             <div className="space-y-2 md:col-span-2">
               <Label htmlFor="address">Address</Label>

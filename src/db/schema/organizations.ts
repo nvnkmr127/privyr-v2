@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, timestamp, jsonb, integer } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, timestamp, jsonb, integer, text } from 'drizzle-orm/pg-core';
 
 // The tenant. Every tenant-scoped row carries organization_id; a user belongs to exactly one org.
 export const organizations = pgTable('organizations', {
@@ -16,6 +16,9 @@ export const organizations = pgTable('organizations', {
 
   // Company information
   industry: varchar('industry', { length: 120 }),
+  // Free-text business description the tenant writes ("what we sell, tone, key offerings"). Fed to
+  // the AI assists so multi-tenant generations speak as each business. Future: filled from docs/site.
+  aiContext: text('ai_context'),
   phone: varchar('phone', { length: 30 }),
   website: varchar('website', { length: 255 }),
   addressLine1: varchar('address_line1', { length: 255 }),

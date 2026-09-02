@@ -20,6 +20,8 @@ const updateOrgSchema = z.object({
   dateFormat: z.string().trim().min(1).max(20),
   // Company information
   industry: opt(120),
+  // Free-text business description fed to the AI assists (see organizations.aiContext).
+  aiContext: opt(4000),
   phone: opt(30),
   website: opt(255),
   addressLine1: opt(255),

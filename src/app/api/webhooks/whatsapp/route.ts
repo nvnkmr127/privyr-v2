@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
     ...messages.map(async (m) => {
       const res = await WhatsAppService.recordInbound({ fromPhone: m.from, providerMessageId: m.id, body: m.body });
       // AI intent/sentiment tagging on matched replies — best-effort, never blocks the ack.
-      if (res.matched && res.leadId) await InboundIntentService.classifyAndTag(res.leadId, m.body);
+      if (res.matched && res.leadId) await InboundIntentService.classifyAndTag(res.leadId, m.body, res.organizationId);
     }),
   ]);
 

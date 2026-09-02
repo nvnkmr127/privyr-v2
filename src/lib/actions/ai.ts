@@ -5,7 +5,8 @@ import { requireOrg } from "@/lib/rbac";
 import { LeadService } from "@/domains/leads/service";
 import { ActivityService } from "@/domains/activities/service";
 import { generateText, aiEnabled } from "@/lib/ai/client";
-import { buildLeadContext } from "@/lib/ai/leadBrief";
+import { buildLeadContext, businessPreamble } from "@/lib/ai/leadBrief";
+import { OrgService } from "@/domains/organizations/service";
 
 const schema = z.object({ leadId: z.string().uuid() });
 
@@ -31,11 +32,12 @@ export async function draftLeadReplyAction(data: unknown): Promise<{ draft: stri
   }
 
   const activities = await ActivityService.getLeadActivities(leadId);
+  const org = await OrgService.getOrganization(organizationId);
   // Ground the draft in the same evidence the recap uses: lead facts, enrichment, and the
   // heuristic next-best-action — so an enriched lead gets a sharper, more specific message.
   const prompt = `${buildLeadContext(lead, activities)}\n\nWrite the next WhatsApp message to send this lead.`;
 
-  const draft = await generateText(SYSTEM, prompt);
+  const draft = await generateText(`${businessPreamble(org)}\n\n${SYSTEM}`, prompt);
   if (!draft) {
     return {
       draft: `Hi ${firstName}, just following up — any questions I can help with?`,
@@ -67,7 +69,8 @@ export async function summarizeLeadAction(data: unknown): Promise<{ summary: str
     };
   }
 
-  const summary = await generateText(RECAP_SYSTEM, buildLeadContext(lead, activities), 200);
+  const org = await OrgService.getOrganization(organizationId);
+  const summary = await generateText(`${businessPreamble(org)}\n\n${RECAP_SYSTEM}`, buildLeadContext(lead, activities), 200);
   return summary ? { summary, ai: true } : { summary: `Status is ${lead.status}. Review recent activity and follow up.`, ai: false };
 }
 
@@ -80,7 +83,7 @@ export type GeneratedSequenceStep = { dayOffset: number; channel: "whatsapp" | "
 
 // AI sequence generator — turns a plain-English goal into ready-to-edit sequence steps.
 export async function generateSequenceAction(goal: string): Promise<{ steps: GeneratedSequenceStep[]; ai: boolean }> {
-  await requireOrg();
+  const { organizationId } = await requireOrg();
   const clean = String(goal || "").slice(0, 500).trim();
   const fallback: GeneratedSequenceStep[] = [
     { dayOffset: 0, channel: "whatsapp", body: "Hi {{first_name}}, thanks for your interest! Happy to answer any questions — when's a good time for a quick chat?" },
@@ -89,7 +92,8 @@ export async function generateSequenceAction(goal: string): Promise<{ steps: Gen
   ];
   if (!aiEnabled() || !clean) return { steps: fallback, ai: false };
 
-  const raw = await generateText(SEQ_SYSTEM, `Goal: ${clean}\nAudience: sales leads.`, 800);
+  const org = await OrgService.getOrganization(organizationId);
+  const raw = await generateText(`${businessPreamble(org)}\n\n${SEQ_SYSTEM}`, `Goal: ${clean}\nAudience: sales leads.`, 800);
   if (!raw) return { steps: fallback, ai: false };
   try {
     const parsed = JSON.parse(raw.slice(raw.indexOf("["), raw.lastIndexOf("]") + 1));

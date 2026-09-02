@@ -67,6 +67,32 @@ export function buildLeadContext(lead: LeadLike, activities: ActivityLike[]): st
   return lines.join("\n");
 }
 
+export interface BusinessLike {
+  name: string;
+  industry: string | null;
+  website: string | null;
+  /** Optional free-text description the tenant writes ("what we sell"). See organizations.aiContext. */
+  aiContext?: string | null;
+}
+
+/**
+ * System-prompt preamble that anchors the model to the TENANT's own business, so multi-tenant
+ * AI assists speak as each business — not by guessing from the lead. Without this, a lead named
+ * e.g. "Diploma in Hotel Management" makes the model assume the tenant sells hotel courses.
+ */
+export function businessPreamble(org: BusinessLike): string {
+  let s = `You work for "${org.name}"`;
+  if (org.industry) s += `, a business in ${org.industry}`;
+  if (org.website) s += ` (${org.website})`;
+  s += ".";
+  if (org.aiContext?.trim()) s += ` About the business: ${org.aiContext.trim()}`;
+  s +=
+    " Represent ONLY this business's own products and services. The lead's name, company, or stated" +
+    " interest describes the LEAD — never assume it is what your business sells. If the business's" +
+    " offering is unknown, keep guidance generic rather than inventing a product or service.";
+  return s;
+}
+
 export const SYSTEM_SUMMARY =
   "You are a concise sales assistant inside a lead CRM. Summarise the lead in 2-3 sentences and " +
   "state the single best next step. Use ONLY the facts in the context. Never invent details about " +

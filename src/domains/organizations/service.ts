@@ -93,6 +93,7 @@ export class OrgService {
       currency: string;
       dateFormat: string;
       industry: string | null;
+      aiContext: string | null;
       phone: string | null;
       website: string | null;
       addressLine1: string | null;

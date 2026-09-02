@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildLeadContext, draftSystemPrompt, type LeadLike } from "./leadBrief";
+import { buildLeadContext, draftSystemPrompt, businessPreamble, type LeadLike } from "./leadBrief";
 
 const baseLead: LeadLike = {
   name: "Ada Lovelace",
@@ -48,5 +48,24 @@ describe("draftSystemPrompt", () => {
     expect(draftSystemPrompt("email")).toContain("email");
     expect(draftSystemPrompt("sms")).toContain("SMS");
     expect(draftSystemPrompt("whatsapp")).toContain("WhatsApp");
+  });
+});
+
+describe("businessPreamble", () => {
+  it("anchors to the tenant and always forbids guessing from the lead", () => {
+    const s = businessPreamble({ name: "Acme Realty", industry: "Real Estate", website: "acme.com", aiContext: "We sell homes." });
+    expect(s).toContain("Acme Realty");
+    expect(s).toContain("Real Estate");
+    expect(s).toContain("acme.com");
+    expect(s).toContain("We sell homes.");
+    expect(s).toContain("describes the LEAD"); // the anti-hallucination guard
+  });
+
+  it("omits missing fields without breaking the guard", () => {
+    const s = businessPreamble({ name: "Solo Co", industry: null, website: null });
+    expect(s).toContain("Solo Co");
+    expect(s).not.toContain("business in ");
+    expect(s).not.toContain("About the business:");
+    expect(s).toContain("describes the LEAD");
   });
 });

@@ -150,6 +150,6 @@ export const WhatsAppService = {
       type: "message",
       content: `[whatsapp ← lead] ${input.body}`,
     });
-    return { matched: true, leadId: lead.id };
+    return { matched: true, leadId: lead.id, organizationId: lead.organizationId };
   },
 };

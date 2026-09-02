@@ -1,5 +1,7 @@
 import { generateText, aiEnabled } from "@/lib/ai/client";
+import { businessPreamble } from "@/lib/ai/leadBrief";
 import { ActivityService } from "@/domains/activities/service";
+import { OrgService } from "@/domains/organizations/service";
 import { TagService } from "@/domains/tags/service";
 
 export type LeadIntent = "interested" | "not_interested" | "question" | "scheduling" | "other";
@@ -17,7 +19,11 @@ export class InboundIntentService {
   static async classifyAndTag(leadId: string, body: string, organizationId?: string): Promise<void> {
     if (!aiEnabled() || !body.trim()) return;
     try {
-      const raw = await generateText(SYSTEM, `Message: "${body.slice(0, 500)}"`, 60);
+      // Ground the classifier in the tenant's business so "interested" is judged against what they
+      // actually sell. Org is optional (some callers lack it) — fall back to the generic prompt.
+      const org = organizationId ? await OrgService.getOrganization(organizationId) : null;
+      const system = org ? `${businessPreamble(org)}\n\n${SYSTEM}` : SYSTEM;
+      const raw = await generateText(system, `Message: "${body.slice(0, 500)}"`, 60);
       if (!raw) return;
       const parsed = JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
       const intent: LeadIntent = VALID.includes(parsed.intent) ? parsed.intent : "other";

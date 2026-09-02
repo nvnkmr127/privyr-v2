@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
       organizationId: resolved.organizationId,
     });
     if (res.matched && res.leadId) {
-      await InboundIntentService.classifyAndTag(res.leadId, `${subject}\n${text}`);
+      await InboundIntentService.classifyAndTag(res.leadId, `${subject}\n${text}`, resolved.organizationId);
     }
     return NextResponse.json({ ok: true, matched: res.matched });
   } catch {
