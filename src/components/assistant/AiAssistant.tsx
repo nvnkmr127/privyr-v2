@@ -6,12 +6,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { runAgentAction } from "@/lib/actions/agent";
 import { sendWhatsAppAction, sendEmailAction } from "@/lib/actions/messaging";
-import { Bot, User, Send, Check, X, Loader2, Sparkles } from "lucide-react";
+import { Bot, User, Send, Check, X, Loader2, Sparkles, History, Plus, MessageSquare, Trash2 } from "lucide-react";
 import type { AgentProposal } from "@/lib/ai/agent";
 
 type Turn =
   | { role: "user"; content: string }
   | { role: "assistant"; content: string; proposals: AgentProposal[] };
+
+interface Conversation {
+  id: string;
+  title: string;
+  updatedAt: number;
+  turns: Turn[];
+}
 
 // Domain-smart starter prompts — one tap sends them. Keeps users from facing a blank box.
 const SUGGESTIONS = [
@@ -21,28 +28,93 @@ const SUGGESTIONS = [
   "Draft a follow-up for my newest lead",
 ];
 
+// History lives in localStorage (per-browser). ponytail: no table/migration needed for recent
+// chats; upgrade to a DB-backed store if history must sync across devices or a team.
+const CONV_KEY = "assistant-conversations";
+const MAX_CONVERSATIONS = 50;
+
+function loadConversations(): Conversation[] {
+  try {
+    const raw = localStorage.getItem(CONV_KEY);
+    return raw ? (JSON.parse(raw) as Conversation[]) : [];
+  } catch {
+    return [];
+  }
+}
+function saveConversations(list: Conversation[]) {
+  try {
+    localStorage.setItem(CONV_KEY, JSON.stringify(list.slice(0, MAX_CONVERSATIONS)));
+  } catch {
+    /* storage unavailable — history just won't persist */
+  }
+}
+function relativeTime(ts: number): string {
+  const s = Math.round((Date.now() - ts) / 1000);
+  if (s < 60) return "just now";
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return new Date(ts).toLocaleDateString(undefined, { dateStyle: "medium" });
+}
+function newId(): string {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    return String(Date.now()) + Math.random().toString(36).slice(2);
+  }
+}
+
 export function AiAssistant() {
   const { toast } = useToast();
   const [turns, setTurns] = React.useState<Turn[]>([]);
   const [input, setInput] = React.useState("");
   const [busy, setBusy] = React.useState(false);
+  const [conversations, setConversations] = React.useState<Conversation[]>([]);
+  const [activeId, setActiveId] = React.useState<string | null>(null);
+  const [showHistory, setShowHistory] = React.useState(false);
   const scroller = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    setConversations(loadConversations());
+  }, []);
 
   React.useEffect(() => {
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" });
   }, [turns, busy]);
+
+  // Upsert the current chat into history (creates an id on first save).
+  const activeIdRef = React.useRef<string | null>(null);
+  activeIdRef.current = activeId;
+  function persist(nextTurns: Turn[]) {
+    if (nextTurns.length === 0) return;
+    let id = activeIdRef.current;
+    if (!id) {
+      id = newId();
+      setActiveId(id);
+    }
+    const title = (nextTurns.find((t) => t.role === "user")?.content ?? "New chat").slice(0, 60);
+    const conv: Conversation = { id, title, updatedAt: Date.now(), turns: nextTurns };
+    setConversations((prev) => {
+      const next = [conv, ...prev.filter((c) => c.id !== id)];
+      saveConversations(next);
+      return next;
+    });
+  }
 
   async function send(text?: string) {
     const msg = (text ?? input).trim();
     if (!msg || busy) return;
     setInput("");
     setBusy(true);
-    // History = prior turns as plain role/content (drop proposals).
     const history = turns.map((t) => ({ role: t.role, content: t.content }));
-    setTurns((prev) => [...prev, { role: "user", content: msg }]);
+    const withUser: Turn[] = [...turns, { role: "user", content: msg }];
+    setTurns(withUser);
     try {
       const res = await runAgentAction(msg, history);
-      setTurns((prev) => [...prev, { role: "assistant", content: res.text || "(no reply)", proposals: res.proposals }]);
+      const withReply: Turn[] = [...withUser, { role: "assistant", content: res.text || "(no reply)", proposals: res.proposals }];
+      setTurns(withReply);
+      persist(withReply);
     } catch {
       toast({ variant: "destructive", title: "Assistant failed", description: "Couldn't reach the server. Try again." });
     } finally {
@@ -65,111 +137,190 @@ export function AiAssistant() {
   }
 
   function dismiss(turnIdx: number, propIdx: number) {
-    setTurns((prev) =>
-      prev.map((t, i) =>
-        i === turnIdx && t.role === "assistant"
-          ? { ...t, proposals: t.proposals.filter((_, j) => j !== propIdx) }
-          : t,
-      ),
-    );
+    setTurns((prev) => {
+      const next = prev.map((t, i) =>
+        i === turnIdx && t.role === "assistant" ? { ...t, proposals: t.proposals.filter((_, j) => j !== propIdx) } : t,
+      );
+      persist(next);
+      return next;
+    });
+  }
+
+  function newChat() {
+    setTurns([]);
+    setActiveId(null);
+    setInput("");
+    setShowHistory(false);
+  }
+
+  function openConversation(id: string) {
+    const conv = conversations.find((c) => c.id === id);
+    if (!conv) return;
+    setTurns(conv.turns);
+    setActiveId(id);
+    setShowHistory(false);
+  }
+
+  function deleteConversation(id: string) {
+    setConversations((prev) => {
+      const next = prev.filter((c) => c.id !== id);
+      saveConversations(next);
+      return next;
+    });
+    if (activeId === id) newChat();
   }
 
   return (
     <div className="flex flex-col h-full">
-      <div ref={scroller} className="flex-1 overflow-y-auto space-y-4 pb-4">
-        {turns.length === 0 && (
-          <div className="py-10 space-y-4">
-            <div className="text-center text-sm text-muted-foreground space-y-1.5">
-              <Sparkles className="h-8 w-8 mx-auto text-muted-foreground/60" />
-              <p className="font-medium text-foreground">Your CRM assistant</p>
-              <p>Triage, tag, remind, or draft outreach across your leads.</p>
-            </div>
-            <div className="flex flex-col gap-2">
-              {SUGGESTIONS.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => send(s)}
-                  className="text-left text-sm rounded-xl border border-border bg-card px-3.5 py-2.5 hover:bg-muted transition-colors"
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+      {/* Controls: history + new chat */}
+      <div className="flex items-center justify-between border-b pb-2.5 mb-2">
+        <button
+          onClick={() => setShowHistory((v) => !v)}
+          className={`flex items-center gap-1.5 text-xs font-medium rounded-lg px-2.5 py-1.5 transition-colors ${
+            showHistory ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted"
+          }`}
+        >
+          <History className="h-3.5 w-3.5" /> History
+        </button>
+        <button
+          onClick={newChat}
+          className="flex items-center gap-1.5 text-xs font-medium rounded-lg px-2.5 py-1.5 text-muted-foreground hover:bg-muted transition-colors"
+        >
+          <Plus className="h-3.5 w-3.5" /> New chat
+        </button>
+      </div>
 
-        {turns.map((t, i) => (
-          <div key={i} className={`flex gap-3 ${t.role === "user" ? "justify-end" : "justify-start"}`}>
-            {t.role === "assistant" && (
-              <div className="h-8 w-8 shrink-0 rounded-full bg-primary/10 flex items-center justify-center">
-                <Bot className="h-4 w-4 text-primary" />
-              </div>
-            )}
-            <div className={`max-w-[80%] space-y-3 ${t.role === "user" ? "order-1" : ""}`}>
+      {showHistory ? (
+        <div className="flex-1 overflow-y-auto space-y-2">
+          {conversations.length === 0 ? (
+            <div className="text-center text-sm text-muted-foreground py-16">No saved conversations yet.</div>
+          ) : (
+            conversations.map((c) => (
               <div
-                className={`rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap ${
-                  t.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"
-                }`}
+                key={c.id}
+                onClick={() => openConversation(c.id)}
+                className="group flex items-center gap-3 rounded-xl border border-border px-3 py-2.5 hover:bg-muted cursor-pointer transition-colors"
               >
-                {t.content}
+                <MessageSquare className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <div className="flex-1 min-w-0">
+                  <p className="truncate text-sm font-medium">{c.title}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {relativeTime(c.updatedAt)} · {c.turns.filter((t) => t.role === "user").length} message
+                    {c.turns.filter((t) => t.role === "user").length === 1 ? "" : "s"}
+                  </p>
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteConversation(c.id);
+                  }}
+                  aria-label="Delete conversation"
+                  className="shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
               </div>
+            ))
+          )}
+        </div>
+      ) : (
+        <>
+          <div ref={scroller} className="flex-1 overflow-y-auto space-y-4 pb-4">
+            {turns.length === 0 && (
+              <div className="py-10 space-y-4">
+                <div className="text-center text-sm text-muted-foreground space-y-1.5">
+                  <Sparkles className="h-8 w-8 mx-auto text-muted-foreground/60" />
+                  <p className="font-medium text-foreground">Your CRM assistant</p>
+                  <p>Triage, tag, remind, or draft outreach across your leads.</p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {SUGGESTIONS.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => send(s)}
+                      className="text-left text-sm rounded-xl border border-border bg-card px-3.5 py-2.5 hover:bg-muted transition-colors"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
-              {t.role === "assistant" &&
-                t.proposals.map((p, j) => (
-                  <div key={j} className="rounded-xl border border-orange-500/30 bg-orange-500/5 p-3 space-y-2">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-orange-600 dark:text-orange-400">
-                      Draft {p.channel} → {p.leadName ?? "lead"} · needs your approval
-                    </p>
-                    <p className="text-sm whitespace-pre-wrap">{p.body}</p>
-                    <div className="flex gap-2">
-                      <Button size="sm" onClick={() => approve(i, j, p)}>
-                        <Check className="h-3.5 w-3.5 mr-1" /> Approve &amp; send
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => dismiss(i, j)}>
-                        <X className="h-3.5 w-3.5 mr-1" /> Dismiss
-                      </Button>
-                    </div>
+            {turns.map((t, i) => (
+              <div key={i} className={`flex gap-3 ${t.role === "user" ? "justify-end" : "justify-start"}`}>
+                {t.role === "assistant" && (
+                  <div className="h-8 w-8 shrink-0 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Bot className="h-4 w-4 text-primary" />
                   </div>
-                ))}
-            </div>
-            {t.role === "user" && (
-              <div className="h-8 w-8 shrink-0 rounded-full bg-secondary flex items-center justify-center order-2">
-                <User className="h-4 w-4" />
+                )}
+                <div className={`max-w-[80%] space-y-3 ${t.role === "user" ? "order-1" : ""}`}>
+                  <div
+                    className={`rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap ${
+                      t.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"
+                    }`}
+                  >
+                    {t.content}
+                  </div>
+
+                  {t.role === "assistant" &&
+                    t.proposals.map((p, j) => (
+                      <div key={j} className="rounded-xl border border-orange-500/30 bg-orange-500/5 p-3 space-y-2">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-orange-600 dark:text-orange-400">
+                          Draft {p.channel} → {p.leadName ?? "lead"} · needs your approval
+                        </p>
+                        <p className="text-sm whitespace-pre-wrap">{p.body}</p>
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={() => approve(i, j, p)}>
+                            <Check className="h-3.5 w-3.5 mr-1" /> Approve &amp; send
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => dismiss(i, j)}>
+                            <X className="h-3.5 w-3.5 mr-1" /> Dismiss
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+                {t.role === "user" && (
+                  <div className="h-8 w-8 shrink-0 rounded-full bg-secondary flex items-center justify-center order-2">
+                    <User className="h-4 w-4" />
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {busy && (
+              <div className="flex gap-3">
+                <div className="h-8 w-8 shrink-0 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Bot className="h-4 w-4 text-primary" />
+                </div>
+                <div className="rounded-2xl px-4 py-2.5 bg-muted">
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                </div>
               </div>
             )}
           </div>
-        ))}
 
-        {busy && (
-          <div className="flex gap-3">
-            <div className="h-8 w-8 shrink-0 rounded-full bg-primary/10 flex items-center justify-center">
-              <Bot className="h-4 w-4 text-primary" />
-            </div>
-            <div className="rounded-2xl px-4 py-2.5 bg-muted">
-              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-            </div>
+          <div className="border-t pt-4 flex gap-2">
+            <Textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  send();
+                }
+              }}
+              placeholder="Ask about your leads…"
+              className="resize-none min-h-[44px] max-h-32"
+              rows={1}
+            />
+            <Button onClick={() => send()} disabled={busy || !input.trim()} size="icon" className="h-11 w-11 shrink-0">
+              <Send className="h-4 w-4" />
+            </Button>
           </div>
-        )}
-      </div>
-
-      <div className="border-t pt-4 flex gap-2">
-        <Textarea
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              send();
-            }
-          }}
-          placeholder="Ask about your leads…"
-          className="resize-none min-h-[44px] max-h-32"
-          rows={1}
-        />
-        <Button onClick={() => send()} disabled={busy || !input.trim()} size="icon" className="h-11 w-11 shrink-0">
-          <Send className="h-4 w-4" />
-        </Button>
-      </div>
+        </>
+      )}
     </div>
   );
 }
