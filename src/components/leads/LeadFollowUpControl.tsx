@@ -55,7 +55,11 @@ export function LeadFollowUpControl({ leadId, nextFollowUpAt }: LeadFollowUpCont
   };
 
   return (
-    <div className="w-full">
+    <div className="rounded-2xl border border-border p-5 bg-card space-y-4">
+      <h3 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+        {isOverdue ? <Clock className="h-4 w-4 text-destructive" /> : <Calendar className="h-4 w-4" />}
+        {isOverdue ? "Follow-up overdue" : "Follow-up"}
+      </h3>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
@@ -69,29 +73,13 @@ export function LeadFollowUpControl({ leadId, nextFollowUpAt }: LeadFollowUpCont
             }`}
             disabled={loading}
           >
-            <div className="flex items-center gap-2.5">
-              {isOverdue ? (
-                <Clock className="h-4 w-4 shrink-0 text-destructive" />
-              ) : (
-                <Calendar className="h-4 w-4 shrink-0" />
-              )}
-              <div className="text-left">
-                <span className="text-xs font-semibold uppercase tracking-wider block">
-                  {isOverdue
-                    ? "Follow Up Overdue"
-                    : currentDate
-                    ? "Next Follow Up"
-                    : "Set Follow Up Reminder"}
-                </span>
-                <span className="text-sm font-medium">
-                  {currentDate
-                    ? `${currentDate.toLocaleDateString(undefined, {
-                        dateStyle: "medium",
-                      })} at ${currentDate.toLocaleTimeString(undefined, { timeStyle: "short" })}`
-                    : "No reminder scheduled"}
-                </span>
-              </div>
-            </div>
+            <span className="text-sm font-medium text-left">
+              {currentDate
+                ? `${currentDate.toLocaleDateString(undefined, {
+                    dateStyle: "medium",
+                  })} at ${currentDate.toLocaleTimeString(undefined, { timeStyle: "short" })}`
+                : "No reminder scheduled"}
+            </span>
             <ChevronDown className="h-4 w-4 opacity-50 shrink-0 ml-2" />
           </Button>
         </PopoverTrigger>

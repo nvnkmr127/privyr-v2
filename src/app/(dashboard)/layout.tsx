@@ -1,6 +1,7 @@
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { ImpersonationBanner } from "@/components/platform/ImpersonationBanner";
+import { FloatingAssistant } from "@/components/assistant/FloatingAssistant";
 import { isSuperAdmin } from "@/lib/rbac";
 
 // Every dashboard page is authed and DB-backed — render per request, never prerender at build.
@@ -22,6 +23,7 @@ export default async function DashboardLayout({
           {children}
         </main>
       </div>
+      <FloatingAssistant />
     </div>
   );
 }

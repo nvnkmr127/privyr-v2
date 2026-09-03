@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { AssignmentService, nextRoundRobinIndex } from "./assignmentService";
+import { AssignmentService, nextRoundRobinIndex, capacityAwarePool } from "./assignmentService";
 import { LeadService } from "./service";
 import { eventBus } from "@/lib/events/emitter";
 
@@ -60,6 +60,22 @@ describe("AssignmentService & Round-Robin Logic", () => {
 
     it("returns -1 when there are no team members", () => {
       expect(nextRoundRobinIndex([], "a")).toBe(-1);
+    });
+  });
+
+  describe("capacityAwarePool", () => {
+    const team = ["a", "b", "c"];
+
+    it("keeps only reps with remaining capacity", () => {
+      expect(capacityAwarePool(team, new Set(["a", "c"]))).toEqual(["a", "c"]);
+    });
+
+    it("falls back to the whole team when everyone is maxed out (never drops a lead)", () => {
+      expect(capacityAwarePool(team, new Set())).toEqual(team);
+    });
+
+    it("returns the whole team when capacity is unknown", () => {
+      expect(capacityAwarePool(team, null)).toEqual(team);
     });
   });
 

@@ -13,6 +13,14 @@ export function nextRoundRobinIndex(userIds: string[], lastAssignedUserId: strin
   return i === -1 ? 0 : (i + 1) % userIds.length;
 }
 
+// Narrow the rotation to reps that still have capacity. Falls back to the whole team when
+// everyone is maxed out (never drop a lead) or when capacity is unknown (availableIds === null).
+export function capacityAwarePool(teamIds: string[], availableIds: Set<string> | null): string[] {
+  if (!availableIds) return teamIds;
+  const free = teamIds.filter((id) => availableIds.has(id));
+  return free.length > 0 ? free : teamIds;
+}
+
 export interface AssignLeadOptions {
   leadId: string;
   ownerId: string | null;
@@ -100,6 +108,17 @@ export class AssignmentService {
       targetOrgId = lead?.organizationId;
     }
 
+    // Capacity snapshot (advisory read, taken outside the rule lock): reps at max active-lead
+    // capacity are dropped from the round-robin so overloaded reps stop receiving new leads.
+    // ponytail: uses the service default cap (25); add a column on assignment_rules if per-team
+    // limits are ever needed.
+    let availableIds: Set<string> | null = null;
+    if (targetOrgId) {
+      const { CapacityAssignmentService } = await import("@/domains/leads/capacityAssignmentService");
+      const caps = await CapacityAssignmentService.getRepCapacities(targetOrgId);
+      availableIds = new Set(caps.filter((c) => c.isAvailable).map((c) => c.userId));
+    }
+
     // Resolve the target inside a transaction that LOCKS the rule row (FOR UPDATE), so two
     // leads ingested in parallel can't read the same lastAssignedUserId and land on the same
     // rep. Concurrent workers serialize on this row and the rotation advances correctly.
@@ -131,10 +150,12 @@ export class AssignmentService {
         .where(and(...conditions))
         .orderBy(users.id);
 
-      const idx = nextRoundRobinIndex(teamUsers.map((u) => u.id), rule.lastAssignedUserId);
+      // Rotate only over reps with remaining capacity (falls back to the whole team if all maxed).
+      const pool = capacityAwarePool(teamUsers.map((u) => u.id), availableIds);
+      const idx = nextRoundRobinIndex(pool, rule.lastAssignedUserId);
       if (idx === -1) return { userId: null, teamId: rule.teamId };
 
-      const chosen = teamUsers[idx].id;
+      const chosen = pool[idx];
       await tx.update(assignmentRules)
         .set({ lastAssignedUserId: chosen })
         .where(eq(assignmentRules.id, rule.id));
