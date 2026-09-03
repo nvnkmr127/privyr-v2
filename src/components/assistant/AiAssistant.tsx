@@ -315,7 +315,7 @@ export function AiAssistant() {
               className="resize-none min-h-[44px] max-h-32"
               rows={1}
             />
-            <Button onClick={() => send()} disabled={busy || !input.trim()} size="icon" className="h-11 w-11 shrink-0">
+            <Button onClick={() => send()} disabled={busy || !input.trim()} size="icon" aria-label="Send message" className="h-11 w-11 shrink-0">
               <Send className="h-4 w-4" />
             </Button>
           </div>

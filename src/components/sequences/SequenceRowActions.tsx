@@ -33,10 +33,10 @@ export function SequenceRowActions({ id, name }: { id: string; name: string }) {
 
   return (
     <div className="flex items-center gap-1">
-      <Button asChild variant="ghost" size="icon">
+      <Button asChild variant="ghost" size="icon" aria-label="Edit sequence">
         <Link href={`/sequences/${id}/edit`}><Pencil className="h-4 w-4" /></Link>
       </Button>
-      <Button variant="ghost" size="icon" onClick={remove} disabled={busy} className="text-destructive hover:text-destructive">
+      <Button variant="ghost" size="icon" aria-label="Delete sequence" onClick={remove} disabled={busy} className="text-destructive hover:text-destructive">
         <Trash2 className="h-4 w-4" />
       </Button>
     </div>

@@ -277,6 +277,7 @@ export function LeadRemindersTab({ leadId, initialReminders }: LeadRemindersTabP
                   <Button
                     variant="ghost"
                     size="icon"
+                    aria-label="Delete reminder"
                     onClick={() => handleDelete(reminder.id)}
                     className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
                   >
@@ -318,6 +319,7 @@ export function LeadRemindersTab({ leadId, initialReminders }: LeadRemindersTabP
                 <Button
                   variant="ghost"
                   size="icon"
+                  aria-label="Delete reminder"
                   onClick={() => handleDelete(reminder.id)}
                   className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
                 >

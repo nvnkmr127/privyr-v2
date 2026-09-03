@@ -14,7 +14,7 @@ export default async function ApiKeysPage() {
   return (
     <div className="flex-1 space-y-6 p-8 pt-6 max-w-4xl">
       <div className="flex items-center gap-3">
-        <Link href="/settings"><Button variant="ghost" size="icon"><ArrowLeft className="h-5 w-5" /></Button></Link>
+        <Link href="/settings"><Button variant="ghost" size="icon" aria-label="Go back"><ArrowLeft className="h-5 w-5" /></Button></Link>
         <div>
           <h2 className="text-2xl font-bold tracking-tight">API Access</h2>
           <p className="text-sm text-muted-foreground">Programmatic access to your leads via the REST API.</p>

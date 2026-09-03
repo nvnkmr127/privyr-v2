@@ -42,9 +42,9 @@ export default async function FollowUpCalendarPage({ searchParams }: { searchPar
         <h1 className="text-2xl font-bold tracking-tight">{format(cursor, "MMMM yyyy")}</h1>
         <div className="flex items-center gap-2">
           <Link href="/follow-ups"><Button variant="outline" size="sm" className="gap-1"><List className="h-4 w-4" /> List</Button></Link>
-          <Link href={`/follow-ups/calendar?month=${prev}`}><Button variant="ghost" size="icon"><ChevronLeft className="h-4 w-4" /></Button></Link>
+          <Link href={`/follow-ups/calendar?month=${prev}`}><Button variant="ghost" size="icon" aria-label="Previous month"><ChevronLeft className="h-4 w-4" /></Button></Link>
           <Link href="/follow-ups/calendar"><Button variant="ghost" size="sm">Today</Button></Link>
-          <Link href={`/follow-ups/calendar?month=${next}`}><Button variant="ghost" size="icon"><ChevronRight className="h-4 w-4" /></Button></Link>
+          <Link href={`/follow-ups/calendar?month=${next}`}><Button variant="ghost" size="icon" aria-label="Next month"><ChevronRight className="h-4 w-4" /></Button></Link>
         </div>
       </div>
 

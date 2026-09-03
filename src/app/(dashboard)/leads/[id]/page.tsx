@@ -139,7 +139,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-5">
         <div className="flex items-center gap-3">
           <Link href="/leads">
-            <Button variant="outline" size="icon" className="h-9 w-9">
+            <Button variant="outline" size="icon" aria-label="Go back" className="h-9 w-9">
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>

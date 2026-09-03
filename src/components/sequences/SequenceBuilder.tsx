@@ -110,7 +110,7 @@ export function SequenceBuilder({ initial }: { initial?: { id: string; name: str
                 <option value="email">Email</option>
               </select>
               {steps.length > 1 && (
-                <Button type="button" variant="ghost" size="icon" className="ml-auto" onClick={() => setSteps((st) => st.filter((_, idx) => idx !== i))}>
+                <Button type="button" variant="ghost" size="icon" aria-label="Remove step" className="ml-auto" onClick={() => setSteps((st) => st.filter((_, idx) => idx !== i))}>
                   <Trash2 className="h-4 w-4" />
                 </Button>
               )}

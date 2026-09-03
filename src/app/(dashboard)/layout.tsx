@@ -14,7 +14,7 @@ export default async function DashboardLayout({
 }) {
   const superAdmin = await isSuperAdmin();
   return (
-    <div className="flex h-screen overflow-hidden bg-background text-foreground">
+    <div className="flex h-dvh overflow-hidden bg-background text-foreground">
       <Sidebar isSuperAdmin={superAdmin} />
       <div className="flex flex-col flex-1 overflow-hidden">
         <ImpersonationBanner />

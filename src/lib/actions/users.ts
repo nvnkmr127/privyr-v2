@@ -5,19 +5,29 @@ import { db } from "@/db";
 import { users } from "@/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, unstable_cache, revalidateTag } from "next/cache";
 import { UserService } from "@/domains/users/service";
 import { AuditService } from "@/domains/audit/service";
 import { PlanService } from "@/domains/billing/planService";
 import { ok, fail, actionFail, zodFieldErrors } from "@/lib/actions/result";
 
 // Active users of the caller's org for owner/assignee pickers. Returns a display name, not the raw record.
+// The active-user picker list rarely changes — cache it 60s per org. Safe to cache: it returns
+// only strings (no Date columns that unstable_cache's JSON serialization would mangle). Invalidated
+// immediately by revalidateTag("active-users") on user create / activate-toggle / delete below.
+const getActiveUsersCached = unstable_cache(
+  (organizationId: string) =>
+    db
+      .select({ id: users.id, firstName: users.firstName, lastName: users.lastName, email: users.email })
+      .from(users)
+      .where(and(eq(users.organizationId, organizationId), eq(users.isActive, true), isNull(users.deletedAt))),
+  ["active-users"],
+  { revalidate: 60, tags: ["active-users"] },
+);
+
 export async function listUsersAction() {
   const { organizationId } = await requireOrg();
-  const rows = await db
-    .select({ id: users.id, firstName: users.firstName, lastName: users.lastName, email: users.email })
-    .from(users)
-    .where(and(eq(users.organizationId, organizationId), eq(users.isActive, true), isNull(users.deletedAt)));
+  const rows = await getActiveUsersCached(organizationId);
   return rows.map((u) => ({
     id: u.id,
     name: [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email,
@@ -51,6 +61,7 @@ export async function createUserAction(input: z.infer<typeof createUserSchema>) 
     const user = await UserService.create(organizationId, data);
     await AuditService.log({ organizationId, userId, action: "user.create", entityType: "user", entityId: user.id, metadata: { email: data.email } });
     revalidatePath("/settings/users");
+    revalidateTag("active-users");
     return ok(user);
   } catch (e: any) {
     // Unique violation on email.
@@ -66,6 +77,7 @@ export async function setUserActiveAction(id: string, isActive: boolean) {
   if (id === userId && !isActive) return fail("VALIDATION", "You can't deactivate your own account.");
   try {
     await UserService.setActive(organizationId, id, isActive);
+    revalidateTag("active-users");
     revalidatePath("/settings/users");
     return ok({ id, isActive });
   } catch (e) {
@@ -102,6 +114,7 @@ export async function deleteUserAction(id: string) {
   if (id === userId) return fail("VALIDATION", "You can't delete your own account.");
   try {
     await UserService.remove(organizationId, id);
+    revalidateTag("active-users");
     await AuditService.log({ organizationId, userId, action: "user.delete", entityType: "user", entityId: id });
     revalidatePath("/settings/users");
     return ok({ id });

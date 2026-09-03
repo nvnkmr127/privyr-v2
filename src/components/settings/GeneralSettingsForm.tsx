@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { updateOrganizationAction } from "@/lib/actions/organizations";
 import { StatusManagementModal } from "@/components/leads/StatusManagementModal";
 import { AiContextDialog } from "@/components/settings/AiContextDialog";
-import { Sliders, Building, Tag, Users, MessageSquare, Database, Globe, LocateFixed, Lock, Check, Sparkles } from "lucide-react";
+import { Sliders, Building, Tag, Users, MessageSquare, Database, Globe, LocateFixed, Lock, Check, Sparkles, Clock, Calendar, DollarSign } from "lucide-react";
 import Link from "next/link";
 
 type Org = {
@@ -344,9 +344,9 @@ export function GeneralSettingsForm({ organization }: { organization?: Org | nul
 
           <div className="flex flex-wrap items-center gap-x-6 gap-y-1 rounded-xl bg-muted/50 px-4 py-3 text-sm">
             <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Preview</span>
-            <span>🕑 {preview.tzTime}</span>
-            <span>📅 {preview.date}</span>
-            <span>💰 {preview.money}</span>
+            <span className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5 text-muted-foreground" /> {preview.tzTime}</span>
+            <span className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5 text-muted-foreground" /> {preview.date}</span>
+            <span className="flex items-center gap-1.5"><DollarSign className="h-3.5 w-3.5 text-muted-foreground" /> {preview.money}</span>
           </div>
         </div>
 

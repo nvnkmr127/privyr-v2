@@ -101,9 +101,9 @@ export function FormFieldsEditor({ sourceId, initialConfig }: { sourceId: string
             </label>
             <span className="text-[10px] font-mono text-muted-foreground">{isStandard(f.key) ? f.key : `custom:${f.key}`}</span>
             <div className="flex items-center gap-0.5 ml-auto">
-              <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => move(i, -1)} disabled={i === 0}><ArrowUp className="h-3.5 w-3.5" /></Button>
-              <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => move(i, 1)} disabled={i === fields.length - 1}><ArrowDown className="h-3.5 w-3.5" /></Button>
-              <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => remove(i)}><Trash2 className="h-3.5 w-3.5" /></Button>
+              <Button type="button" variant="ghost" size="icon" aria-label="Move field up" className="h-7 w-7" onClick={() => move(i, -1)} disabled={i === 0}><ArrowUp className="h-3.5 w-3.5" /></Button>
+              <Button type="button" variant="ghost" size="icon" aria-label="Move field down" className="h-7 w-7" onClick={() => move(i, 1)} disabled={i === fields.length - 1}><ArrowDown className="h-3.5 w-3.5" /></Button>
+              <Button type="button" variant="ghost" size="icon" aria-label="Remove field" className="h-7 w-7 text-destructive" onClick={() => remove(i)}><Trash2 className="h-3.5 w-3.5" /></Button>
             </div>
           </div>
         ))}

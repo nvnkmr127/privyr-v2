@@ -6,7 +6,7 @@ export default async function AcceptInvitePage({ params }: { params: Promise<{ t
   const invite = await InvitationService.peek(token);
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
+    <div className="min-h-dvh flex items-center justify-center p-6">
       <div className="w-full max-w-md border rounded-2xl bg-card p-8 space-y-6">
         <div>
           <h1 className="text-2xl font-bold">Accept your invitation</h1>

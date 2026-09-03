@@ -37,7 +37,7 @@ export function NotificationBell() {
   return (
     <DropdownMenu onOpenChange={onOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant="secondary" size="icon" className="rounded-full relative">
+        <Button variant="secondary" size="icon" aria-label="Notifications" className="rounded-full relative">
           <Bell className="h-5 w-5" />
           {count > 0 && (
             <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-xs font-semibold text-foreground">

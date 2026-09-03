@@ -160,7 +160,7 @@ const SourceCard = React.memo(function SourceCard({ s, origin, isEditing, onTogg
             <code className="flex-1 truncate bg-muted border rounded-2xl px-3 py-2 text-xs font-mono text-foreground">
               {webhookUrl}
             </code>
-            <Button variant="ghost" size="icon" onClick={() => onCopy(webhookUrl, "Webhook URL")}>
+            <Button variant="ghost" size="icon" aria-label="Copy webhook URL" onClick={() => onCopy(webhookUrl, "Webhook URL")}>
               <Copy className="h-4 w-4" />
             </Button>
           </div>
@@ -174,7 +174,7 @@ const SourceCard = React.memo(function SourceCard({ s, origin, isEditing, onTogg
               <code className="flex-1 truncate bg-muted border rounded-2xl px-3 py-2 text-xs font-mono text-foreground">
                 {s.webhookSecret}
               </code>
-              <Button variant="ghost" size="icon" onClick={() => onCopy(s.webhookSecret!, "Secret")}>
+              <Button variant="ghost" size="icon" aria-label="Copy secret" onClick={() => onCopy(s.webhookSecret!, "Secret")}>
                 <Copy className="h-4 w-4" />
               </Button>
             </div>
@@ -194,6 +194,7 @@ const SourceCard = React.memo(function SourceCard({ s, origin, isEditing, onTogg
               <Button
                 variant="ghost"
                 size="icon"
+                aria-label="Copy embed code"
                 onClick={() => onCopy(`<iframe src="${origin}/f/${s.id}" style="border:0;width:100%;max-width:480px;height:520px" title="Lead form"></iframe>`, "Embed code")}
               >
                 <Copy className="h-4 w-4" />

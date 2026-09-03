@@ -143,12 +143,12 @@ export default async function HotLeadsPage() {
                       <div className="flex items-center justify-end gap-1">
                         {wa && (
                           <a href={wa} target="_blank" rel="noopener noreferrer" aria-label={`WhatsApp ${lead.name}`}>
-                            <Button variant="ghost" size="icon" className="h-8 w-8"><MessageCircle className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" aria-label="Message on WhatsApp" className="h-8 w-8"><MessageCircle className="h-4 w-4" /></Button>
                           </a>
                         )}
                         {lead.phone && (
                           <a href={`tel:${lead.phone}`} aria-label={`Call ${lead.name}`}>
-                            <Button variant="ghost" size="icon" className="h-8 w-8"><Phone className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" aria-label="Call" className="h-8 w-8"><Phone className="h-4 w-4" /></Button>
                           </a>
                         )}
                       </div>
@@ -197,7 +197,7 @@ export default async function HotLeadsPage() {
                       <TableCell className="text-right">
                         {nudge && (
                           <a href={nudge} target="_blank" rel="noopener noreferrer" aria-label={`Nudge ${item.leadName}`}>
-                            <Button variant="ghost" size="icon" className="h-8 w-8"><MessageCircle className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" aria-label="Message on WhatsApp" className="h-8 w-8"><MessageCircle className="h-4 w-4" /></Button>
                           </a>
                         )}
                       </TableCell>

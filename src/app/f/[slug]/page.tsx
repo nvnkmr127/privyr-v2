@@ -10,7 +10,7 @@ export default async function PublicFormPage({ params }: { params: Promise<{ slu
   if (!source || !source.isActive || !source.organizationId) notFound();
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-muted">
+    <div className="min-h-dvh flex items-center justify-center p-6 bg-muted">
       <div className="w-full max-w-md rounded-2xl border bg-card p-8 shadow-sm">
         <PublicLeadForm sourceId={slug} title={source.name || "Get in touch"} fields={resolveFormFields(source.config)} />
       </div>

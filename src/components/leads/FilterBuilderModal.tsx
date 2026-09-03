@@ -334,6 +334,7 @@ export function FilterBuilderModal({
                       type="button"
                       variant="ghost"
                       size="icon"
+                      aria-label="Remove filter rule"
                       className="text-muted-foreground hover:text-foreground shrink-0"
                       onClick={() => removeRule(idx)}
                     >

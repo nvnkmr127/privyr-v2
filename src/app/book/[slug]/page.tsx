@@ -8,7 +8,7 @@ export default async function BookingPage({ params }: { params: Promise<{ slug: 
   if (!org) notFound();
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-muted">
+    <div className="min-h-dvh flex items-center justify-center p-6 bg-muted">
       <div className="w-full max-w-md border rounded-2xl bg-card p-8 space-y-6">
         <div>
           <h1 className="text-2xl font-bold">Book a meeting with {org.name}</h1>

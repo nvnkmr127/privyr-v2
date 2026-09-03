@@ -64,10 +64,10 @@ export function AutomationCard({ id, name, isActive }: { id: string; name: strin
           <Power className={`h-4 w-4 ${active ? "text-emerald-500" : "text-muted-foreground"}`} />
           {active ? "Pause" : "Activate"}
         </Button>
-        <Button asChild variant="ghost" size="icon">
+        <Button asChild variant="ghost" size="icon" aria-label="Edit automation">
           <Link href={`/automations/${id}/edit`}><Pencil className="h-4 w-4" /></Link>
         </Button>
-        <Button variant="ghost" size="icon" onClick={remove} disabled={busy} className="text-destructive hover:text-destructive">
+        <Button variant="ghost" size="icon" aria-label="Delete automation" onClick={remove} disabled={busy} className="text-destructive hover:text-destructive">
           <Trash2 className="h-4 w-4" />
         </Button>
       </div>

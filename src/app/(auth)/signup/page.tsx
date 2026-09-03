@@ -54,7 +54,7 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="flex min-h-screen w-full items-center justify-center bg-muted py-10">
+    <div className="flex min-h-dvh w-full items-center justify-center bg-muted py-10">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="text-2xl font-bold text-center">Create your workspace</CardTitle>

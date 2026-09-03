@@ -16,7 +16,7 @@ export default async function SharedContentPage({ params }: { params: Promise<{ 
   const initial = (page.orgName || page.ownerName || "•").charAt(0).toUpperCase();
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center bg-muted/40 p-6">
+    <main className="min-h-dvh flex flex-col items-center justify-center bg-muted/40 p-6">
       <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-sm text-center space-y-5">
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-xl font-bold text-primary">
           {initial}
@@ -31,8 +31,17 @@ export default async function SharedContentPage({ params }: { params: Promise<{ 
         </div>
 
         {page.imageUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={page.imageUrl} alt={page.title} className="w-full rounded-xl object-cover" />
+          // Reserve a fixed 16:9 slot so the image can't shift layout as it loads (CLS).
+          <div className="aspect-video w-full overflow-hidden rounded-xl bg-muted">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={page.imageUrl}
+              alt={page.title}
+              loading="lazy"
+              decoding="async"
+              className="h-full w-full object-cover"
+            />
+          </div>
         )}
 
         {page.bodyText && (

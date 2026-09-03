@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { MetricsCards } from "@/components/dashboard/MetricsCards";
-import { LeadsBySourceChart, LeadsByStageChart, LeadsByOwnerChart } from "@/components/dashboard/Charts";
+import { LeadsBySourceChart, LeadsByStageChart, LeadsByOwnerChart } from "@/components/dashboard/ChartsLazy";
 import { RecentActivityFeed } from "@/components/dashboard/RecentActivityFeed";
 import { PriorityActions } from "@/components/dashboard/PriorityActions";
 import { GettingStarted } from "@/components/dashboard/GettingStarted";

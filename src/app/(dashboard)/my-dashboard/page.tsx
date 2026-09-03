@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { MetricsCards } from "@/components/dashboard/MetricsCards";
-import { LeadsByStageChart } from "@/components/dashboard/Charts";
+import { LeadsByStageChart } from "@/components/dashboard/ChartsLazy";
 import { RecentActivityFeed } from "@/components/dashboard/RecentActivityFeed";
 import { requireOrg } from "@/lib/rbac";
 import { AnalyticsService, AnalyticsFilters } from "@/lib/analytics/service";
