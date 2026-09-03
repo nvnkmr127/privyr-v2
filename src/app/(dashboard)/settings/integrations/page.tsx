@@ -19,10 +19,12 @@ function ManageLink({ href, label = "Manage" }: { href: string; label?: string }
 
 export default async function IntegrationsPage() {
   const { organizationId } = await requireOrg();
-  const leadIntel = await TenantIntegrationsService.getView(organizationId);
+  const session = await getServerSession(authOptions); // cheap JWT decode, no DB
+  const [leadIntel, googleConnected] = await Promise.all([
+    TenantIntegrationsService.getView(organizationId),
+    session?.user?.id ? GoogleCalendarService.isConnected(session.user.id) : Promise.resolve(false),
+  ]);
   const leadIntelOn = leadIntel.enrichmentEnabled || leadIntel.inboundEmailEnabled;
-  const session = await getServerSession(authOptions);
-  const googleConnected = session?.user?.id ? await GoogleCalendarService.isConnected(session.user.id) : false;
 
   const facebookConfigured = Boolean(process.env.NEXT_PUBLIC_FACEBOOK_APP_ID);
   const pushConfigured = Boolean(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY);

@@ -48,27 +48,44 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
   }
 
   const { organizationId } = await requireOrg();
-  const lead = await LeadService.getLead(id, organizationId);
-  const activities = await ActivityService.getLeadActivities(id);
-  const waMessages = await WhatsAppService.listForLead(id);
-  const leadTags = await TagService.getForLead(id);
-  const { count: dupCount } = await checkLeadDuplicatesAction(id);
-  const attachments = await getAttachmentsAction(id).catch(() => []);
-  const reminders = await getLeadRemindersAction(id).catch(() => []);
-  const shares = await listSharesAction(id).catch(() => []);
-  const org = await getOrganizationAction().catch(() => null);
-  const whatsappMode: "personal" | "bsp" = org?.whatsappMode === "bsp" ? "bsp" : "personal";
-  const [availableSequences, enrolledSequences] = await Promise.all([
+
+  // These reads are independent — fan them out in one round trip instead of a serial waterfall
+  // (11 sequential DB calls × cross-region RTT was several seconds of avoidable latency).
+  const [
+    lead,
+    activities,
+    waMessages,
+    leadTags,
+    dup,
+    attachments,
+    reminders,
+    shares,
+    org,
+    availableSequences,
+    enrolledSequences,
+    stagesList,
+    automationsList,
+  ] = await Promise.all([
+    LeadService.getLead(id, organizationId),
+    ActivityService.getLeadActivities(id),
+    WhatsAppService.listForLead(id),
+    TagService.getForLead(id),
+    checkLeadDuplicatesAction(id),
+    getAttachmentsAction(id).catch(() => []),
+    getLeadRemindersAction(id).catch(() => []),
+    listSharesAction(id).catch(() => []),
+    getOrganizationAction().catch(() => null),
     listSequencesAction().catch(() => []),
     SequenceService.listForLead(id).catch(() => []),
+    db.select({ id: leadPipelineStages.id, name: leadPipelineStages.name }).from(leadPipelineStages).catch(() => []),
+    db
+      .select({ id: automations.id, name: automations.name })
+      .from(automations)
+      .where(eq(automations.organizationId, organizationId))
+      .catch(() => []),
   ]);
-
-  const stagesList = await db.select({ id: leadPipelineStages.id, name: leadPipelineStages.name }).from(leadPipelineStages).catch(() => []);
-  const automationsList = await db
-    .select({ id: automations.id, name: automations.name })
-    .from(automations)
-    .where(eq(automations.organizationId, organizationId))
-    .catch(() => []);
+  const dupCount = dup.count;
+  const whatsappMode: "personal" | "bsp" = org?.whatsappMode === "bsp" ? "bsp" : "personal";
 
   if (!lead) {
     notFound();
