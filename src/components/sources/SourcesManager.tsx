@@ -46,6 +46,7 @@ interface IntegrationPlatformCard {
   buttonText: string;
   buttonBg: string;
   docsUrl: string;
+  available?: boolean; // false = not implemented yet; show "Coming soon" instead of a broken connect
 }
 
 const PLATFORMS: IntegrationPlatformCard[] = [
@@ -77,6 +78,7 @@ const PLATFORMS: IntegrationPlatformCard[] = [
     id: "linkedin",
     name: "LinkedIn Lead Gen Forms",
     typeKey: "linkedin_lead_gen",
+    available: false,
     description: "Inbound B2B lead sync for LinkedIn sponsored content & lead generation campaigns.",
     icon: LinkedInIcon,
     badge: "B2B Lead Sync",
@@ -89,6 +91,7 @@ const PLATFORMS: IntegrationPlatformCard[] = [
     id: "whatsapp",
     name: "WhatsApp Direct Inbound",
     typeKey: "whatsapp_inbound",
+    available: false,
     description: "Capture inbound messages as leads with automated instant reply & round-robin assignment.",
     icon: MessageSquare,
     badge: "WhatsApp Cloud API",
@@ -229,9 +232,29 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
 
   // Handshake listener for OAuth popup window postMessage callbacks
   React.useEffect(() => {
+    // Human-readable reasons for the error codes the OAuth callback can post back.
+    const FB_ERROR: Record<string, string> = {
+      oauth_denied: "You cancelled or denied the Facebook permission request.",
+      missing_code: "Facebook didn't return an authorization code. Please try again.",
+      facebook_not_configured: "Facebook isn't fully configured on the server (FACEBOOK_APP_ID / FACEBOOK_APP_SECRET).",
+      server_error: "Something went wrong completing the connection. Please try again.",
+      no_pages: "No Facebook Pages found on your account. Create or get admin access to a Page, then reconnect.",
+    };
+
     function handleOAuthMessage(event: MessageEvent) {
       if (event.origin !== window.location.origin) return;
-      if (event.data?.type === "OAUTH_RESPONSE" && event.data?.status === "success") {
+      if (event.data?.type !== "OAUTH_RESPONSE") return;
+
+      if (event.data.status === "error") {
+        toast({
+          variant: "destructive",
+          title: "Facebook connection failed",
+          description: FB_ERROR[event.data.reason as string] ?? "The connection didn't complete. Please try again.",
+        });
+        return;
+      }
+
+      if (event.data.status === "success") {
         const providerName = event.data.provider === "facebook" ? "Facebook Lead Ads" : event.data.provider;
         toast({
           title: `${providerName} Connected Successfully`,
@@ -267,6 +290,15 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
   }, []);
 
   async function handleConnectPlatform(platform: IntegrationPlatformCard) {
+    // Honest guard: these platforms have no working ingestion yet — don't attempt a create that the
+    // server will reject with a cryptic validation error.
+    if (platform.available === false) {
+      toast({
+        title: `${platform.name} — coming soon`,
+        description: "This integration isn't available yet. Use Facebook Lead Ads or a Website Webhook to capture leads today.",
+      });
+      return;
+    }
     setConnectingId(platform.id);
     try {
       if (platform.id === "facebook") {
@@ -280,11 +312,27 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
           });
           return;
         }
-        // Real OAuth. The source is created after the callback confirms the connection — not before.
+        // Real OAuth in an embedded popup. redirect_uri stays clean (it must match the Meta app's
+        // whitelist exactly under strict mode) — the popup flag rides in `state`. The callback posts
+        // the result back to the message listener above, which surfaces success OR the error reason,
+        // so the click never dead-ends silently.
         const redirectUri = encodeURIComponent(`${origin}/api/auth/facebook/callback`);
         const scope = encodeURIComponent("pages_show_list,leads_retrieval,pages_manage_ads");
-        window.location.href =
-          `https://www.facebook.com/v20.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&state=tenant_oauth`;
+        const authUrl =
+          `https://www.facebook.com/v20.0/dialog/oauth?client_id=${appId}` +
+          `&redirect_uri=${redirectUri}&scope=${scope}&response_type=code&state=tenant_oauth_popup`;
+        const w = 600;
+        const h = 720;
+        const left = window.screenX + Math.max(0, (window.outerWidth - w) / 2);
+        const top = window.screenY + Math.max(0, (window.outerHeight - h) / 2);
+        const popup = window.open(authUrl, "fb_oauth", `width=${w},height=${h},left=${left},top=${top}`);
+        if (!popup) {
+          toast({
+            variant: "destructive",
+            title: "Popup blocked",
+            description: "Allow pop-ups for this site, then click Connect Facebook Lead Ads again.",
+          });
+        }
         return;
       } else {
         const res = await createSourceAction({
@@ -422,6 +470,7 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
           {PLATFORMS.map((platform) => {
             const IconComponent = platform.icon;
             const isConnected = sources.some((s) => s.type === platform.typeKey && s.isActive === 1);
+            const unavailable = platform.available === false;
 
             return (
               <div
@@ -433,8 +482,8 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
                     <div className={`p-3 rounded-2xl border ${platform.brandColor}`}>
                       <IconComponent className="h-6 w-6" />
                     </div>
-                    <Badge variant="outline" className="text-xs font-medium">
-                      {platform.badge}
+                    <Badge variant={unavailable ? "secondary" : "outline"} className="text-xs font-medium">
+                      {unavailable ? "Coming soon" : platform.badge}
                     </Badge>
                   </div>
                   <div>
@@ -449,11 +498,11 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
                 <div className="pt-2 space-y-2">
                   <Button
                     onClick={() => handleConnectPlatform(platform)}
-                    disabled={connectingId === platform.id}
+                    disabled={connectingId === platform.id || unavailable}
                     className={`w-full font-medium gap-2 rounded-2xl py-5 ${platform.buttonBg}`}
                   >
                     <IconComponent className="h-4 w-4" />
-                    {connectingId === platform.id ? "Connecting..." : platform.buttonText}
+                    {unavailable ? "Coming soon" : connectingId === platform.id ? "Connecting..." : platform.buttonText}
                   </Button>
                   <a
                     href={platform.docsUrl}

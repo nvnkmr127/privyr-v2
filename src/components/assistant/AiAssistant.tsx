@@ -27,6 +27,13 @@ const SUGGESTIONS = [
   "Which leads haven't been contacted in 7 days?",
   "Draft a follow-up for my newest lead",
 ];
+// When opened on a lead page, the agent already knows the lead — offer actions about "this lead".
+const LEAD_SUGGESTIONS = [
+  "Draft a follow-up message for this lead",
+  "What's the next best action for this lead?",
+  "Summarize this lead's activity",
+  "Set a reminder to follow up in 3 days",
+];
 
 // History lives in localStorage (per-browser). ponytail: no table/migration needed for recent
 // chats; upgrade to a DB-backed store if history must sync across devices or a team.
@@ -65,8 +72,9 @@ function newId(): string {
   }
 }
 
-export function AiAssistant() {
+export function AiAssistant({ currentLeadId }: { currentLeadId?: string } = {}) {
   const { toast } = useToast();
+  const suggestions = currentLeadId ? LEAD_SUGGESTIONS : SUGGESTIONS;
   const [turns, setTurns] = React.useState<Turn[]>([]);
   const [input, setInput] = React.useState("");
   const [busy, setBusy] = React.useState(false);
@@ -111,7 +119,7 @@ export function AiAssistant() {
     const withUser: Turn[] = [...turns, { role: "user", content: msg }];
     setTurns(withUser);
     try {
-      const res = await runAgentAction(msg, history);
+      const res = await runAgentAction(msg, history, currentLeadId);
       const withReply: Turn[] = [...withUser, { role: "assistant", content: res.text || "(no reply)", proposals: res.proposals }];
       setTurns(withReply);
       persist(withReply);
@@ -234,7 +242,7 @@ export function AiAssistant() {
                   <p>Triage, tag, remind, or draft outreach across your leads.</p>
                 </div>
                 <div className="flex flex-col gap-2">
-                  {SUGGESTIONS.map((s) => (
+                  {suggestions.map((s) => (
                     <button
                       key={s}
                       onClick={() => send(s)}

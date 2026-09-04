@@ -12,6 +12,8 @@ import { IntegrationCard } from "@/components/settings/IntegrationCard";
 import { GoogleConnectButton } from "@/components/settings/GoogleConnectButton";
 import { EnablePushButton } from "@/components/layout/EnablePushButton";
 import { TenantIntegrationsService } from "@/domains/organizations/tenantIntegrationsService";
+import { Suspense } from "react";
+import { IntegrationStatusToast } from "@/components/settings/IntegrationStatusToast";
 
 function ManageLink({ href, label = "Manage" }: { href: string; label?: string }) {
   return <Button asChild variant="outline" size="sm"><Link href={href}>{label}</Link></Button>;
@@ -34,6 +36,9 @@ export default async function IntegrationsPage() {
 
   return (
     <div className="flex-1 space-y-6 p-8 pt-6 max-w-5xl">
+      <Suspense fallback={null}>
+        <IntegrationStatusToast />
+      </Suspense>
       <div className="flex items-center gap-3">
         <Link href="/settings"><Button variant="ghost" size="icon" aria-label="Go back"><ArrowLeft className="h-5 w-5" /></Button></Link>
         <div>

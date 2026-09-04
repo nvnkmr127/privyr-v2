@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, User, Phone, Mail, Building, Sparkles } from "lucide-react";
+import { ArrowLeft, User, Phone, Mail, Building, Sparkles, Flame } from "lucide-react";
 import Link from "next/link";
 import { LeadService } from "@/domains/leads/service";
 import { NextBestActionService } from "@/domains/leads/nextBestActionService";
@@ -127,6 +127,17 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
     <div className="flex-1 space-y-6 p-8 pt-6">
       {/* Duplicate Warning Banner */}
       <LeadDuplicateBanner count={dupCount} searchQuery={lead.email || lead.phone || undefined} />
+
+      {/* Buying signal — a recent content open is a hot moment to reach out. */}
+      {recentOpen && (
+        <div className="rounded-xl border border-orange-500/40 bg-orange-500/5 px-4 py-3 text-sm flex items-center gap-2.5">
+          <Flame className="h-4 w-4 text-orange-500 shrink-0" />
+          <span>
+            <span className="font-semibold">Buying signal:</span> {lead.name?.split(" ")[0] || "This lead"} opened{" "}
+            <span className="font-medium">&ldquo;{recentOpen.title}&rdquo;</span> {recentOpen.viewCount}× recently — reach out now while you&apos;re top of mind.
+          </span>
+        </div>
+      )}
 
       {(lead.status === "lost" || lead.status === "unqualified") && lead.lostReason && (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-2.5 text-sm">

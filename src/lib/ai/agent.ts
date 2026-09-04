@@ -56,6 +56,7 @@ export async function runLeadAgent(
   ctx: AgentContext,
   message: string,
   history: { role: "user" | "assistant"; content: string }[] = [],
+  currentLeadId?: string,
 ): Promise<AgentResult> {
   if (!aiEnabled()) {
     return { text: "AI isn't configured (no AI_GATEWAY_API_KEY).", proposals: [], steps: 0, enabled: false };
@@ -63,6 +64,20 @@ export async function runLeadAgent(
 
   const org = await OrgService.getOrganization(ctx.organizationId);
   const proposals: AgentProposal[] = [];
+
+  // Lead-page context: when the assistant is opened on a lead, tell the model which one so
+  // "this lead" / "draft a follow-up" resolve without the user naming anyone. Org-scoped lookup,
+  // so a foreign/spoofed id simply yields no context.
+  let leadContext = "";
+  if (currentLeadId) {
+    const lead = await LeadService.getLead(currentLeadId, ctx.organizationId);
+    if (lead) {
+      leadContext =
+        `\n\nThe user is currently viewing this lead — when they say "this lead" or don't name one, act on it:\n` +
+        `id: ${lead.id}, name: ${lead.name ?? "unknown"}, status: ${lead.status}, ` +
+        `phone: ${lead.phone ?? "—"}, email: ${lead.email ?? "—"}, score: ${lead.score ?? 0}.`;
+    }
+  }
 
   const tools = {
     find_leads: tool({
@@ -158,7 +173,7 @@ export async function runLeadAgent(
   try {
     const { text, steps } = await generateText({
       model: AGENT_MODEL,
-      system: `${businessPreamble(org)}\n\n${SYSTEM}`,
+      system: `${businessPreamble(org)}\n\n${SYSTEM}${leadContext}`,
       messages: [...history, { role: "user", content: message }],
       tools,
       stopWhen: stepCountIs(6), // bound the loop → caps cost and runaway tool calls
@@ -169,7 +184,7 @@ export async function runLeadAgent(
     // plainly with the same key/gateway (no lead lookups, but still useful) so the chat never dead-ends.
     console.error("[agent] tool loop failed — falling back to a plain answer", e);
     const plain = await simpleGenerate(
-      `${businessPreamble(org)}\n\nYou are a concise sales assistant in a WhatsApp-first lead CRM. Answer briefly and helpfully. (Live lead lookups are unavailable right now.)`,
+      `${businessPreamble(org)}\n\nYou are a concise sales assistant in a WhatsApp-first lead CRM. Answer briefly and helpfully. (Live lead lookups are unavailable right now.)${leadContext}`,
       message,
     );
     return {

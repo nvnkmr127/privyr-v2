@@ -15,7 +15,7 @@ export async function listSourcesAction() {
 const createSchema = z.object({
   name: z.string().min(1).max(255),
   // Must match a provider the ingestion worker knows how to normalize.
-  type: z.enum(["generic_webhook", "facebook_lead_ads", "webform"]),
+  type: z.enum(["generic_webhook", "facebook_lead_ads", "webform", "google_lead_ads"]),
 });
 
 export async function createSourceAction(input: z.infer<typeof createSchema>) {

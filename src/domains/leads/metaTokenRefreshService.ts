@@ -85,6 +85,24 @@ export class MetaTokenRefreshService {
     return { pageId, pageAccessToken: json.access_token };
   }
 
+  /**
+   * Lists the Pages the user manages, each with its own Page access token. This is what turns a
+   * user OAuth grant into a connectable lead source — /me/accounts returns id, name and access_token
+   * per Page in one call, so no separate fetchPageAccessToken round trip is needed.
+   */
+  static async listPages(
+    longLivedUserToken: string,
+  ): Promise<{ pageId: string; name: string; pageAccessToken: string }[]> {
+    if (!isConfigured()) throw new Error("Facebook integration is not configured");
+    if (!longLivedUserToken) throw new Error("Long-lived token is required");
+    const url = `${GRAPH}/me/accounts?fields=id,name,access_token&access_token=${encodeURIComponent(longLivedUserToken)}`;
+    const json = await graphGet(url);
+    const data: any[] = Array.isArray(json?.data) ? json.data : [];
+    return data
+      .filter((p) => p?.id && p?.access_token)
+      .map((p) => ({ pageId: String(p.id), name: String(p.name ?? p.id), pageAccessToken: String(p.access_token) }));
+  }
+
   /** True if the token is within the refresh-warning buffer (e.g. < 7 days remaining). */
   static isTokenExpiringSoon(expiresAt: Date, bufferDays: number = 7): boolean {
     const bufferMs = bufferDays * 24 * 60 * 60 * 1000;

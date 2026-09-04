@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { usePathname } from "next/navigation";
 import { AiAssistant } from "./AiAssistant";
 import { Sparkles, X } from "lucide-react";
 
@@ -9,6 +10,9 @@ const STORE_KEY = "assistant-open";
 
 export function FloatingAssistant() {
   const [open, setOpen] = React.useState(false);
+  // If the user is on a lead detail page, hand the assistant that lead's id so it's context-aware.
+  const pathname = usePathname();
+  const currentLeadId = pathname?.match(/^\/leads\/([0-9a-f-]{36})/i)?.[1];
 
   // Remember open/closed across navigations (per-browser; safe if storage is blocked).
   React.useEffect(() => {
@@ -42,7 +46,7 @@ export function FloatingAssistant() {
             </button>
           </div>
           <div className="flex-1 min-h-0 px-4 pt-4 pb-3">
-            <AiAssistant />
+            <AiAssistant currentLeadId={currentLeadId} />
           </div>
         </div>
       )}
