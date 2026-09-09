@@ -20,6 +20,16 @@ export function AutomationBuilder({ initialData = null, automationId }: { initia
   const [loading, setLoading] = useState(false);
 
   const handleSave = async () => {
+    // The action config is free-form JSON; parse it up front so a typo shows a clear message
+    // instead of the generic "couldn't reach the server" catch below. Empty = no config ({}).
+    let actionConfig: Record<string, unknown>;
+    try {
+      actionConfig = actionConfigStr.trim() ? JSON.parse(actionConfigStr) : {};
+    } catch {
+      alert('Action Config must be valid JSON, e.g. {"userId": "..."} — or leave it blank.');
+      return;
+    }
+
     setLoading(true);
     try {
       const data = {
@@ -27,7 +37,7 @@ export function AutomationBuilder({ initialData = null, automationId }: { initia
         isActive: initialData?.isActive ?? true,
         trigger: { type: trigger, config: {} },
         conditions: conditionField ? { field: conditionField, operator: conditionOp, value: conditionVal } : null,
-        actions: [{ type: actionType, config: JSON.parse(actionConfigStr) }],
+        actions: [{ type: actionType, config: actionConfig }],
       };
 
       const res = automationId ? await updateAutomation(automationId, data) : await createAutomation(data);

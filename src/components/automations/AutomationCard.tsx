@@ -67,8 +67,8 @@ export function AutomationCard({ id, name, isActive }: { id: string; name: strin
         <Button asChild variant="ghost" size="icon" aria-label="Edit automation">
           <Link href={`/automations/${id}/edit`}><Pencil className="h-4 w-4" /></Link>
         </Button>
-        <Button variant="ghost" size="icon" aria-label="Delete automation" onClick={remove} disabled={busy} className="text-destructive hover:text-destructive">
-          <Trash2 className="h-4 w-4" />
+        <Button variant="ghost" size="icon" aria-label="Delete automation" onClick={remove} disabled={busy}>
+          <Trash2 className="h-4 w-4 text-white" />
         </Button>
       </div>
     </div>
