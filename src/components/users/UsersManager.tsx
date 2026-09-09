@@ -65,7 +65,7 @@ export function UsersManager({
         toast({ variant: "destructive", title: "Could not send invite", description: res.message });
         return;
       }
-      const { invite: inv, emailed, link } = res.data as { invite: Invite; emailed: boolean; link: string };
+      const { invite: inv, emailed, link } = res.data as unknown as { invite: Invite; emailed: boolean; link: string };
       // Show the pending invite immediately, replacing any earlier pending row for the same email.
       setInvites((prev) => [...prev.filter((i) => i.email !== inv.email), inv]);
       setInviteEmail(""); setInviteRole(NO_ROLE);
