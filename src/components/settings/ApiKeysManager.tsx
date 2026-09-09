@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { createApiKeyAction, revokeApiKeyAction } from "@/lib/actions/apiKeys";
-import { Key, Plus, Copy } from "lucide-react";
+import { createApiKeyAction, revokeApiKeyAction, deleteApiKeyAction } from "@/lib/actions/apiKeys";
+import { Key, Plus, Copy, Trash2 } from "lucide-react";
 
 type ApiKey = { id: string; name: string; prefix: string; lastUsedAt: Date | null; revokedAt: Date | null; createdAt: Date | string };
 
@@ -51,6 +51,24 @@ export function ApiKeysManager({ initial }: { initial: ApiKey[] }) {
     }
   }
 
+  async function remove(k: ApiKey) {
+    if (!confirm(`Delete "${k.name}"? This removes it permanently. Any app still using it will stop working.`)) return;
+    const prev = keys;
+    setKeys((p) => p.filter((x) => x.id !== k.id));
+    try {
+      const res = await deleteApiKeyAction(k.id);
+      if (!res.ok) {
+        setKeys(prev);
+        toast({ variant: "destructive", title: "Could not delete", description: res.message });
+        return;
+      }
+      toast({ title: "API key deleted" });
+    } catch {
+      setKeys(prev);
+      toast({ variant: "destructive", title: "Could not delete", description: "We couldn't reach the server. Please try again." });
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="border rounded-2xl p-6 bg-card space-y-3">
@@ -89,7 +107,12 @@ export function ApiKeysManager({ initial }: { initial: ApiKey[] }) {
               {k.revokedAt ? <Badge variant="secondary">Revoked</Badge> : <Badge>Active</Badge>}
               {k.lastUsedAt && <span className="text-xs text-muted-foreground">last used {new Date(k.lastUsedAt).toLocaleDateString()}</span>}
             </div>
-            {!k.revokedAt && <Button size="sm" variant="outline" onClick={() => revoke(k)}>Revoke</Button>}
+            <div className="flex items-center gap-2">
+              {!k.revokedAt && <Button size="sm" variant="outline" onClick={() => revoke(k)}>Revoke</Button>}
+              <Button size="icon" variant="ghost" onClick={() => remove(k)} title="Delete API key">
+                <Trash2 className="h-4 w-4 text-white" />
+              </Button>
+            </div>
           </div>
         ))}
       </div>

@@ -232,6 +232,13 @@
       "when": 1788319302532,
       "tag": "0032_damp_santa_claus",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1788954807553,
+      "tag": "0033_simple_fallen_one",
+      "breakpoints": true
     }
   ]
 }

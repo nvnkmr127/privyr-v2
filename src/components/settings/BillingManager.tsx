@@ -4,7 +4,7 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { startSubscriptionAction, verifySubscriptionAction, cancelSubscriptionAction } from "@/lib/actions/billing";
+import { startSubscriptionAction, verifySubscriptionAction, cancelSubscriptionAction, setPlanManuallyAction } from "@/lib/actions/billing";
 import { Check } from "lucide-react";
 
 type Limits = Record<string, { seats: number; leads: number }>;
@@ -35,9 +35,28 @@ export function BillingManager({
   const [busy, setBusy] = React.useState<string | null>(null);
   const [current, setCurrent] = React.useState(plan);
 
+  // Billing unconfigured (dev/testing): switch the plan directly, no payment. This path is refused
+  // server-side once Razorpay is configured, so it's not a free-upgrade route in production.
+  async function switchManually(target: string) {
+    setBusy(target);
+    try {
+      const res = await setPlanManuallyAction(target);
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Could not switch plan", description: res.message });
+        return;
+      }
+      setCurrent(target);
+      toast({ title: "Plan switched", description: `You're now on the ${target} plan (testing mode — no payment taken).` });
+    } catch {
+      toast({ variant: "destructive", title: "Could not switch plan", description: "We couldn't reach the server. Please try again." });
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function upgrade(target: string) {
     if (!configured) {
-      toast({ variant: "destructive", title: "Billing not configured", description: "Add your Razorpay keys to enable upgrades." });
+      await switchManually(target);
       return;
     }
     setBusy(target);
@@ -105,8 +124,8 @@ export function BillingManager({
     <div className="space-y-6">
       {!configured && (
         <div className="rounded-lg border border-border bg-muted p-4 text-sm text-foreground">
-          Billing is not configured yet. Add <code>RAZORPAY_KEY_ID</code>, <code>RAZORPAY_KEY_SECRET</code>,
-          {" "}<code>RAZORPAY_WEBHOOK_SECRET</code>, and a plan id per tier to enable upgrades.
+          <span className="font-medium">Testing mode</span> — billing isn’t configured, so plan switches apply instantly with no payment.
+          Add <code>RAZORPAY_KEY_ID</code>, <code>RAZORPAY_KEY_SECRET</code>, <code>RAZORPAY_WEBHOOK_SECRET</code>, and a plan id per tier to enable real checkout.
         </div>
       )}
 
@@ -139,7 +158,9 @@ export function BillingManager({
                   {busy === name ? "Starting…" : `Switch to ${name}`}
                 </Button>
               ) : (
-                <Button className="w-full" variant="outline" onClick={cancel} disabled={busy === "cancel"}>Downgrade</Button>
+                <Button className="w-full" variant="outline"
+                  onClick={() => (configured ? cancel() : switchManually("free"))}
+                  disabled={busy === "cancel" || busy === "free"}>Downgrade</Button>
               )}
             </div>
           );

@@ -26,6 +26,7 @@ export class CustomFieldService {
     input: {
       label: string; type: CustomFieldType; options?: string[]; required?: boolean;
       defaultValue?: string | null; disabled?: boolean; adminOnly?: boolean; showOnTable?: boolean;
+      section?: string | null; subsection?: string | null;
     },
   ) {
     const [row] = await db
@@ -41,6 +42,8 @@ export class CustomFieldService {
         disabled: input.disabled ?? false,
         adminOnly: input.adminOnly ?? false,
         showOnTable: input.showOnTable ?? false,
+        section: input.section || null,
+        subsection: input.subsection || null,
       })
       .returning();
     return row;
@@ -54,6 +57,7 @@ export class CustomFieldService {
     input: {
       label?: string; required?: boolean; options?: string[];
       defaultValue?: string | null; disabled?: boolean; adminOnly?: boolean; showOnTable?: boolean;
+      section?: string | null; subsection?: string | null;
     },
   ) {
     const patch: Record<string, unknown> = {};
@@ -64,6 +68,8 @@ export class CustomFieldService {
     if (input.disabled !== undefined) patch.disabled = input.disabled;
     if (input.adminOnly !== undefined) patch.adminOnly = input.adminOnly;
     if (input.showOnTable !== undefined) patch.showOnTable = input.showOnTable;
+    if (input.section !== undefined) patch.section = input.section || null;
+    if (input.subsection !== undefined) patch.subsection = input.subsection || null;
     const [row] = await db
       .update(customFieldDefs)
       .set(patch)

@@ -33,6 +33,16 @@ export class BillingService {
     return { subscriptionId: sub.id, keyId: razorpay.publicKeyId(), shortUrl: sub.short_url };
   }
 
+  // Testing/admin override: set the plan directly with no payment. Only safe when billing is
+  // unconfigured (no Razorpay) — the caller enforces that so this can never grant paid plans for
+  // free once real billing is wired. Clears any stored subscription id.
+  static async setPlanManually(organizationId: string, plan: string) {
+    if (plan !== "free" && !PAID_PLANS.includes(plan)) throw new Error("Unknown plan");
+    await db.update(organizations)
+      .set({ plan, planStatus: "active", razorpaySubscriptionId: null, currentPeriodEnd: null })
+      .where(eq(organizations.id, organizationId));
+  }
+
   // Called after the browser verifies the checkout signature — flips the org to the paid plan.
   static async activate(organizationId: string, plan: string, subscriptionId: string) {
     if (!PAID_PLANS.includes(plan)) throw new Error("Unknown plan");

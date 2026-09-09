@@ -44,6 +44,10 @@ export const customFieldDefs = pgTable('custom_field_defs', {
   disabled: boolean('disabled').notNull().default(false), // keep the def but hide it from forms
   adminOnly: boolean('admin_only').notNull().default(false), // only admins see/edit
   showOnTable: boolean('show_on_table').notNull().default(false), // render as a column in the leads list
+  // Optional two-level grouping for the lead detail view: `section` is the tab, `subsection` the
+  // sub-tab under it. Null/empty = ungrouped (shown under the default "Custom Attributes" heading).
+  section: varchar('section', { length: 100 }),
+  subsection: varchar('subsection', { length: 100 }),
   orderIndex: integer('order_index').notNull().default(0),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (t) => ({

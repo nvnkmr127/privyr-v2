@@ -27,6 +27,7 @@ type User = {
 };
 type Team = { id: string; name: string };
 type Role = { id: string; name: string };
+type Invite = { id: string; email: string; roleId: string | null; expiresAt: string };
 
 const NO_TEAM = "__none__"; // Select can't use "" as a value
 const NO_ROLE = "__none__";
@@ -34,17 +35,20 @@ const NO_ROLE = "__none__";
 export function UsersManager({
   initialUsers,
   initialTeams,
+  initialInvites = [],
   roles,
   currentUserId,
 }: {
   initialUsers: User[];
   initialTeams: Team[];
+  initialInvites?: Invite[];
   roles: Role[];
   currentUserId: string;
 }) {
   const { toast } = useToast();
   const [users, setUsers] = React.useState<User[]>(initialUsers);
   const [teams, setTeams] = React.useState<Team[]>(initialTeams);
+  const [invites, setInvites] = React.useState<Invite[]>(initialInvites);
   const [teamName, setTeamName] = React.useState("");
   const [form, setForm] = React.useState({ firstName: "", lastName: "", email: "", password: "", roleId: NO_ROLE });
   const [saving, setSaving] = React.useState(false);
@@ -61,8 +65,15 @@ export function UsersManager({
         toast({ variant: "destructive", title: "Could not send invite", description: res.message });
         return;
       }
+      const { invite: inv, emailed, link } = res.data as { invite: Invite; emailed: boolean; link: string };
+      // Show the pending invite immediately, replacing any earlier pending row for the same email.
+      setInvites((prev) => [...prev.filter((i) => i.email !== inv.email), inv]);
       setInviteEmail(""); setInviteRole(NO_ROLE);
-      toast({ title: "Invitation sent", description: "They'll get an email with a link to join." });
+      if (emailed) {
+        toast({ title: "Invitation sent", description: "They'll get an email with a link to join." });
+      } else {
+        toast({ title: "Invite created — email not sent", description: `Share this join link: ${link}` });
+      }
     } catch {
       toast({ variant: "destructive", title: "Could not send invite", description: "We couldn't reach the server. Please try again." });
     } finally {
@@ -238,6 +249,28 @@ export function UsersManager({
         </div>
       </div>
 
+      {invites.length > 0 && (
+        <div className="border rounded-2xl p-6 bg-card space-y-3">
+          <div className="flex items-center gap-2"><Mail className="h-4 w-4 text-muted-foreground" /><h3 className="font-semibold">Pending invitations</h3></div>
+          <p className="text-sm text-muted-foreground">Invited but not yet accepted. They appear as members once they set a password.</p>
+          <div className="divide-y">
+            {invites.map((inv) => {
+              const roleName = roles.find((r) => r.id === inv.roleId)?.name;
+              return (
+                <div key={inv.id} className="flex items-center justify-between py-3">
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm">{inv.email}</span>
+                    {roleName && <Badge variant="outline" className="capitalize">{roleName}</Badge>}
+                    <Badge variant="secondary">Pending</Badge>
+                  </div>
+                  <span className="text-xs text-muted-foreground">Expires {new Date(inv.expiresAt).toLocaleDateString()}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="border rounded-2xl bg-card divide-y">
         {users.map((u) => {
           const isSelf = u.id === currentUserId;
@@ -269,7 +302,7 @@ export function UsersManager({
                 </Button>
                 <Button variant="ghost" size="icon" onClick={() => remove(u)} disabled={isSelf}
                   title={isSelf ? "You cannot delete yourself" : "Delete user"}>
-                  <Trash2 className="h-4 w-4 text-foreground" />
+                  <Trash2 className="h-4 w-4 text-white" />
                 </Button>
               </div>
             </div>

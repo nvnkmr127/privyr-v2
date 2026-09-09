@@ -19,6 +19,8 @@ type Field = {
   disabled?: boolean;
   adminOnly?: boolean;
   showOnTable?: boolean;
+  section?: string | null;
+  subsection?: string | null;
 };
 
 const TYPES = ["text", "textarea", "number", "date", "datetime", "select", "multiselect", "checkbox", "url"] as const;
@@ -31,6 +33,8 @@ export function CustomFieldsManager({ initial }: { initial: Field[] }) {
   const [type, setType] = React.useState<(typeof TYPES)[number]>("text");
   const [options, setOptions] = React.useState("");
   const [defaultValue, setDefaultValue] = React.useState("");
+  const [section, setSection] = React.useState("");
+  const [subsection, setSubsection] = React.useState("");
   const [required, setRequired] = React.useState(false);
   const [disabled, setDisabled] = React.useState(false);
   const [adminOnly, setAdminOnly] = React.useState(false);
@@ -48,13 +52,15 @@ export function CustomFieldsManager({ initial }: { initial: Field[] }) {
         options: HAS_OPTIONS(type) ? options.split(",").map((o) => o.trim()).filter(Boolean) : [],
         defaultValue: defaultValue.trim() || null,
         disabled, adminOnly, showOnTable,
+        section: section.trim() || null,
+        subsection: subsection.trim() || null,
       });
       if (!res.ok) {
         toast({ variant: "destructive", title: "Could not add field", description: res.message });
         return;
       }
       setFields((prev) => [...prev, res.data as Field]);
-      setLabel(""); setOptions(""); setDefaultValue(""); setRequired(false); setDisabled(false); setAdminOnly(false); setShowOnTable(false); setType("text");
+      setLabel(""); setOptions(""); setDefaultValue(""); setSection(""); setSubsection(""); setRequired(false); setDisabled(false); setAdminOnly(false); setShowOnTable(false); setType("text");
       toast({ title: "Field added" });
     } catch {
       toast({ variant: "destructive", title: "Could not add field", description: "We couldn't reach the server. Please try again." });
@@ -87,15 +93,18 @@ export function CustomFieldsManager({ initial }: { initial: Field[] }) {
   const [editShowOnTable, setEditShowOnTable] = React.useState(false);
   const [editAdminOnly, setEditAdminOnly] = React.useState(false);
   const [editDisabled, setEditDisabled] = React.useState(false);
+  const [editSection, setEditSection] = React.useState("");
+  const [editSubsection, setEditSubsection] = React.useState("");
 
   function startEdit(f: Field) {
     setEditId(f.id); setEditLabel(f.label); setEditRequired(f.required); setEditOptions((f.options ?? []).join(", "));
     setEditShowOnTable(!!f.showOnTable); setEditAdminOnly(!!f.adminOnly); setEditDisabled(!!f.disabled);
+    setEditSection(f.section ?? ""); setEditSubsection(f.subsection ?? "");
   }
 
   async function saveEdit(f: Field) {
     const options = HAS_OPTIONS(f.type) ? editOptions.split(",").map((o) => o.trim()).filter(Boolean) : undefined;
-    const patch = { label: editLabel.trim(), required: editRequired, showOnTable: editShowOnTable, adminOnly: editAdminOnly, disabled: editDisabled };
+    const patch = { label: editLabel.trim(), required: editRequired, showOnTable: editShowOnTable, adminOnly: editAdminOnly, disabled: editDisabled, section: editSection.trim() || null, subsection: editSubsection.trim() || null };
     const prev = fields;
     setFields((p) => p.map((x) => (x.id === f.id ? { ...x, ...patch, label: patch.label || x.label, options: options ?? x.options } : x)));
     setEditId(null);
@@ -127,6 +136,16 @@ export function CustomFieldsManager({ initial }: { initial: Field[] }) {
     }
   }
 
+  // Existing groups, offered as datalist suggestions so fields reuse the same tab/sub-tab names.
+  const knownSections = React.useMemo(
+    () => [...new Set(fields.map((f) => f.section).filter((s): s is string => !!s))].sort(),
+    [fields],
+  );
+  const knownSubsections = React.useMemo(
+    () => [...new Set(fields.map((f) => f.subsection).filter((s): s is string => !!s))].sort(),
+    [fields],
+  );
+
   return (
     <div className="space-y-4">
       <div className="border rounded-2xl p-6 bg-card space-y-3">
@@ -143,7 +162,12 @@ export function CustomFieldsManager({ initial }: { initial: Field[] }) {
           {type !== "checkbox" && type !== "multiselect" && (
             <Input placeholder="Default value (optional)" value={defaultValue} onChange={(e) => setDefaultValue(e.target.value)} className="sm:col-span-2" />
           )}
+          <Input list="cf-sections" placeholder="Tab / section (optional, e.g. Deal Details)" value={section} onChange={(e) => setSection(e.target.value)} />
+          <Input list="cf-subsections" placeholder="Sub-tab (optional, e.g. Budget)" value={subsection} onChange={(e) => setSubsection(e.target.value)} />
+          <datalist id="cf-sections">{knownSections.map((s) => <option key={s} value={s} />)}</datalist>
+          <datalist id="cf-subsections">{knownSubsections.map((s) => <option key={s} value={s} />)}</datalist>
         </div>
+        <p className="text-xs text-muted-foreground">Tab &amp; sub-tab group this field on the lead detail page. Leave blank to keep it under the default “Custom Attributes”.</p>
         <div className="flex flex-wrap gap-4 text-sm">
           <label className="flex items-center gap-2"><input type="checkbox" checked={required} onChange={(e) => setRequired(e.target.checked)} className="h-4 w-4" /> Required</label>
           <label className="flex items-center gap-2"><input type="checkbox" checked={showOnTable} onChange={(e) => setShowOnTable(e.target.checked)} className="h-4 w-4" /> Show on table</label>
@@ -167,6 +191,8 @@ export function CustomFieldsManager({ initial }: { initial: Field[] }) {
                 {HAS_OPTIONS(f.type) && (
                   <Input value={editOptions} onChange={(e) => setEditOptions(e.target.value)} placeholder="Options, comma-separated" className="h-8 flex-1 min-w-[12rem]" />
                 )}
+                <Input list="cf-sections" value={editSection} onChange={(e) => setEditSection(e.target.value)} placeholder="Tab" className="h-8 w-32" />
+                <Input list="cf-subsections" value={editSubsection} onChange={(e) => setEditSubsection(e.target.value)} placeholder="Sub-tab" className="h-8 w-32" />
                 <label className="flex items-center gap-1.5 text-xs">
                   <input type="checkbox" checked={editRequired} onChange={(e) => setEditRequired(e.target.checked)} className="h-4 w-4" /> Required
                 </label>
@@ -185,6 +211,7 @@ export function CustomFieldsManager({ initial }: { initial: Field[] }) {
                 <span className="font-medium">{f.label}</span>
                 <span className="text-xs font-mono text-muted-foreground">{f.key}</span>
                 <Badge variant="secondary" className="capitalize">{f.type}</Badge>
+                {f.section && <Badge variant="outline">{f.section}{f.subsection ? ` › ${f.subsection}` : ""}</Badge>}
                 {f.required && <Badge>Required</Badge>}
                 {f.showOnTable && <Badge variant="outline">On table</Badge>}
                 {f.adminOnly && <Badge variant="outline">Admin only</Badge>}
@@ -205,7 +232,7 @@ export function CustomFieldsManager({ initial }: { initial: Field[] }) {
                   <Button variant="ghost" size="icon" disabled={i === 0} onClick={() => move(i, -1)} title="Move up"><ArrowUp className="h-4 w-4" /></Button>
                   <Button variant="ghost" size="icon" disabled={i === fields.length - 1} onClick={() => move(i, 1)} title="Move down"><ArrowDown className="h-4 w-4" /></Button>
                   <Button variant="ghost" size="icon" onClick={() => startEdit(f)} title="Edit"><Pencil className="h-4 w-4" /></Button>
-                  <Button variant="ghost" size="icon" onClick={() => remove(f)} title="Delete"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                  <Button variant="ghost" size="icon" onClick={() => remove(f)} title="Delete"><Trash2 className="h-4 w-4 text-white" /></Button>
                 </>
               )}
             </div>

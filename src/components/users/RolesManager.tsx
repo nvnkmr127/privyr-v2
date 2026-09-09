@@ -105,7 +105,7 @@ export function RolesManager({ initialRoles }: { initialRoles: Role[] }) {
                 </div>
                 {!isSystem && (
                   <Button variant="ghost" size="icon" onClick={() => remove(role)} title="Delete role">
-                    <Trash2 className="h-4 w-4 text-foreground" />
+                    <Trash2 className="h-4 w-4 text-white" />
                   </Button>
                 )}
               </div>

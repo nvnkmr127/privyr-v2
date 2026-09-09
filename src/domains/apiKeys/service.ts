@@ -33,6 +33,12 @@ export class ApiKeyService {
       .where(and(eq(apiKeys.id, id), eq(apiKeys.organizationId, organizationId)));
   }
 
+  // Hard delete — removes the row entirely (revoke keeps it for the audit trail; delete is for
+  // clearing keys the tenant no longer wants listed). The key can't authenticate afterwards either.
+  static async remove(organizationId: string, id: string) {
+    await db.delete(apiKeys).where(and(eq(apiKeys.id, id), eq(apiKeys.organizationId, organizationId)));
+  }
+
   // Resolve a raw bearer key to its org. Returns null if unknown or revoked. Touches lastUsedAt.
   static async verify(raw: string): Promise<{ organizationId: string } | null> {
     if (!raw?.startsWith("pk_")) return null;

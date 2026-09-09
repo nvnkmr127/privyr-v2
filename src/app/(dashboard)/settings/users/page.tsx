@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { UserService } from "@/domains/users/service";
 import { TeamService } from "@/domains/teams/service";
 import { RoleService } from "@/domains/roles/service";
+import { InvitationService } from "@/domains/invitations/service";
 import { requireOrg, hasPermission } from "@/lib/rbac";
 import { UsersManager } from "@/components/users/UsersManager";
 import { RolesManager } from "@/components/users/RolesManager";
@@ -13,11 +14,16 @@ export default async function UsersPage() {
   if (!(await hasPermission("users.manage"))) redirect("/leads");
   const { organizationId, userId } = await requireOrg();
   const canManageRoles = await hasPermission("roles.manage");
-  const [users, teams, roles] = await Promise.all([
+  const [users, teams, roles, invites] = await Promise.all([
     UserService.list(organizationId),
     TeamService.list(organizationId),
     RoleService.list(organizationId),
+    InvitationService.list(organizationId),
   ]);
+  // Only invites still awaiting acceptance belong in the pending list.
+  const pendingInvites = invites
+    .filter((i) => !i.acceptedAt)
+    .map((i) => ({ id: i.id, email: i.email, roleId: i.roleId, expiresAt: i.expiresAt.toISOString() }));
 
   return (
     <div className="flex-1 space-y-6 p-8 pt-6">
@@ -34,6 +40,7 @@ export default async function UsersPage() {
       <UsersManager
         initialUsers={users}
         initialTeams={teams}
+        initialInvites={pendingInvites}
         roles={roles.map((r) => ({ id: r.id, name: r.name }))}
         currentUserId={userId}
       />

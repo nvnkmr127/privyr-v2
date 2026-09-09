@@ -26,8 +26,11 @@ export class InvitationService {
 
     const raw = crypto.randomBytes(24).toString("hex");
     const expiresAt = new Date(Date.now() + TTL_DAYS * 24 * 60 * 60 * 1000);
-    await db.insert(invitations).values({ organizationId, email, roleId, invitedById, tokenHash: hash(raw), expiresAt });
-    return { token: raw };
+    const [inv] = await db
+      .insert(invitations)
+      .values({ organizationId, email, roleId, invitedById, tokenHash: hash(raw), expiresAt })
+      .returning({ id: invitations.id, email: invitations.email, roleId: invitations.roleId, expiresAt: invitations.expiresAt });
+    return { token: raw, invite: inv };
   }
 
   // Public: show who/what an invite is for, without leaking whether the token is otherwise valid.

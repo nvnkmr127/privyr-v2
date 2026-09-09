@@ -29,22 +29,31 @@ export async function inviteUserAction(input: z.infer<typeof inviteSchema>) {
   try {
     await PlanService.assertCanAddSeat(organizationId);
 
-    const { token } = await InvitationService.create(organizationId, data.email, data.roleId ?? null, userId);
+    const { token, invite } = await InvitationService.create(organizationId, data.email, data.roleId ?? null, userId);
     const link = appUrl(`/invite/${token}`);
 
     // Tenant-branded: name the inviting workspace, not the platform.
     const org = await OrgService.getOrganization(organizationId);
     const orgName = esc(org?.name || "your workspace");
 
-    await sendEmail({
-      to: data.email,
-      subject: `You've been invited to ${orgName}`,
-      html: `<p>You've been invited to join <strong>${orgName}</strong>.</p><p><a href="${link}">Accept your invitation</a> (expires in 7 days).</p>`,
-    }, organizationId);
-    await AuditService.log({ organizationId, userId, action: "user.invite", entityType: "invitation", metadata: { email: data.email } });
+    // Email delivery is best-effort: the invite already exists in the DB, so a mail failure
+    // must not roll it back or report the whole invite as failed. Surface `emailed` + `link`
+    // so the admin can copy the join link when delivery didn't go through.
+    let emailed = true;
+    try {
+      await sendEmail({
+        to: data.email,
+        subject: `You've been invited to ${orgName}`,
+        html: `<p>You've been invited to join <strong>${orgName}</strong>.</p><p><a href="${link}">Accept your invitation</a> (expires in 7 days).</p>`,
+      }, organizationId);
+    } catch (mailErr) {
+      emailed = false;
+      console.error("[invite] email delivery failed; invite still created", (mailErr as Error)?.message);
+    }
+    await AuditService.log({ organizationId, userId, action: "user.invite", entityType: "invitation", entityId: invite.id, metadata: { email: data.email, emailed } });
 
     revalidatePath("/settings/users");
-    return ok({ sent: true });
+    return ok({ invite, emailed, link });
   } catch (e) {
     return actionFail(e);
   }

@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { requireOrg, hasPermission } from "@/lib/rbac";
 import { AuditService } from "@/domains/audit/service";
+import { LocalTime } from "@/components/LocalTime";
 
 function actorName(l: { actorFirst: string | null; actorLast: string | null; actorEmail: string | null }) {
   return [l.actorFirst, l.actorLast].filter(Boolean).join(" ") || l.actorEmail || "System";
@@ -33,7 +34,7 @@ export default async function AuditPage() {
               <span className="text-muted-foreground">{actorName(l)}</span>
               {l.entityType && <span className="text-muted-foreground">{l.entityType}</span>}
             </div>
-            <span className="text-xs text-muted-foreground">{new Date(l.createdAt).toLocaleString()}</span>
+            <LocalTime iso={new Date(l.createdAt).toISOString()} className="text-xs text-muted-foreground" />
           </div>
         ))}
       </div>

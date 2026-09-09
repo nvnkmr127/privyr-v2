@@ -18,7 +18,12 @@ const client =
   globalThis._dbClient ??
   postgres(connectionString, {
     prepare: false,
-    max: 5,
+    // The lead detail page (and its post-mutation re-render) fans out ~13 concurrent
+    // queries in one Promise.all; max:5 forced them into 3 serial waves. Size the pool to
+    // the fan-out so they actually run in parallel. Safe on Neon's pooler (prepare:false,
+    // transaction mode). ponytail: bump higher only if a hotter page fans out wider — watch
+    // Neon's connection ceiling (max × concurrent Fluid instances must stay under it).
+    max: 15,
     idle_timeout: 20, // close idle conns after 20s — well under Neon's reap/autosuspend window
     max_lifetime: 60 * 4, // recycle conns before Neon's 5-min autosuspend drops them
     connect_timeout: 15, // fail a bad connect fast instead of hanging ~30s

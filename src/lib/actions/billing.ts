@@ -53,6 +53,25 @@ export async function verifySubscriptionAction(input: z.infer<typeof verifySchem
   }
 }
 
+// Testing/admin override: switch plans without payment. Allowed ONLY while billing is unconfigured
+// (no Razorpay keys) — once real billing is wired, this refuses and the checkout flow is used instead,
+// so it can never be a free-upgrade path in production.
+export async function setPlanManuallyAction(plan: string) {
+  const { organizationId, userId } = await requirePermission("billing.manage");
+  if (isConfigured()) {
+    return fail("FORBIDDEN", "Billing is configured — use checkout to change plans.");
+  }
+  if (!(plan in PLAN_LIMITS)) return fail("VALIDATION", "Unknown plan.");
+  try {
+    await BillingService.setPlanManually(organizationId, plan);
+    await AuditService.log({ organizationId, userId, action: "billing.plan_set_manual", entityType: "organization", entityId: organizationId, metadata: { plan } });
+    revalidatePath("/settings/billing");
+    return ok({ plan });
+  } catch (e) {
+    return actionFail(e);
+  }
+}
+
 export async function cancelSubscriptionAction() {
   const { organizationId, userId } = await requirePermission("billing.manage");
   try {

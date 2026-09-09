@@ -131,8 +131,8 @@ export function TemplatesManager({ initialTemplates }: { initialTemplates: Templ
                   <Button variant="ghost" size="icon" onClick={() => startEdit(t)} title="Edit">
                     <Pencil className="h-4 w-4 text-muted-foreground" />
                   </Button>
-                  <Button variant="ghost" size="icon" onClick={() => remove(t.id)} title="Delete" className="text-destructive hover:text-destructive">
-                    <Trash2 className="h-4 w-4" />
+                  <Button variant="ghost" size="icon" onClick={() => remove(t.id)} title="Delete">
+                    <Trash2 className="h-4 w-4 text-white" />
                   </Button>
                 </div>
               </div>

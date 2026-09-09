@@ -28,7 +28,9 @@ const updateOrgSchema = z.object({
   city: opt(120),
   state: opt(120),
   postalCode: opt(20),
-  country: z.string().trim().length(2).nullish().transform((v) => v || null),
+  // Blank is allowed (→ null); a 2-letter code otherwise. Without the "" branch an empty
+  // country field fails length(2) and blocks the whole settings save.
+  country: z.string().trim().length(2).or(z.literal("")).nullish().transform((v) => v || null),
   // SLA escalation window in hours; 0/empty turns it off (stored as null).
   slaHours: z.coerce.number().int().min(0).max(720).nullish().transform((v) => (v ? v : null)),
   // WhatsApp send mode: personal (wa.me one-tap) or bsp (Business API).

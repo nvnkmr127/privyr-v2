@@ -22,6 +22,9 @@ const createSchema = z.object({
   disabled: z.boolean().default(false),
   adminOnly: z.boolean().default(false),
   showOnTable: z.boolean().default(false),
+  // Optional two-level grouping (tab / sub-tab) for the lead detail view.
+  section: z.string().trim().max(100).nullish(),
+  subsection: z.string().trim().max(100).nullish(),
 });
 
 export async function createCustomFieldAction(input: z.infer<typeof createSchema>) {
@@ -46,6 +49,8 @@ const updateSchema = z.object({
   disabled: z.boolean().optional(),
   adminOnly: z.boolean().optional(),
   showOnTable: z.boolean().optional(),
+  section: z.string().trim().max(100).nullish(),
+  subsection: z.string().trim().max(100).nullish(),
 });
 
 export async function updateCustomFieldAction(input: z.infer<typeof updateSchema>) {

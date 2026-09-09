@@ -37,3 +37,15 @@ export async function revokeApiKeyAction(id: string) {
     return actionFail(e);
   }
 }
+
+export async function deleteApiKeyAction(id: string) {
+  const { organizationId, userId } = await requirePermission("api.manage");
+  try {
+    await ApiKeyService.remove(organizationId, id);
+    await AuditService.log({ organizationId, userId, action: "api_key.delete", entityType: "api_key", entityId: id });
+    revalidatePath("/settings/api");
+    return ok({ deleted: true });
+  } catch (e) {
+    return actionFail(e);
+  }
+}
