@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { leads, followUps, leadSources, users, teams, activities } from "@/db/schema";
-import { eq, and, gte, lte, desc } from "drizzle-orm";
+import { eq, and, gte, lte, desc, isNull } from "drizzle-orm";
 
 export interface AnalyticsFilters {
   organizationId: string;
@@ -64,7 +64,9 @@ export class AnalyticsService {
   }
 
   private static buildLeadConditions(filters: AnalyticsFilters) {
-    const conditions = [];
+    // Exclude soft-deleted leads (recycle bin) so metrics/charts match the leads list — a deleted
+    // lead must drop out of Total Leads and every other count that routes through here.
+    const conditions = [isNull(leads.deletedAt)];
     if (filters.organizationId) {
       conditions.push(eq(leads.organizationId, filters.organizationId));
     }
