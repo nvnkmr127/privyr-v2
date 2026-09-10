@@ -27,6 +27,17 @@ const client =
     idle_timeout: 20, // close idle conns after 20s — well under Neon's reap/autosuspend window
     max_lifetime: 60 * 4, // recycle conns before Neon's 5-min autosuspend drops them
     connect_timeout: 15, // fail a bad connect fast instead of hanging ~30s
+    connection: {
+      timezone: "UTC",
+    },
+    types: {
+      timestamp: {
+        to: 1114,
+        from: [1114],
+        serialize: (x: any) => (x instanceof Date ? x : new Date(x)).toISOString(),
+        parse: (x: string) => new Date(x.endsWith("Z") ? x : x.replace(" ", "T") + "Z"),
+      },
+    },
   });
 // Reuse the pool across warm invocations in all envs (also survives HMR in dev).
 globalThis._dbClient = client;

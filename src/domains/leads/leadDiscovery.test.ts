@@ -196,6 +196,36 @@ describe("Lead Discovery Subsystem - Search, Filters, Sorting, Views & Tenant Is
       expect(res.data.length).toBe(1);
     });
 
+    it("should correctly handle unassigned leads filter (ownerId is_empty)", async () => {
+      const mockSelect = {
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        orderBy: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockReturnThis(),
+        offset: vi.fn().mockResolvedValue([
+          { id: "lead-unassigned", ownerId: null, organizationId: ORG_A },
+        ]),
+      };
+
+      const mockCount = {
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValue([{ total: 1 }]),
+      };
+
+      (db.select as any).mockImplementation((arg?: any) => {
+        if (arg && arg.total) return mockCount;
+        return mockSelect;
+      });
+
+      const res = await LeadService.listLeads({
+        organizationId: ORG_A,
+        filters: [{ field: "ownerId", operator: "is_empty" }],
+      });
+
+      expect(res.data.length).toBe(1);
+      expect(res.data[0].ownerId).toBeNull();
+    });
+
     it("should support OR condition grouping", async () => {
       const mockSelect = {
         from: vi.fn().mockReturnThis(),

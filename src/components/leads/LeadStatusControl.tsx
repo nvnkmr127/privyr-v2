@@ -43,12 +43,24 @@ export function LeadStatusControl({ leadId, status }: { leadId: string; status: 
   const [detail, setDetail] = React.useState("");
 
   React.useEffect(() => {
+    setValue(status);
+  }, [status]);
+
+  React.useEffect(() => {
     getTenantStatusSchemaAction().then((s) => { if (s?.length) setSchema(s as CustomStatusItem[]); }).catch(() => {});
   }, []);
 
-  const byKey = React.useMemo(() => new Map(schema.map((s) => [s.key, s])), [schema]);
+  const byKey = React.useMemo(() => {
+    const map = new Map<string, CustomStatusItem>();
+    for (const s of schema) {
+      map.set(s.key, s);
+      map.set(s.key.toLowerCase(), s);
+    }
+    return map;
+  }, [schema]);
+
   const isLossCategory = (key: string) => {
-    const cat = byKey.get(key)?.category;
+    const cat = (byKey.get(key) || byKey.get(key.toLowerCase()))?.category;
     return cat === "lost" || cat === "unqualified";
   };
 
@@ -91,16 +103,22 @@ export function LeadStatusControl({ leadId, status }: { leadId: string; status: 
     apply(next, full);
   }
 
-  const current = byKey.get(value);
+  const current = byKey.get(value) || byKey.get((value || "").toLowerCase());
 
   return (
     <>
       <Select value={value} onValueChange={change} disabled={busy}>
         <SelectTrigger className="w-full">
-          <span className="flex items-center gap-2">
-            {current && <Dot color={current.color} />}
-            <SelectValue />
-          </span>
+          <SelectValue placeholder="Select status">
+            {current ? (
+              <span className="flex items-center gap-2">
+                <Dot color={current.color} />
+                <span>{current.label}</span>
+              </span>
+            ) : (
+              (status ? status.charAt(0).toUpperCase() + status.slice(1) : "Select status")
+            )}
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           {schema.map((s) => (

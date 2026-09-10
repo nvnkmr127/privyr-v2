@@ -11,7 +11,7 @@ import { requireOrg } from "@/lib/rbac";
 import { ActivityService } from "@/domains/activities/service";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
-import { AddNoteForm } from "@/components/leads/AddNoteForm";
+import { LeadNotesTab } from "@/components/leads/LeadNotesTab";
 import { WhatsAppSendBox } from "@/components/leads/WhatsAppSendBox";
 import { EmailSendBox } from "@/components/leads/EmailSendBox";
 import { WhatsAppThread } from "@/components/leads/WhatsAppThread";
@@ -36,6 +36,7 @@ import { SequenceService } from "@/domains/leads/sequenceService";
 import { LeadHeaderQuickActions } from "@/components/leads/LeadHeaderQuickActions";
 import { LeadRemindersTab } from "@/components/leads/LeadRemindersTab";
 import { LeadAttachmentsTab } from "@/components/leads/LeadAttachmentsTab";
+import { LocalTime } from "@/components/LocalTime";
 import { db } from "@/db";
 import { leadPipelineStages, automations } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -166,9 +167,11 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
               Created{" "}
-              {lead.createdAt
-                ? new Date(lead.createdAt).toLocaleDateString(undefined, { dateStyle: "medium" })
-                : "recently"}
+              {lead.createdAt ? (
+                <LocalTime iso={lead.createdAt} mode="date" fallback="recently" />
+              ) : (
+                "recently"
+              )}
             </p>
           </div>
         </div>
@@ -298,7 +301,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
                     value="reminders"
                     className="rounded-none border-b-2 border-transparent -mb-px px-4 py-3 text-sm font-medium text-muted-foreground shrink-0 data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
                   >
-                    Reminders ({reminders.length})
+                    Follow-ups ({reminders.length})
                   </TabsTrigger>
                   <TabsTrigger
                     value="attachments"
@@ -343,8 +346,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
                               {activity.type}
                             </span>
                             <span className="text-xs text-muted-foreground">
-                              {activity.createdAt.toLocaleDateString(undefined, { dateStyle: "short" })}{" "}
-                              {activity.createdAt.toLocaleTimeString(undefined, { timeStyle: "short" })}
+                              <LocalTime iso={activity.createdAt} mode="datetime" />
                             </span>
                           </div>
                           <p className="text-sm font-medium text-foreground mt-1 whitespace-pre-wrap">
@@ -373,27 +375,8 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
                   <EmailSendBox leadId={lead.id} email={lead.email} />
                 </TabsContent>
 
-                <TabsContent value="notes" className="mt-0 space-y-6">
-                  <AddNoteForm leadId={lead.id} />
-                  <div className="space-y-3">
-                    {notesCount === 0 ? (
-                      <div className="text-center py-8 text-muted-foreground text-sm">
-                        No notes added yet. Use the form above to add a note.
-                      </div>
-                    ) : (
-                      activities
-                        .filter((a) => a.type === "note")
-                        .map((note) => (
-                          <div key={note.id} className="bg-muted/40 p-4 rounded-lg border text-sm space-y-2">
-                            <p className="text-foreground whitespace-pre-wrap">{note.content}</p>
-                            <div className="text-xs text-muted-foreground text-right">
-                              {note.createdAt.toLocaleDateString(undefined, { dateStyle: "short" })}{" "}
-                              {note.createdAt.toLocaleTimeString(undefined, { timeStyle: "short" })}
-                            </div>
-                          </div>
-                        ))
-                    )}
-                  </div>
+                <TabsContent value="notes" className="mt-0">
+                  <LeadNotesTab leadId={lead.id} initialNotes={activities.filter((a) => a.type === "note")} />
                 </TabsContent>
               </div>
             </Tabs>

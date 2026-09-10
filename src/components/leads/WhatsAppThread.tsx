@@ -1,4 +1,5 @@
 import { Check, CheckCheck, Clock, AlertCircle } from "lucide-react";
+import { LocalTime } from "@/components/LocalTime";
 
 type Message = {
   id: string;
@@ -32,7 +33,7 @@ export function WhatsAppThread({ messages }: { messages: Message[] }) {
             }`}>
               <div className="whitespace-pre-wrap">{m.body}</div>
               <div className="mt-1 flex items-center justify-end gap-1 text-[10px] text-muted-foreground">
-                {m.createdAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                <LocalTime iso={m.createdAt} mode="time" />
                 {outbound && <StatusTick status={m.status} />}
               </div>
             </div>

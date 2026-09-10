@@ -1,19 +1,20 @@
 import Link from "next/link";
-import { requireAuth } from "@/lib/rbac";
+import { requireOrg } from "@/lib/rbac";
 import { db } from "@/db";
 import { followUps, leads } from "@/db/schema";
-import { and, eq, gte, lte } from "drizzle-orm";
+import { and, eq, or, gte, lte, isNull } from "drizzle-orm";
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval,
   format, addMonths, subMonths, isSameMonth, isToday, parse,
 } from "date-fns";
 import { ChevronLeft, ChevronRight, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { LocalTime } from "@/components/LocalTime";
 
 const KEY = "yyyy-MM-dd";
 
 export default async function FollowUpCalendarPage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
-  const session = await requireAuth();
+  const { userId, organizationId } = await requireOrg();
   const { month } = await searchParams;
 
   const cursor = month ? parse(month, "yyyy-MM", new Date()) : new Date();
@@ -25,7 +26,15 @@ export default async function FollowUpCalendarPage({ searchParams }: { searchPar
     .select({ id: followUps.id, title: followUps.title, dueAt: followUps.dueAt, status: followUps.status, leadId: followUps.leadId, leadName: leads.name })
     .from(followUps)
     .innerJoin(leads, eq(followUps.leadId, leads.id))
-    .where(and(eq(followUps.userId, session.user.id), gte(followUps.dueAt, gridStart), lte(followUps.dueAt, gridEnd)));
+    .where(
+      and(
+        eq(leads.organizationId, organizationId),
+        or(eq(followUps.userId, userId), eq(leads.ownerId, userId)),
+        isNull(leads.deletedAt),
+        gte(followUps.dueAt, gridStart),
+        lte(followUps.dueAt, gridEnd),
+      ),
+    );
 
   const byDay = new Map<string, typeof rows>();
   for (const r of rows) {
@@ -66,7 +75,7 @@ export default async function FollowUpCalendarPage({ searchParams }: { searchPar
                 return (
                   <Link key={it.id} href={`/leads/${it.leadId}`}
                     className={`block truncate rounded px-1.5 py-0.5 text-xs ${done ? "bg-muted text-muted-foreground line-through" : overdue ? "bg-muted text-foreground" : "bg-muted text-muted-foreground"}`}>
-                    {format(new Date(it.dueAt), "HH:mm")} {it.leadName} — {it.title}
+                    <LocalTime iso={it.dueAt} mode="time" /> {it.leadName} — {it.title}
                   </Link>
                 );
               })}

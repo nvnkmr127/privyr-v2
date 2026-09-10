@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Phone, Mail, MessageSquare, Calendar, Clock, Trash2, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { QuickResponseDialog } from "@/components/leads/QuickResponseDialog";
@@ -10,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { updateLeadFollowUpAction } from "@/lib/actions/leads";
 import { useToast } from "@/hooks/use-toast";
+import { formatLocalDateTime } from "@/components/LocalTime";
 
 interface LeadHeaderQuickActionsProps {
   lead: {
@@ -24,6 +26,7 @@ interface LeadHeaderQuickActionsProps {
 }
 
 export function LeadHeaderQuickActions({ lead }: LeadHeaderQuickActionsProps) {
+  const router = useRouter();
   const [reminderOpen, setReminderOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -43,10 +46,11 @@ export function LeadHeaderQuickActions({ lead }: LeadHeaderQuickActionsProps) {
         return;
       }
       toast({
-        title: "Follow-up updated",
-        description: targetDate ? `Scheduled for ${targetDate.toLocaleDateString()}` : "Follow-up cleared.",
+        title: "Follow-up scheduled",
+        description: targetDate ? `Scheduled for ${formatLocalDateTime(targetDate, "date")}` : "Follow-up cleared.",
       });
       setReminderOpen(false);
+      router.refresh();
     } catch {
       toast({
         title: "Failed to update follow-up",
@@ -159,7 +163,7 @@ export function LeadHeaderQuickActions({ lead }: LeadHeaderQuickActionsProps) {
             </TooltipTrigger>
             <TooltipContent>
               {currentDate
-                ? `Next follow-up: ${currentDate.toLocaleDateString()}`
+                ? `Next follow-up: ${formatLocalDateTime(currentDate, "date")}`
                 : "Schedule quick follow-up reminder"}
             </TooltipContent>
           </Tooltip>

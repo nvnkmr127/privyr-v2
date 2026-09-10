@@ -34,7 +34,7 @@ export class PlanService {
   static async assertCanAddLead(organizationId: string) {
     const { leads: max } = limitsFor(await this.plan(organizationId));
     if (max === Infinity) return;
-    const [l] = await db.select({ n: count() }).from(leads).where(eq(leads.organizationId, organizationId));
+    const [l] = await db.select({ n: count() }).from(leads).where(and(eq(leads.organizationId, organizationId), isNull(leads.deletedAt)));
     if (Number(l.n) >= max) {
       throw new Error(`Your plan allows ${max} leads. Upgrade to add more.`);
     }

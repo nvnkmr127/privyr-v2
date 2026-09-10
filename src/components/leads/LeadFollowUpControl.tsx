@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Calendar, Clock, ChevronDown, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { updateLeadFollowUpAction } from "@/lib/actions/leads";
 import { useToast } from "@/hooks/use-toast";
+import { LocalTime } from "@/components/LocalTime";
 
 interface LeadFollowUpControlProps {
   leadId: string;
@@ -13,6 +15,7 @@ interface LeadFollowUpControlProps {
 }
 
 export function LeadFollowUpControl({ leadId, nextFollowUpAt }: LeadFollowUpControlProps) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -33,6 +36,7 @@ export function LeadFollowUpControl({ leadId, nextFollowUpAt }: LeadFollowUpCont
         description: targetDate ? `Scheduled for ${targetDate.toLocaleDateString()}` : "Follow-up cleared.",
       });
       setOpen(false);
+      router.refresh();
     } catch {
       toast({
         title: "Failed to update follow-up",
@@ -74,11 +78,11 @@ export function LeadFollowUpControl({ leadId, nextFollowUpAt }: LeadFollowUpCont
             disabled={loading}
           >
             <span className="text-sm font-medium text-left">
-              {currentDate
-                ? `${currentDate.toLocaleDateString(undefined, {
-                    dateStyle: "medium",
-                  })} at ${currentDate.toLocaleTimeString(undefined, { timeStyle: "short" })}`
-                : "No reminder scheduled"}
+              {currentDate ? (
+                <LocalTime iso={currentDate} mode="datetime" />
+              ) : (
+                "No reminder scheduled"
+              )}
             </span>
             <ChevronDown className="h-4 w-4 opacity-50 shrink-0 ml-2" />
           </Button>

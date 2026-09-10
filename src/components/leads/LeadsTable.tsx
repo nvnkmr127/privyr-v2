@@ -18,6 +18,7 @@ import { EditLeadDialog } from "@/components/leads/EditLeadDialog";
 import { bulkAddTagAction } from "@/lib/actions/tags";
 import { NextBestActionService, type ActionPriority } from "@/domains/leads/nextBestActionService";
 import { getTenantStatusSchemaAction } from "@/lib/actions/customStatuses";
+import { LocalTime } from "@/components/LocalTime";
 
 type Lead = {
   id: string; name: string; email: string | null; phone: string | null; status: string; createdAt: Date;
@@ -377,7 +378,7 @@ export function LeadsTable({
                   })()}
                 </TableCell>
                 <TableCell suppressHydrationWarning>
-                  {new Date(lead.createdAt).toLocaleDateString()}
+                  <LocalTime iso={lead.createdAt} mode="shortDate" />
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-1">

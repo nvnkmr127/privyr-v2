@@ -1,13 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { Calendar, Clock, Plus, CheckCircle2, Circle, Trash2, Bell, Phone, Mail, Video } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Calendar, Clock, Plus, CheckCircle2, Circle, Trash2, Bell, Phone, Mail, Video, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { createReminderAction, toggleReminderStatusAction, deleteReminderAction } from "@/lib/actions/reminders";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  createReminderAction,
+  updateReminderAction,
+  toggleReminderStatusAction,
+  deleteReminderAction,
+} from "@/lib/actions/reminders";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { LocalTime } from "@/components/LocalTime";
 
 interface ReminderItem {
   id: string;
@@ -26,7 +34,20 @@ interface LeadRemindersTabProps {
   initialReminders: ReminderItem[];
 }
 
+const formatForDateTimeLocal = (date: Date | string) => {
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  const year = d.getFullYear();
+  const month = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  const hours = pad(d.getHours());
+  const minutes = pad(d.getMinutes());
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
 export function LeadRemindersTab({ leadId, initialReminders }: LeadRemindersTabProps) {
+  const router = useRouter();
   const [reminders, setReminders] = useState<ReminderItem[]>(initialReminders);
   const [showAdd, setShowAdd] = useState(false);
   const [title, setTitle] = useState("");
@@ -39,7 +60,61 @@ export function LeadRemindersTab({ leadId, initialReminders }: LeadRemindersTabP
     return tomorrow.toISOString().slice(0, 16);
   });
   const [submitting, setSubmitting] = useState(false);
+
+  // Edit state
+  const [editingReminder, setEditingReminder] = useState<ReminderItem | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editType, setEditType] = useState("followup");
+  const [editDueDate, setEditDueDate] = useState("");
+  const [editSubmitting, setEditSubmitting] = useState(false);
+
   const { toast } = useToast();
+
+  const openEdit = (reminder: ReminderItem) => {
+    setEditingReminder(reminder);
+    setEditTitle(reminder.title);
+    setEditDescription(reminder.description || "");
+    setEditType(reminder.type || "followup");
+    setEditDueDate(formatForDateTimeLocal(reminder.dueAt));
+  };
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingReminder || !editTitle.trim()) return;
+
+    setEditSubmitting(true);
+    try {
+      const res = await updateReminderAction({
+        reminderId: editingReminder.id,
+        leadId,
+        title: editTitle,
+        description: editDescription,
+        type: editType,
+        dueAt: new Date(editDueDate),
+      });
+
+      if (!res.ok) {
+        toast({ title: "Failed to update reminder", description: res.message, variant: "destructive" });
+        return;
+      }
+
+      setReminders((prev) =>
+        prev.map((r) => (r.id === editingReminder.id ? (res.data as ReminderItem) : r))
+      );
+      setEditingReminder(null);
+      router.refresh();
+      toast({ title: "Reminder updated" });
+    } catch {
+      toast({
+        title: "Failed to update reminder",
+        description: "We couldn't reach the server. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,6 +138,7 @@ export function LeadRemindersTab({ leadId, initialReminders }: LeadRemindersTabP
       setTitle("");
       setDescription("");
       setShowAdd(false);
+      router.refresh();
       toast({
         title: "Reminder created",
         description: `Scheduled for ${new Date(dueDate).toLocaleString()}`,
@@ -89,6 +165,7 @@ export function LeadRemindersTab({ leadId, initialReminders }: LeadRemindersTabP
       setReminders((prev) =>
         prev.map((r) => (r.id === id ? { ...r, status: newStatus, completedAt: newStatus === "completed" ? new Date() : null } : r))
       );
+      router.refresh();
       toast({
         title: newStatus === "completed" ? "Reminder completed" : "Reminder reopened",
       });
@@ -109,6 +186,7 @@ export function LeadRemindersTab({ leadId, initialReminders }: LeadRemindersTabP
         return;
       }
       setReminders((prev) => prev.filter((r) => r.id !== id));
+      router.refresh();
       toast({ title: "Reminder deleted" });
     } catch {
       toast({
@@ -267,22 +345,30 @@ export function LeadRemindersTab({ leadId, initialReminders }: LeadRemindersTabP
                       )}
                       <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
                         <Calendar className="h-3 w-3" />
-                        <span>
-                          {due.toLocaleDateString(undefined, { dateStyle: "medium" })} at{" "}
-                          {due.toLocaleTimeString(undefined, { timeStyle: "short" })}
-                        </span>
+                        <LocalTime iso={reminder.dueAt} mode="datetime" />
                       </div>
                     </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Delete reminder"
-                    onClick={() => handleDelete(reminder.id)}
-                    className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Edit reminder"
+                      onClick={() => openEdit(reminder)}
+                      className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted shrink-0"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Delete reminder"
+                      onClick={() => handleDelete(reminder.id)}
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               );
             })}
@@ -311,25 +397,113 @@ export function LeadRemindersTab({ leadId, initialReminders }: LeadRemindersTabP
                   </button>
                   <div className="min-w-0 flex-1">
                     <span className="font-medium text-sm text-foreground line-through line-clamp-1">{reminder.title}</span>
-                    <span className="text-[11px] text-muted-foreground block">
-                      Completed {reminder.completedAt ? new Date(reminder.completedAt).toLocaleDateString() : ""}
-                    </span>
+                    {reminder.completedAt && (
+                      <span className="text-[11px] text-muted-foreground block">
+                        Completed <LocalTime iso={reminder.completedAt} mode="shortDate" />
+                      </span>
+                    )}
                   </div>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="Delete reminder"
-                  onClick={() => handleDelete(reminder.id)}
-                  className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Edit reminder"
+                    onClick={() => openEdit(reminder)}
+                    className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted shrink-0"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Delete reminder"
+                    onClick={() => handleDelete(reminder.id)}
+                    className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
         </div>
       )}
+
+      {/* Edit Reminder Dialog */}
+      <Dialog open={!!editingReminder} onOpenChange={(open) => !open && setEditingReminder(null)}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle>Edit Reminder</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleUpdate} className="space-y-4 pt-2">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground block mb-1">Title *</label>
+              <Input
+                placeholder="e.g. Call lead to follow up"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                required
+                className="h-9 text-sm"
+              />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1">Type</label>
+                <Select value={editType} onValueChange={setEditType}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="followup">Follow-up</SelectItem>
+                    <SelectItem value="call">Phone Call</SelectItem>
+                    <SelectItem value="email">Email</SelectItem>
+                    <SelectItem value="meeting">Meeting</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1">Due Date & Time *</label>
+                <Input
+                  type="datetime-local"
+                  value={editDueDate}
+                  onChange={(e) => setEditDueDate(e.target.value)}
+                  required
+                  className="h-9 text-sm"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground block mb-1">Note / Description (Optional)</label>
+              <Input
+                placeholder="Additional details..."
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                className="h-9 text-sm"
+              />
+            </div>
+            <DialogFooter className="pt-2 gap-2 sm:gap-0">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setEditingReminder(null)}
+                className="h-8 text-xs"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={editSubmitting || !editTitle.trim()}
+                className="h-8 text-xs"
+              >
+                {editSubmitting ? "Saving..." : "Save Changes"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

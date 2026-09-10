@@ -57,11 +57,73 @@ export async function createReminderAction(input: z.infer<typeof createReminderS
       leadId: parsed.data.leadId,
       userId,
       type: "reminder_created",
-      content: `Scheduled reminder: "${parsed.data.title}" for ${dueDate.toLocaleDateString()} ${dueDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+      content: `Scheduled reminder: "${parsed.data.title}"`,
     });
 
     revalidatePath(`/leads/${parsed.data.leadId}`);
+    revalidatePath("/follow-ups");
     return ok(reminder);
+  } catch (e) {
+    return actionFail(e);
+  }
+}
+
+const updateReminderSchema = z.object({
+  reminderId: z.string().uuid(),
+  leadId: z.string().uuid(),
+  title: z.string().min(1, "Title is required"),
+  description: z.string().optional(),
+  type: z.string().default("followup"),
+  dueAt: z.string().or(z.date()),
+});
+
+export async function updateReminderAction(input: z.infer<typeof updateReminderSchema>) {
+  const { userId, organizationId } = await requireOrg();
+
+  const parsed = updateReminderSchema.safeParse(input);
+  if (!parsed.success) {
+    return fail("VALIDATION", "Please add a title and a valid due date.", zodFieldErrors(parsed.error));
+  }
+
+  const dueDate = new Date(parsed.data.dueAt);
+  if (Number.isNaN(dueDate.getTime())) {
+    return fail("VALIDATION", "That due date is invalid. Please pick a valid date and time.", { dueAt: "Invalid date." });
+  }
+
+  try {
+    await assertLeadInOrg(parsed.data.leadId, organizationId);
+
+    const [updated] = await db
+      .update(followUps)
+      .set({
+        title: parsed.data.title,
+        description: parsed.data.description,
+        type: parsed.data.type,
+        dueAt: dueDate,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(followUps.id, parsed.data.reminderId), eq(followUps.leadId, parsed.data.leadId)))
+      .returning();
+
+    if (!updated) return fail("NOT_FOUND", "This reminder no longer exists.");
+
+    if (updated.status === "pending") {
+      await db
+        .update(leads)
+        .set({ nextFollowUpAt: dueDate, updatedAt: new Date() })
+        .where(and(eq(leads.id, parsed.data.leadId), eq(leads.organizationId, organizationId)));
+    }
+
+    await ActivityService.addActivity({
+      leadId: parsed.data.leadId,
+      userId,
+      type: "reminder_updated",
+      content: `Updated reminder: "${parsed.data.title}"`,
+    });
+
+    revalidatePath(`/leads/${parsed.data.leadId}`);
+    revalidatePath("/follow-ups");
+    return ok(updated);
   } catch (e) {
     return actionFail(e);
   }
@@ -104,6 +166,7 @@ export async function toggleReminderStatusAction(reminderId: string, leadId: str
       content: `Marked reminder "${updated.title}" as ${status}`,
     });
     revalidatePath(`/leads/${leadId}`);
+    revalidatePath("/follow-ups");
     return ok(updated);
   } catch (e) {
     return actionFail(e);
@@ -129,6 +192,7 @@ export async function deleteReminderAction(reminderId: string, leadId: string) {
       content: `Deleted reminder: "${deleted.title}"`,
     });
     revalidatePath(`/leads/${leadId}`);
+    revalidatePath("/follow-ups");
     return ok(deleted);
   } catch (e) {
     return actionFail(e);

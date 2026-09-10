@@ -1,13 +1,13 @@
-import { requireAuth } from "@/lib/rbac";
+import { requireOrg } from "@/lib/rbac";
 import { db } from "@/db";
 import { followUps, leads } from "@/db/schema";
-import { eq, asc } from "drizzle-orm";
-import { format } from "date-fns";
+import { eq, and, or, asc, isNull } from "drizzle-orm";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { FollowUpActions } from "@/components/leads/FollowUpActions";
+import { LocalTime } from "@/components/LocalTime";
 
 export default async function FollowUpsDashboard() {
-  const session = await requireAuth();
+  const { userId, organizationId } = await requireOrg();
   
   // Fetch follow-ups for the user
   const userFollowUps = await db
@@ -17,7 +17,13 @@ export default async function FollowUpsDashboard() {
     })
     .from(followUps)
     .innerJoin(leads, eq(followUps.leadId, leads.id))
-    .where(eq(followUps.userId, session.user.id))
+    .where(
+      and(
+        eq(leads.organizationId, organizationId),
+        or(eq(followUps.userId, userId), eq(leads.ownerId, userId)),
+        isNull(leads.deletedAt),
+      ),
+    )
     .orderBy(asc(followUps.dueAt));
 
   const now = new Date();
@@ -66,7 +72,7 @@ export default async function FollowUpsDashboard() {
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-semibold text-foreground">
-                    {format(new Date(f.followUp.dueAt), 'MMM d, h:mm a')}
+                    <LocalTime iso={f.followUp.dueAt} mode="full" />
                   </span>
                   <FollowUpActions id={f.followUp.id} />
                 </div>
@@ -86,7 +92,7 @@ export default async function FollowUpsDashboard() {
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-semibold text-muted-foreground">
-                    {format(new Date(f.followUp.dueAt), 'MMM d, h:mm a')}
+                    <LocalTime iso={f.followUp.dueAt} mode="full" />
                   </span>
                   <FollowUpActions id={f.followUp.id} />
                 </div>

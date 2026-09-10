@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Activity, Clock, MessageSquare, UserCheck, Tag, FileText } from "lucide-react";
+import { LocalTime } from "@/components/LocalTime";
 
 export interface ActivityItem {
   id: string;
@@ -45,7 +46,7 @@ export function RecentActivityFeed({ activities }: { activities: ActivityItem[] 
             <div className="flex items-center justify-between text-xs">
               <span className="font-semibold text-muted-foreground">{item.userName}</span>
               <span className="text-muted-foreground">
-                {new Date(item.occurredAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                <LocalTime iso={item.occurredAt} mode="time" />
               </span>
             </div>
             <p className="text-sm text-muted-foreground">

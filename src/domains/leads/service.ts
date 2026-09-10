@@ -194,31 +194,32 @@ export class LeadService {
     if (!col) return undefined;
 
     const strVal = rawVal !== undefined && rawVal !== null ? String(rawVal) : "";
+    const isText = ["name", "email", "phone", "company", "status", "priority", "lostReason"].includes(rule.field);
 
     switch (op) {
       case "equals":
-        if (rawVal === null || strVal === "" || strVal === "null") {
+        if (rawVal === null || strVal === "" || strVal === "null" || strVal === "unassigned") {
           return isNull(col);
         }
         return eq(col, rawVal as any);
 
       case "not_equals":
-        if (rawVal === null || strVal === "" || strVal === "null") {
+        if (rawVal === null || strVal === "" || strVal === "null" || strVal === "unassigned") {
           return isNotNull(col);
         }
         return ne(col, rawVal as any);
 
       case "contains":
-        return ilike(col, `%${strVal}%`);
+        return isText ? ilike(col, `%${strVal}%`) : sql`${col}::text ILIKE ${"%" + strVal + "%"}`;
 
       case "does_not_contain":
-        return sql`${col} NOT ILIKE ${"%" + strVal + "%"}`;
+        return isText ? sql`${col} NOT ILIKE ${"%" + strVal + "%"}` : sql`${col}::text NOT ILIKE ${"%" + strVal + "%"}`;
 
       case "is_empty":
-        return or(isNull(col), eq(col, ""));
+        return isText ? or(isNull(col), eq(col, "")) : isNull(col);
 
       case "is_not_empty":
-        return and(isNotNull(col), ne(col, ""));
+        return isText ? and(isNotNull(col), ne(col, "")) : isNotNull(col);
 
       case "before": {
         const d = strVal === "now" ? new Date() : new Date(strVal);

@@ -58,6 +58,8 @@ export async function createLeadAction(
 
     const lead = await LeadService.createLead({ ...data, customData }, userId, organizationId);
 
+    revalidatePath('/');
+    revalidatePath('/my-dashboard');
     revalidatePath('/leads');
     return ok(lead);
   } catch (e) {
@@ -120,6 +122,8 @@ export async function deleteLeadAction(id: string) {
     const deleted = await LeadService.deleteLead(id, userId, organizationId);
     if (!deleted) return fail("NOT_FOUND", "This lead no longer exists or was already deleted.");
     await AuditService.log({ organizationId, userId, action: "lead.delete", entityType: "lead", entityId: id });
+    revalidatePath('/');
+    revalidatePath('/my-dashboard');
     revalidatePath('/leads');
     revalidatePath('/leads/recycle-bin');
     return ok({ deleted: true });
@@ -149,6 +153,8 @@ export async function bulkDeleteLeadsAction(input: z.infer<typeof bulkDeleteSche
     }
   }
   await AuditService.log({ organizationId, userId, action: "lead.bulk_delete", entityType: "organization", entityId: organizationId });
+  revalidatePath('/');
+  revalidatePath('/my-dashboard');
   revalidatePath("/leads");
   revalidatePath("/leads/recycle-bin");
   return ok({ deleted, failed, requested: leadIds.length });
@@ -166,6 +172,8 @@ export async function restoreLeadAction(id: string) {
     const restored = await LeadService.restoreLead(id, organizationId);
     if (!restored) return fail("NOT_FOUND", "This lead is no longer in the recycle bin.");
     await AuditService.log({ organizationId, userId, action: "lead.restore", entityType: "lead", entityId: id });
+    revalidatePath('/');
+    revalidatePath('/my-dashboard');
     revalidatePath('/leads');
     revalidatePath('/leads/recycle-bin');
     return ok({ restored: true });
@@ -205,6 +213,8 @@ export async function changeLeadStatusAction(id: string, status: string, reason?
   try {
     const lead = await LeadService.changeStatus(id, status, userId, organizationId, reason);
     if (!lead) return fail("NOT_FOUND", "This lead no longer exists or was moved.");
+    revalidatePath('/');
+    revalidatePath('/my-dashboard');
     revalidatePath('/leads');
     revalidatePath(`/leads/${id}`);
     return ok(lead);
@@ -237,6 +247,8 @@ export async function bulkChangeLeadStatusAction(input: z.infer<typeof bulkChang
     }
   }
 
+  revalidatePath('/');
+  revalidatePath('/my-dashboard');
   revalidatePath('/leads');
   return ok({ updated, failed, requested: parsed.data.leadIds.length });
 }
@@ -272,6 +284,63 @@ export async function addNoteAction(input: z.infer<typeof addNoteSchema>) {
   }
 }
 
+const deleteNoteSchema = z.object({
+  noteId: z.string().uuid(),
+  leadId: z.string().uuid(),
+});
+
+export async function deleteNoteAction(noteId: string, leadId: string) {
+  const { organizationId } = await requireOrg();
+
+  const parsed = deleteNoteSchema.safeParse({ noteId, leadId });
+  if (!parsed.success) {
+    return fail("VALIDATION", "Note ID and Lead ID are required.", zodFieldErrors(parsed.error));
+  }
+
+  try {
+    await assertLeadInOrg(parsed.data.leadId, organizationId);
+
+    const deleted = await ActivityService.deleteActivity(parsed.data.noteId, parsed.data.leadId);
+    if (!deleted) {
+      return fail("NOT_FOUND", "This note was already deleted.");
+    }
+
+    revalidatePath(`/leads/${parsed.data.leadId}`);
+    return ok(deleted);
+  } catch (e) {
+    return actionFail(e);
+  }
+}
+
+const updateNoteSchema = z.object({
+  noteId: z.string().uuid(),
+  leadId: z.string().uuid(),
+  content: z.string().trim().min(1, "Note cannot be empty").max(10000, "Note cannot exceed 10,000 characters"),
+});
+
+export async function updateNoteAction(input: z.infer<typeof updateNoteSchema>) {
+  const { organizationId } = await requireOrg();
+
+  const parsed = updateNoteSchema.safeParse(input);
+  if (!parsed.success) {
+    return fail("VALIDATION", "Please provide valid note content.", zodFieldErrors(parsed.error));
+  }
+
+  try {
+    await assertLeadInOrg(parsed.data.leadId, organizationId);
+
+    const updated = await ActivityService.updateActivity(parsed.data.noteId, parsed.data.leadId, parsed.data.content);
+    if (!updated) {
+      return fail("NOT_FOUND", "This note no longer exists.");
+    }
+
+    revalidatePath(`/leads/${parsed.data.leadId}`);
+    return ok(updated);
+  } catch (e) {
+    return actionFail(e);
+  }
+}
+
 export const assignLeadAction = async (input: { leadId: string, ownerId: string | null, teamId: string | null }) => {
   const { userId, organizationId } = await requireOrg();
 
@@ -289,6 +358,8 @@ export const assignLeadAction = async (input: { leadId: string, ownerId: string 
       organizationId,
     });
 
+    revalidatePath('/');
+    revalidatePath('/my-dashboard');
     revalidatePath(`/leads/${input.leadId}`);
     revalidatePath("/leads");
 
@@ -315,6 +386,8 @@ export const bulkAssignLeadAction = async (input: { leadIds: string[], ownerId: 
       organizationId,
     });
 
+    revalidatePath('/');
+    revalidatePath('/my-dashboard');
     revalidatePath("/leads");
 
     return ok({ count: updatedLeads.length });
@@ -369,7 +442,7 @@ export async function checkLeadDuplicatesAction(leadId: string) {
 }
 
 export async function updateLeadFollowUpAction(leadId: string, nextFollowUpAt: string | null) {
-  const { organizationId } = await requireOrg();
+  const { userId, organizationId } = await requireOrg();
 
   // Guard against an unparseable date string reaching `new Date(...)` → Invalid Date in the column.
   let followUpDate: Date | null = null;
@@ -382,8 +455,8 @@ export async function updateLeadFollowUpAction(leadId: string, nextFollowUpAt: s
 
   try {
     const { db } = await import("@/db");
-    const { leads } = await import("@/db/schema");
-    const { eq, and } = await import("drizzle-orm");
+    const { leads, followUps } = await import("@/db/schema");
+    const { eq, and, desc } = await import("drizzle-orm");
 
     const [updated] = await db.update(leads)
       .set({ nextFollowUpAt: followUpDate, updatedAt: new Date() })
@@ -391,8 +464,42 @@ export async function updateLeadFollowUpAction(leadId: string, nextFollowUpAt: s
       .returning();
 
     if (!updated) return fail("NOT_FOUND", "This lead no longer exists or was moved.");
+
+    // Sync with followUps table so follow-up appears in Follow-ups tab, list, and calendar
+    if (followUpDate) {
+      const [existing] = await db
+        .select()
+        .from(followUps)
+        .where(and(eq(followUps.leadId, leadId), eq(followUps.status, "pending")))
+        .orderBy(desc(followUps.createdAt))
+        .limit(1);
+
+      if (existing) {
+        await db.update(followUps)
+          .set({ dueAt: followUpDate, updatedAt: new Date() })
+          .where(eq(followUps.id, existing.id));
+      } else {
+        await db.insert(followUps).values({
+          leadId,
+          userId: updated.ownerId || userId,
+          type: "followup",
+          title: `Follow-up with ${updated.name || "lead"}`,
+          status: "pending",
+          dueAt: followUpDate,
+        });
+      }
+    } else {
+      await db.update(followUps)
+        .set({ status: "cancelled", updatedAt: new Date() })
+        .where(and(eq(followUps.leadId, leadId), eq(followUps.status, "pending")));
+    }
+
     revalidatePath(`/leads/${leadId}`);
     revalidatePath('/leads');
+    revalidatePath('/follow-ups');
+    revalidatePath('/follow-ups/calendar');
+    revalidatePath('/');
+    revalidatePath('/my-dashboard');
     return ok(updated);
   } catch (e) {
     return actionFail(e);

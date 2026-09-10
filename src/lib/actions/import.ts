@@ -94,6 +94,8 @@ export async function commitImportAction(input: { rows: ImportRow[]; config: z.i
   }
   try {
     const res = await LeadImportService.commit(organizationId, userId, parsedRows.data, parsedConfig.data);
+    revalidatePath('/');
+    revalidatePath('/my-dashboard');
     revalidatePath("/leads");
     return ok(res);
   } catch (e) {

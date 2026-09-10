@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { leads } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 
 export interface SlaMetrics {
   totalLeads: number;
@@ -30,7 +30,7 @@ export class SlaAnalyticsService {
         status: leads.status,
       })
       .from(leads)
-      .where(eq(leads.organizationId, organizationId));
+      .where(and(eq(leads.organizationId, organizationId), isNull(leads.deletedAt)));
 
     if (orgLeads.length === 0) {
       return {
