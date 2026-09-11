@@ -44,6 +44,42 @@ export class WebhookEndpointService {
       .where(and(eq(webhookEndpoints.id, id), eq(webhookEndpoints.organizationId, organizationId)));
   }
 
+  static async test(
+    organizationId: string,
+    id: string
+  ): Promise<{ success: boolean; statusCode: number; error?: string }> {
+    const [row] = await db
+      .select()
+      .from(webhookEndpoints)
+      .where(and(eq(webhookEndpoints.id, id), eq(webhookEndpoints.organizationId, organizationId)));
+
+    if (!row) {
+      return { success: false, statusCode: 0, error: "Webhook endpoint not found." };
+    }
+
+    const event = (row.events?.[0] as WebhookEventType) || "lead.created";
+    const payload: WebhookEventPayload = LeadWebhookEventService.constructPayload(organizationId, event, {
+      id: `lead-test-${Date.now()}`,
+      name: "Test Lead",
+      email: "test@example.com",
+      phone: "+15551234567",
+      company: "Acme Corp",
+      status: "new",
+      source: "Webhook Test",
+    });
+
+    const result = await LeadWebhookEventService.dispatchWebhook(row.url, row.secret, payload);
+    return {
+      success: result.success,
+      statusCode: result.statusCode,
+      error: result.success
+        ? undefined
+        : result.statusCode === 0
+          ? "Could not reach webhook URL (network error or timeout)."
+          : `Endpoint responded with HTTP ${result.statusCode}.`,
+    };
+  }
+
   // Producer: enqueue a signed delivery to every active endpoint in this org that subscribed to
   // `event`. Best-effort — never throws into the caller (an event handler); logs and moves on.
   static async dispatch(organizationId: string, event: WebhookEventType, data: Record<string, any>): Promise<void> {

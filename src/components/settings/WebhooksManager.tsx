@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Trash2, Plus, Webhook, Copy, AlertTriangle } from "lucide-react";
+import { Trash2, Plus, Webhook, Copy, AlertTriangle, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -9,6 +9,7 @@ import {
   createWebhookEndpointAction,
   deleteWebhookEndpointAction,
   toggleWebhookEndpointAction,
+  testWebhookEndpointAction,
 } from "@/lib/actions/webhooks";
 
 // Client-safe copy — the server service pulls in `db`, so we can't import its const here.
@@ -33,6 +34,7 @@ export function WebhooksManager({ initial, dlqCount }: { initial: Endpoint[]; dl
   const [url, setUrl] = React.useState("");
   const [events, setEvents] = React.useState<string[]>(["lead.created"]);
   const [saving, setSaving] = React.useState(false);
+  const [testingId, setTestingId] = React.useState<string | null>(null);
 
   function toggleEvent(key: string) {
     setEvents((prev) => (prev.includes(key) ? prev.filter((e) => e !== key) : [...prev, key]));
@@ -89,6 +91,22 @@ export function WebhooksManager({ initial, dlqCount }: { initial: Endpoint[]; dl
     }
   }
 
+  async function testEndpoint(e: Endpoint) {
+    setTestingId(e.id);
+    try {
+      const res = await testWebhookEndpointAction(e.id);
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Test webhook failed", description: res.message });
+      } else {
+        toast({ title: "Test webhook sent", description: `Endpoint responded with HTTP ${res.data.statusCode}.` });
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Test webhook failed", description: "We couldn't reach the server." });
+    } finally {
+      setTestingId(null);
+    }
+  }
+
   function copySecret(secret: string) {
     navigator.clipboard?.writeText(secret).then(
       () => toast({ title: "Signing secret copied" }),
@@ -140,6 +158,16 @@ export function WebhooksManager({ initial, dlqCount }: { initial: Endpoint[]; dl
                 <p className="truncate text-xs text-muted-foreground">{(e.events ?? []).join(", ") || "no events"}</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1 text-xs"
+                  onClick={() => testEndpoint(e)}
+                  disabled={testingId === e.id}
+                >
+                  <Send className="h-3.5 w-3.5" />
+                  {testingId === e.id ? "Testing…" : "Test"}
+                </Button>
                 <Button variant="ghost" size="sm" className="gap-1 text-xs" onClick={() => copySecret(e.secret)}>
                   <Copy className="h-3.5 w-3.5" /> Secret
                 </Button>

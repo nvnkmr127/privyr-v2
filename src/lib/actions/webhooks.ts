@@ -55,6 +55,19 @@ export async function deleteWebhookEndpointAction(id: string) {
   }
 }
 
+export async function testWebhookEndpointAction(id: string) {
+  const { organizationId } = await requirePermission("api.manage");
+  try {
+    const res = await WebhookEndpointService.test(organizationId, id);
+    if (!res.success) {
+      return fail("SERVER", res.error ?? `Test delivery failed (HTTP ${res.statusCode}).`);
+    }
+    return ok({ statusCode: res.statusCode });
+  } catch (e) {
+    return actionFail(e);
+  }
+}
+
 export async function listWebhookDlqAction() {
   const { organizationId } = await requirePermission("api.manage");
   return WebhookDlqService.getFailedDlqJobs(organizationId);
