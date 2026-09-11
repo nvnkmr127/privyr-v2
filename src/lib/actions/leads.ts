@@ -13,10 +13,10 @@ import { ActivityService } from "@/domains/activities/service";
 import { ok, fail, actionFail, zodFieldErrors, type ActionResult } from "@/lib/actions/result";
 
 const createLeadSchema = z.object({
-  name: z.string().min(1, "Name is required").max(255),
-  email: z.string().email("Invalid email").optional().or(z.literal("")),
-  phone: z.string().optional().or(z.literal("")),
-  company: z.string().optional().or(z.literal("")),
+  name: z.string().trim().min(1, "Name is required").max(255),
+  email: z.string().trim().email("Invalid email").optional().or(z.literal("")),
+  phone: z.string().trim().max(50, "Phone number too long").optional().or(z.literal("")),
+  company: z.string().trim().max(255).optional().or(z.literal("")),
   customData: z.record(z.string(), z.unknown()).optional(),
 });
 
@@ -32,10 +32,10 @@ export async function createLeadAction(
 
   // Pass empty strings as undefined
   const data = {
-    name: parsed.data.name,
-    email: parsed.data.email || undefined,
-    phone: parsed.data.phone || undefined,
-    company: parsed.data.company || undefined,
+    name: parsed.data.name.trim(),
+    email: parsed.data.email?.trim() || undefined,
+    phone: parsed.data.phone?.trim() || undefined,
+    company: parsed.data.company?.trim() || undefined,
   };
 
   try {

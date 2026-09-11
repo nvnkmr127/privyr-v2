@@ -29,14 +29,29 @@ export function SequenceBuilder({ initial }: { initial?: { id: string; name: str
   }
 
   async function generate() {
+    const cleanGoal = goal.trim();
+    if (!cleanGoal) {
+      toast({
+        variant: "destructive",
+        title: "Please describe your goal first",
+        description: "Enter what you want this sequence to achieve (e.g. 'Follow up after product demo').",
+      });
+      return;
+    }
+
     setGenerating(true);
     try {
-      const { steps: gen, ai } = await generateSequenceAction(goal);
-      setSteps(gen);
-      if (!name && goal) setName(goal.slice(0, 60));
-      toast({ title: ai ? "AI drafted your sequence" : "Starter sequence added", description: "Edit the steps, then save." });
+      const { steps: gen, ai } = await generateSequenceAction(cleanGoal);
+      if (gen && gen.length > 0) {
+        setSteps(gen);
+        if (!name.trim()) setName(cleanGoal.slice(0, 60));
+        toast({
+          title: ai ? "AI drafted your sequence" : "Sequence drafted from your goal",
+          description: `${gen.length} steps created. You can customize them below before saving.`,
+        });
+      }
     } catch {
-      toast({ variant: "destructive", title: "Couldn't generate" });
+      toast({ variant: "destructive", title: "Couldn't generate", description: "Please try again." });
     } finally {
       setGenerating(false);
     }
@@ -110,7 +125,7 @@ export function SequenceBuilder({ initial }: { initial?: { id: string; name: str
                 <option value="email">Email</option>
               </select>
               {steps.length > 1 && (
-                <Button type="button" variant="ghost" size="icon" aria-label="Remove step" className="ml-auto" onClick={() => setSteps((st) => st.filter((_, idx) => idx !== i))}>
+                <Button type="button" variant="ghost" size="icon" aria-label="Remove step" className="ml-auto text-white hover:text-white" onClick={() => setSteps((st) => st.filter((_, idx) => idx !== i))}>
                   <Trash2 className="h-4 w-4" />
                 </Button>
               )}

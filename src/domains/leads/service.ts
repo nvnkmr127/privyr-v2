@@ -46,12 +46,14 @@ export class LeadService {
     organizationId: string,
   ) {
     // Dedup within THIS org only — same email/phone in another tenant is a different lead.
-    if (data.email || data.phone) {
+    const cleanEmail = data.email?.trim() || undefined;
+    const cleanPhone = data.phone?.trim() || undefined;
+    if (cleanEmail || cleanPhone) {
       const orConds = [];
-      if (data.email) orConds.push(eq(leads.email, data.email));
-      if (data.phone) orConds.push(eq(leads.phone, data.phone));
-      const [existing] = await db.select().from(leads)
-        .where(and(eq(leads.organizationId, organizationId), or(...orConds)))
+      if (cleanEmail) orConds.push(eq(leads.email, cleanEmail));
+      if (cleanPhone) orConds.push(eq(leads.phone, cleanPhone));
+      const [existing] = await db.select({ id: leads.id }).from(leads)
+        .where(and(eq(leads.organizationId, organizationId), isNull(leads.deletedAt), or(...orConds)))
         .limit(1);
       if (existing) throw new Error("Duplicate lead found with the same email or phone");
     }
@@ -60,10 +62,10 @@ export class LeadService {
     try {
       [newLead] = await db.insert(leads).values({
         organizationId,
-        name: data.name,
-        email: data.email,
-        phone: data.phone,
-        company: data.company,
+        name: data.name.trim(),
+        email: cleanEmail || null,
+        phone: cleanPhone || null,
+        company: data.company?.trim() || null,
         ownerId: data.ownerId || createdById || null,
         teamId: data.teamId,
         customData: data.customData ?? {},

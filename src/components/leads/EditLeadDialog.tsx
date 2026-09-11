@@ -1,5 +1,6 @@
 "use client"
 import * as React from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -37,6 +38,7 @@ interface EditLeadDialogProps {
 }
 
 export function EditLeadDialog({ lead }: EditLeadDialogProps) {
+  const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const { toast } = useToast();
   
@@ -83,6 +85,7 @@ export function EditLeadDialog({ lead }: EditLeadDialogProps) {
         description: "The lead was successfully updated.",
       });
       setOpen(false);
+      router.refresh();
     } catch {
       toast({
         variant: "destructive",

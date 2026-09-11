@@ -65,6 +65,7 @@ export function actionFail(e: unknown): ActionError {
   if (m.includes("duplicate")) return fail("CONFLICT", raw);
   if (m.includes("limit") || m.includes("plan")) return fail("LIMIT", raw);
   if (m.includes("not found")) return fail("NOT_FOUND", raw);
+  if (m.includes("required") || m.includes("must be") || m.includes("invalid")) return fail("VALIDATION", raw);
   // Unexpected failure: log it server-side with a ref the user can quote to support.
   const ref = logError("action", e);
   return fail("SERVER", `Something went wrong on our end. Please try again. (Ref: ${ref})`);

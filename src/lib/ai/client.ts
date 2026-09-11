@@ -4,7 +4,8 @@ import { generateText as gatewayGenerate } from "ai";
 // AI is optional infrastructure, like the mailer: real generation needs AI_GATEWAY_API_KEY
 // (Vercel AI Gateway), otherwise callers fall back gracefully. Never throws for a missing key.
 export function aiEnabled(): boolean {
-  return Boolean(process.env.AI_GATEWAY_API_KEY);
+  const key = process.env.AI_GATEWAY_API_KEY?.trim();
+  return Boolean(key && !key.includes("REPLACE_") && !key.includes("your-key") && key.length > 10);
 }
 
 /**

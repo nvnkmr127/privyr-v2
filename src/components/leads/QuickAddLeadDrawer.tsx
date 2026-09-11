@@ -1,5 +1,6 @@
 "use client"
 import * as React from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
   Drawer,
@@ -23,11 +24,13 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 
 const formSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(255, "Name cannot exceed 255 characters"),
-  email: z.string().email("Invalid email address").optional().or(z.literal("")),
-  phone: z.string().max(50, "Phone number too long").optional().or(z.literal("")),
+  email: z.string().trim().email("Invalid email address").optional().or(z.literal("")),
+  phone: z.string().trim().max(50, "Phone number too long").optional().or(z.literal("")),
+  company: z.string().trim().max(255, "Company name cannot exceed 255 characters").optional().or(z.literal("")),
 });
 
 export function QuickAddLeadDrawer({ children }: { children?: React.ReactNode }) {
+  const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const { toast } = useToast();
   const [defs, setDefs] = React.useState<CustomFieldDef[]>([]);
@@ -57,6 +60,7 @@ export function QuickAddLeadDrawer({ children }: { children?: React.ReactNode })
       name: "",
       email: "",
       phone: "",
+      company: "",
     },
   });
 
@@ -71,13 +75,19 @@ export function QuickAddLeadDrawer({ children }: { children?: React.ReactNode })
       return;
     }
     try {
-      const res = await createLeadAction({ ...values, customData: customValues });
+      const res = await createLeadAction({
+        name: values.name,
+        email: values.email || undefined,
+        phone: values.phone || undefined,
+        company: values.company || undefined,
+        customData: customValues,
+      });
       if (!res.ok) {
         // Map server field errors back onto the matching inputs for inline display.
         if (res.fieldErrors) {
           for (const [key, message] of Object.entries(res.fieldErrors)) {
-            if (key === "name" || key === "email" || key === "phone") {
-              form.setError(key, { message });
+            if (key === "name" || key === "email" || key === "phone" || key === "company") {
+              form.setError(key as any, { message });
             }
           }
         }
@@ -95,6 +105,7 @@ export function QuickAddLeadDrawer({ children }: { children?: React.ReactNode })
       setOpen(false);
       form.reset();
       setCustomValues({});
+      router.refresh();
     } catch {
       // Transport-level failure (network offline, action unreachable).
       toast({
@@ -111,13 +122,22 @@ export function QuickAddLeadDrawer({ children }: { children?: React.ReactNode })
         {children || <Button variant="outline">Quick Add</Button>}
       </DrawerTrigger>
       <DrawerContent>
-        <div className="mx-auto w-full max-w-sm">
+        <div className="mx-auto w-full max-w-sm max-h-[85vh] overflow-y-auto">
           <DrawerHeader>
             <DrawerTitle>Quick Add Lead</DrawerTitle>
             <DrawerDescription>Create a new lead instantly.</DrawerDescription>
           </DrawerHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="p-4 pb-0 space-y-4">
+            <form
+              onSubmit={form.handleSubmit(onSubmit, (errors) => {
+                toast({
+                  variant: "destructive",
+                  title: "Validation error",
+                  description: Object.values(errors)[0]?.message as string || "Please check the form fields and try again.",
+                });
+              })}
+              className="p-4 pb-0 space-y-4"
+            >
               <FormField
                 control={form.control}
                 name="name"
@@ -152,6 +172,19 @@ export function QuickAddLeadDrawer({ children }: { children?: React.ReactNode })
                     <FormLabel>Phone</FormLabel>
                     <FormControl>
                       <Input type="tel" placeholder="+1 (555) 000-0000" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="company"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Company</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Acme Inc" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
