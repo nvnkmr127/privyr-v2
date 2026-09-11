@@ -45,7 +45,7 @@ export function Header() {
           className="relative w-full max-w-md hidden md:flex items-center rounded-md border border-border bg-card px-3 py-2 text-sm text-muted-foreground hover:bg-accent/50 transition-colors"
         >
           <Search className="mr-2 h-4 w-4" />
-          Search leads or jump to…
+          Search leads, team members, or jump to…
           <kbd className="ml-auto text-xs bg-muted text-muted-foreground rounded px-1.5 py-0.5 font-mono">⌘K</kbd>
         </button>
       </div>

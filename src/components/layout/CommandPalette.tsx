@@ -5,10 +5,8 @@ import { useRouter } from "next/navigation";
 import {
   CommandDialog, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem,
 } from "@/components/ui/command";
-import { searchLeadsAction } from "@/lib/actions/search";
-import { Search, Users, LayoutGrid, CalendarClock, Settings } from "lucide-react";
-
-type Lead = { id: string; name: string; email: string | null; phone: string | null; company: string | null };
+import { searchUniversalAction, UniversalSearchResults } from "@/lib/actions/search";
+import { Search, Users, LayoutGrid, CalendarClock, Settings, User } from "lucide-react";
 
 const NAV = [
   { label: "Leads", href: "/leads", icon: Users },
@@ -20,15 +18,15 @@ const NAV = [
 export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const router = useRouter();
   const [query, setQuery] = React.useState("");
-  const [results, setResults] = React.useState<Lead[]>([]);
+  const [results, setResults] = React.useState<UniversalSearchResults>({ leads: [], users: [] });
   const [loading, setLoading] = React.useState(false);
 
-  // Debounced lead search.
+  // Debounced universal search (leads and team members).
   React.useEffect(() => {
-    if (query.trim().length < 2) { setResults([]); return; }
+    if (query.trim().length < 2) { setResults({ leads: [], users: [] }); return; }
     setLoading(true);
     const t = setTimeout(async () => {
-      try { setResults(await searchLeadsAction(query)); } catch { setResults([]); }
+      try { setResults(await searchUniversalAction(query)); } catch { setResults({ leads: [], users: [] }); }
       finally { setLoading(false); }
     }, 200);
     return () => clearTimeout(t);
@@ -43,16 +41,29 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange} shouldFilter={false}>
       {/* shouldFilter=false: results come from the server, not cmdk's local fuzzy match. */}
-      <CommandInput placeholder="Search leads or jump to…" value={query} onValueChange={setQuery} />
+      <CommandInput placeholder="Search leads, team members, or jump to…" value={query} onValueChange={setQuery} />
       <CommandList>
         <CommandEmpty>{loading ? "Searching…" : "No results."}</CommandEmpty>
-        {results.length > 0 && (
+        {results.leads.length > 0 && (
           <CommandGroup heading="Leads">
-            {results.map((l) => (
-              <CommandItem key={l.id} value={l.id} onSelect={() => go(`/leads/${l.id}`)}>
+            {results.leads.map((l) => (
+              <CommandItem key={l.id} value={`lead-${l.id}`} onSelect={() => go(`/leads/${l.id}`)}>
                 <Search className="mr-2 h-4 w-4 text-muted-foreground" />
                 <span className="font-medium">{l.name}</span>
                 <span className="ml-2 text-xs text-muted-foreground">{l.email || l.phone || l.company}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+        {results.users.length > 0 && (
+          <CommandGroup heading="Team Members">
+            {results.users.map((u) => (
+              <CommandItem key={u.id} value={`user-${u.id}`} onSelect={() => go(`/leads?owner=${u.id}`)}>
+                <User className="mr-2 h-4 w-4 text-muted-foreground" />
+                <span className="font-medium">{u.name}</span>
+                <span className="ml-2 text-xs text-muted-foreground">
+                  {u.roleName ? `${u.roleName} • ${u.email}` : u.email}
+                </span>
               </CommandItem>
             ))}
           </CommandGroup>
