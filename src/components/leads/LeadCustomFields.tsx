@@ -27,7 +27,7 @@ export function LeadCustomFields({ leadId, initialData }: { leadId: string; init
   const [saving, setSaving] = React.useState(false);
 
   React.useEffect(() => {
-    listCustomFieldsAction().then((r) => setDefs(r as CustomFieldDef[])).catch(() => {});
+    listCustomFieldsAction().then((r) => setDefs((r as CustomFieldDef[]).filter((f) => !f.disabled))).catch(() => {});
   }, []);
 
   const definedKeys = new Set(defs.map((d) => d.key));
@@ -36,7 +36,8 @@ export function LeadCustomFields({ leadId, initialData }: { leadId: string; init
   async function save() {
     setSaving(true);
     try {
-      const missing = defs.filter((d) => d.required && !(values[d.key] ?? "").trim());
+      const activeDefs = defs.filter((d) => !d.disabled);
+      const missing = activeDefs.filter((d) => d.required && !(String(values[d.key] ?? "")).trim());
       if (missing.length) {
         toast({ variant: "destructive", title: "Required field missing", description: missing.map((m) => m.label).join(", ") });
         return;

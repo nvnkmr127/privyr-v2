@@ -44,24 +44,26 @@ export function QuickAddLeadDrawer({ children }: { children?: React.ReactNode })
   const [serverError, setServerError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    if (open) {
-      setServerError(null);
-      listUsersAction().then(setUsers).catch(() => {});
-      listCustomFieldsAction()
-        .then((r) => {
-          const d = r as CustomFieldDef[];
-          setDefs(d);
-          setCustomValues(defaultCustomValues(d));
-        })
-        .catch(() => {
-          toast({
-            variant: "destructive",
-            title: "Custom fields unavailable",
-            description: "Could not load workspace custom fields. You can still add standard contact details.",
-          });
+    if (!open) return;
+    setServerError(null);
+    listUsersAction().then(setUsers).catch(() => {});
+    listCustomFieldsAction()
+      .then((r) => {
+        const d = (r as CustomFieldDef[]).filter((f) => !f.disabled);
+        setDefs(d);
+        setCustomValues((prev) => {
+          const defaults = defaultCustomValues(d);
+          return { ...defaults, ...prev };
         });
-    }
-  }, [open, toast]);
+      })
+      .catch(() => {
+        toast({
+          variant: "destructive",
+          title: "Custom fields unavailable",
+          description: "Could not load workspace custom fields. You can still add standard contact details.",
+        });
+      });
+  }, [open]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -76,7 +78,8 @@ export function QuickAddLeadDrawer({ children }: { children?: React.ReactNode })
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setServerError(null);
-    const missing = defs.filter((d) => d.required && !(customValues[d.key] ?? "").trim());
+    const activeDefs = defs.filter((d) => !d.disabled);
+    const missing = activeDefs.filter((d) => d.required && !(String(customValues[d.key] ?? "")).trim());
     if (missing.length) {
       const msg = `Please fill in required custom field: ${missing.map((m) => m.label).join(", ")}`;
       setServerError(msg);

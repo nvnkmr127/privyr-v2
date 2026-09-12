@@ -112,10 +112,13 @@ export class CustomFieldService {
       }
 
       switch (def.type) {
-        case "number":
-          if (isNaN(Number(raw))) throw new Error(`${def.label} must be a number`);
-          clean[def.key] = Number(raw);
+        case "number": {
+          const trimmed = typeof raw === "string" ? raw.trim().replace(/^[$,€£₹]/, "").replace(/,/g, "") : raw;
+          const num = Number(trimmed);
+          if (trimmed === "" || isNaN(num)) throw new Error(`${def.label} must be a number`);
+          clean[def.key] = num;
           break;
+        }
         case "checkbox":
           clean[def.key] = raw === true || raw === "true" || raw === "on" || raw === "1";
           break;
