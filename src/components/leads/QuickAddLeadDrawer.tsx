@@ -111,24 +111,25 @@ export function QuickAddLeadDrawer({ children }: { children?: React.ReactNode })
       });
       if (!res.ok) {
         let displayError = res.message;
-        const lower = res.message.toLowerCase();
-        if (lower.includes("duplicate") || lower.includes("email")) {
-          form.setError("email", { message: res.message });
-        }
-        if (lower.includes("duplicate") || lower.includes("phone")) {
-          form.setError("phone", { message: res.message });
-        }
         // Map server field errors back onto the matching inputs for inline display.
-        if (res.fieldErrors) {
-          const detailParts: string[] = [];
+        if (res.fieldErrors && Object.keys(res.fieldErrors).length > 0) {
           for (const [key, message] of Object.entries(res.fieldErrors)) {
             if (key === "name" || key === "email" || key === "phone" || key === "company" || key === "ownerId") {
               form.setError(key as any, { message });
             }
-            detailParts.push(`${key}: ${message}`);
           }
-          if (detailParts.length > 0) {
-            displayError = `${res.message} (${detailParts.join(", ")})`;
+        } else {
+          // Precise fallback only if no structured fieldErrors were returned
+          const lower = res.message.toLowerCase();
+          const hasEmail = lower.includes("email");
+          const hasPhone = lower.includes("phone") || lower.includes("number");
+          if (hasEmail && !hasPhone) {
+            form.setError("email", { message: res.message });
+          } else if (hasPhone && !hasEmail) {
+            form.setError("phone", { message: res.message });
+          } else if (hasEmail && hasPhone) {
+            form.setError("email", { message: "A lead with this email already exists." });
+            form.setError("phone", { message: "A lead with this phone number already exists." });
           }
         }
         setServerError(displayError);

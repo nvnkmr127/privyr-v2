@@ -52,10 +52,36 @@ export class LeadService {
       const orConds = [];
       if (cleanEmail) orConds.push(eq(leads.email, cleanEmail));
       if (cleanPhone) orConds.push(eq(leads.phone, cleanPhone));
-      const [existing] = await db.select({ id: leads.id }).from(leads)
-        .where(and(eq(leads.organizationId, organizationId), isNull(leads.deletedAt), or(...orConds)))
-        .limit(1);
-      if (existing) throw new Error("Duplicate lead found with the same email or phone");
+      const existing = await db
+        .select({ email: leads.email, phone: leads.phone })
+        .from(leads)
+        .where(and(eq(leads.organizationId, organizationId), isNull(leads.deletedAt), or(...orConds)));
+
+      const dupEmail = cleanEmail && existing.some((r) => r.email?.toLowerCase() === cleanEmail.toLowerCase());
+      const dupPhone = cleanPhone && existing.some((r) => r.phone === cleanPhone);
+
+      if (dupEmail && dupPhone) {
+        const err = new Error("Duplicate email and phone number: a lead with this email and phone already exists");
+        (err as any).fieldErrors = {
+          email: "A lead with this email already exists.",
+          phone: "A lead with this phone number already exists.",
+        };
+        throw err;
+      }
+      if (dupEmail) {
+        const err = new Error("Duplicate email: a lead with this email already exists");
+        (err as any).fieldErrors = {
+          email: "A lead with this email already exists.",
+        };
+        throw err;
+      }
+      if (dupPhone) {
+        const err = new Error("Duplicate phone number: a lead with this phone number already exists");
+        (err as any).fieldErrors = {
+          phone: "A lead with this phone number already exists.",
+        };
+        throw err;
+      }
     }
 
     let newLead;
@@ -74,8 +100,21 @@ export class LeadService {
     } catch (e: any) {
       // The pre-check above is racy; the partial unique indexes (leads_org_email_unique /
       // leads_org_phone_unique) are the real guard. Translate the constraint violation
-      // into the same duplicate message so concurrent inserts fail cleanly.
-      if (e?.code === "23505") throw new Error("Duplicate lead found with the same email or phone");
+      // into exact duplicate messages so concurrent inserts fail cleanly.
+      if (e?.code === "23505") {
+        const constraint = String(e?.constraint || e?.detail || e?.message || "");
+        if (constraint.includes("email")) {
+          const err = new Error("Duplicate email: a lead with this email already exists");
+          (err as any).fieldErrors = { email: "A lead with this email already exists." };
+          throw err;
+        }
+        if (constraint.includes("phone")) {
+          const err = new Error("Duplicate phone number: a lead with this phone number already exists");
+          (err as any).fieldErrors = { phone: "A lead with this phone number already exists." };
+          throw err;
+        }
+        throw new Error("Duplicate lead found with the same email or phone");
+      }
       throw e;
     }
 
@@ -92,12 +131,30 @@ export class LeadService {
     updatedById: string,
     organizationId: string,
   ) {
-    const [updatedLead] = await db.update(leads)
-      .set({ ...data, updatedAt: new Date() })
-      .where(and(eq(leads.id, leadId), eq(leads.organizationId, organizationId)))
-      .returning();
-    if (updatedLead) eventBus.emit('lead.updated', { leadId, userId: updatedById, changes: data });
-    return updatedLead;
+    try {
+      const [updatedLead] = await db.update(leads)
+        .set({ ...data, updatedAt: new Date() })
+        .where(and(eq(leads.id, leadId), eq(leads.organizationId, organizationId)))
+        .returning();
+      if (updatedLead) eventBus.emit('lead.updated', { leadId, userId: updatedById, changes: data });
+      return updatedLead;
+    } catch (e: any) {
+      if (e?.code === "23505") {
+        const constraint = String(e?.constraint || e?.detail || e?.message || "");
+        if (constraint.includes("email")) {
+          const err = new Error("Duplicate email: a lead with this email already exists");
+          (err as any).fieldErrors = { email: "A lead with this email already exists." };
+          throw err;
+        }
+        if (constraint.includes("phone")) {
+          const err = new Error("Duplicate phone number: a lead with this phone number already exists");
+          (err as any).fieldErrors = { phone: "A lead with this phone number already exists." };
+          throw err;
+        }
+        throw new Error("Duplicate lead found with the same email or phone");
+      }
+      throw e;
+    }
   }
 
   static async updateCustomData(leadId: string, customData: Record<string, unknown>, organizationId: string) {

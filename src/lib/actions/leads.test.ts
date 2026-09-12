@@ -144,4 +144,42 @@ describe("createLeadAction", () => {
       expect(res.message).toContain("company");
     }
   });
+
+  it("returns exact duplicate email error and fieldError on duplicate email", async () => {
+    const dupErr = new Error("Duplicate email: a lead with this email already exists");
+    (dupErr as any).fieldErrors = { email: "A lead with this email already exists." };
+    (LeadService.createLead as any).mockRejectedValue(dupErr);
+
+    const res = await createLeadAction({
+      name: "Jane Doe",
+      email: "jane@example.com",
+    });
+
+    expect(res.ok).toBe(false);
+    if (!res.ok) {
+      expect(res.code).toBe("CONFLICT");
+      expect(res.message).toBe("Duplicate email: a lead with this email already exists");
+      expect(res.fieldErrors?.email).toBe("A lead with this email already exists.");
+      expect(res.fieldErrors?.phone).toBeUndefined();
+    }
+  });
+
+  it("returns exact duplicate phone error and fieldError on duplicate phone", async () => {
+    const dupErr = new Error("Duplicate phone number: a lead with this phone number already exists");
+    (dupErr as any).fieldErrors = { phone: "A lead with this phone number already exists." };
+    (LeadService.createLead as any).mockRejectedValue(dupErr);
+
+    const res = await createLeadAction({
+      name: "Jane Doe",
+      phone: "+1234567890",
+    });
+
+    expect(res.ok).toBe(false);
+    if (!res.ok) {
+      expect(res.code).toBe("CONFLICT");
+      expect(res.message).toBe("Duplicate phone number: a lead with this phone number already exists");
+      expect(res.fieldErrors?.phone).toBe("A lead with this phone number already exists.");
+      expect(res.fieldErrors?.email).toBeUndefined();
+    }
+  });
 });
