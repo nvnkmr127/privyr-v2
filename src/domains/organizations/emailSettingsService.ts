@@ -106,8 +106,8 @@ export class EmailSettingsService {
     await transport.sendMail({
       from,
       to,
-      subject: "Privyr SMTP test",
-      html: "<p>Your Privyr SMTP settings are working. 🎉</p>",
+      subject: "Ridhzo SMTP test",
+      html: "<p>Your Ridhzo SMTP settings are working. 🎉</p>",
     });
   }
 

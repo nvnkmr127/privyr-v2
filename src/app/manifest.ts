@@ -4,8 +4,8 @@ import type { MetadataRoute } from "next";
 // so it launches standalone like Privyr's native app. Served at /manifest.webmanifest.
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Privyr CRM",
-    short_name: "Privyr",
+    name: "Ridhzo CRM",
+    short_name: "Ridhzo",
     description: "Lead capture, instant alerts, and one-tap messaging.",
     start_url: "/",
     display: "standalone",

@@ -38,7 +38,7 @@ export class NotificationService {
       await sendEmail({
         to: user.email,
         subject: data.title,
-        html: `<p>${data.body ?? data.title}</p><p><a href="${link}">Open in Privyr</a></p>`,
+        html: `<p>${data.body ?? data.title}</p><p><a href="${link}">Open in Ridhzo</a></p>`,
       });
     } catch (e) {
       console.error("[notifications] email failed", e);

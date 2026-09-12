@@ -38,7 +38,7 @@ export function Header() {
       <CommandPalette open={searchOpen} onOpenChange={setSearchOpen} />
       <div className="flex items-center flex-1 gap-2">
         <MobileSidebar />
-        <span className="md:hidden text-base font-semibold tracking-tight">Privyr</span>
+        <span className="md:hidden text-base font-semibold tracking-tight">Ridhzo</span>
         <button
           type="button"
           onClick={() => setSearchOpen(true)}

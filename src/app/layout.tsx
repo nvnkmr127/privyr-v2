@@ -15,10 +15,10 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Privyr CRM",
+  title: "Ridhzo CRM",
   description: "Lead capture, instant alerts, and one-tap messaging.",
-  applicationName: "Privyr",
-  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Privyr" },
+  applicationName: "Ridhzo",
+  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Ridhzo" },
   icons: {
     icon: [{ url: "/icon.svg", type: "image/svg+xml" }, { url: "/icon-192.png", sizes: "192x192", type: "image/png" }],
     apple: [{ url: "/apple-icon.png", sizes: "180x180" }],

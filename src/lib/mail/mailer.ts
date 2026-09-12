@@ -4,7 +4,7 @@ import { Resend } from "resend";
 
 type Mail = { to: string; subject: string; html: string };
 
-const FROM = process.env.MAIL_FROM || "Privyr <onboarding@resend.dev>";
+const FROM = process.env.MAIL_FROM || "Ridhzo <onboarding@resend.dev>";
 
 // Lazily construct one client (reads the key at first use, then caches null-or-client).
 let client: Resend | null | undefined;

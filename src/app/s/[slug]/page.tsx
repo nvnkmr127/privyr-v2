@@ -59,7 +59,7 @@ export default async function SharedContentPage({ params }: { params: Promise<{ 
           </a>
         )}
 
-        <p className="text-xs text-muted-foreground">Sent securely via Privyr</p>
+        <p className="text-xs text-muted-foreground">Sent securely via Ridhzo</p>
       </div>
     </main>
   );

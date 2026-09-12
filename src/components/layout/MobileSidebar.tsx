@@ -27,7 +27,7 @@ export function MobileSidebar() {
           <div className="absolute inset-0 bg-black/70 animate-in fade-in-0" onClick={() => setOpen(false)} />
           <aside className="absolute left-0 top-0 flex h-full w-64 flex-col border-r border-border bg-card animate-in slide-in-from-left duration-200">
             <div className="flex h-14 items-center justify-between px-6 border-b border-border">
-              <span className="text-base font-semibold tracking-tight">Privyr</span>
+              <span className="text-base font-semibold tracking-tight">Ridhzo</span>
               <button
                 type="button"
                 onClick={() => setOpen(false)}

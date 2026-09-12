@@ -72,7 +72,7 @@ export function BillingManager({
       const rzp = new window.Razorpay({
         key: keyId,
         subscription_id: subscriptionId,
-        name: "Privyr",
+        name: "Ridhzo",
         description: `${target} plan`,
         handler: async (resp: any) => {
           try {

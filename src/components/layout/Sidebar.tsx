@@ -12,7 +12,7 @@ export function Sidebar({ isSuperAdmin = false }: { isSuperAdmin?: boolean }) {
   return (
     <aside className="hidden md:flex flex-col h-full w-64 flex-shrink-0 border-r border-border bg-card">
       <div className="h-14 flex items-center px-6 border-b border-border">
-        <span className="text-base font-semibold tracking-tight">Privyr</span>
+        <span className="text-base font-semibold tracking-tight">Ridhzo</span>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-5 space-y-6">
