@@ -43,27 +43,31 @@ export function QuickAddLeadDrawer({ children }: { children?: React.ReactNode })
   const [users, setUsers] = React.useState<Array<{ id: string; name: string }>>([]);
   const [serverError, setServerError] = React.useState<string | null>(null);
 
-  React.useEffect(() => {
-    if (!open) return;
-    setServerError(null);
-    listUsersAction().then(setUsers).catch(() => {});
+  const fetchCustomFields = React.useCallback(() => {
     listCustomFieldsAction()
       .then((r) => {
-        const d = (r as CustomFieldDef[]).filter((f) => !f.disabled);
+        const list = Array.isArray(r) ? r : Array.isArray((r as any)?.data) ? (r as any).data : [];
+        const d = (list as CustomFieldDef[]).filter((f) => !f.disabled);
         setDefs(d);
-        setCustomValues((prev) => {
-          const defaults = defaultCustomValues(d);
-          return { ...defaults, ...prev };
-        });
+        setCustomValues((prev) => ({ ...defaultCustomValues(d), ...prev }));
       })
-      .catch(() => {
-        toast({
-          variant: "destructive",
-          title: "Custom fields unavailable",
-          description: "Could not load workspace custom fields. You can still add standard contact details.",
-        });
-      });
-  }, [open]);
+      .catch(() => {});
+  }, []);
+
+  // Preload on mount so fields are immediately available with 0 delay when opening
+  React.useEffect(() => {
+    fetchCustomFields();
+    listUsersAction().then(setUsers).catch(() => {});
+  }, [fetchCustomFields]);
+
+  // Re-fetch when opening to pick up any fields created in Settings
+  React.useEffect(() => {
+    if (open) {
+      setServerError(null);
+      fetchCustomFields();
+      listUsersAction().then(setUsers).catch(() => {});
+    }
+  }, [open, fetchCustomFields]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -251,7 +255,11 @@ export function QuickAddLeadDrawer({ children }: { children?: React.ReactNode })
               />
               
               {defs.length > 0 && (
-                <div className="border-t pt-3">
+                <div className="border-t border-border pt-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Custom Fields</h4>
+                    <span className="text-xs text-muted-foreground">{defs.length} field{defs.length === 1 ? "" : "s"}</span>
+                  </div>
                   <CustomFieldInputs defs={defs} values={customValues} onChange={(k, v) => setCustomValues((s) => ({ ...s, [k]: v }))} />
                 </div>
               )}

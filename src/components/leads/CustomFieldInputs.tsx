@@ -47,7 +47,7 @@ export function CustomFieldInputs({
   if (visible.length === 0) return null;
 
   function renderField(f: CustomFieldDef) {
-    const val = values[f.key] ?? "";
+    const val = String(values[f.key] ?? "");
     const req = f.required;
     const id = `cf-${f.key}`;
     return (

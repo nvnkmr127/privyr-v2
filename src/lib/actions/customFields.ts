@@ -34,6 +34,8 @@ export async function createCustomFieldAction(input: z.infer<typeof createSchema
   try {
     const row = await CustomFieldService.create(organizationId, parsed.data);
     revalidatePath("/settings/custom-fields");
+    revalidatePath("/leads");
+    revalidatePath("/");
     return ok(row);
   } catch (e) {
     return actionFail(e);
@@ -61,6 +63,8 @@ export async function updateCustomFieldAction(input: z.infer<typeof updateSchema
   try {
     const row = await CustomFieldService.update(organizationId, id, patch);
     revalidatePath("/settings/custom-fields");
+    revalidatePath("/leads");
+    revalidatePath("/");
     return ok(row);
   } catch (e) {
     return actionFail(e);
@@ -72,6 +76,8 @@ export async function reorderCustomFieldsAction(orderedIds: string[]) {
   try {
     const res = await CustomFieldService.reorder(organizationId, orderedIds);
     revalidatePath("/settings/custom-fields");
+    revalidatePath("/leads");
+    revalidatePath("/");
     return ok(res);
   } catch (e) {
     return actionFail(e);
@@ -83,6 +89,8 @@ export async function deleteCustomFieldAction(id: string) {
   try {
     await CustomFieldService.remove(organizationId, id);
     revalidatePath("/settings/custom-fields");
+    revalidatePath("/leads");
+    revalidatePath("/");
     return ok({ deleted: true });
   } catch (e) {
     return actionFail(e);
