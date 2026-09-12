@@ -13,13 +13,15 @@ import { ActivityService } from "@/domains/activities/service";
 import { ok, fail, actionFail, zodFieldErrors, type ActionResult } from "@/lib/actions/result";
 
 const emptyStringToUndefined = z.string().regex(/^\s*$/).transform(() => "");
+const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+const uuidSchema = z.string().regex(uuidRegex, "Invalid ID");
 
 const createLeadSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(255),
   email: z.string().trim().email("Invalid email").optional().or(z.literal("")).or(emptyStringToUndefined),
   phone: z.string().trim().max(50, "Phone number too long").optional().or(z.literal("")).or(emptyStringToUndefined),
   company: z.string().trim().max(255).optional().or(z.literal("")).or(emptyStringToUndefined),
-  ownerId: z.string().uuid("Invalid owner ID").optional().or(z.literal("")).or(emptyStringToUndefined),
+  ownerId: uuidSchema.optional().or(z.literal("")).or(emptyStringToUndefined),
   customData: z.record(z.string(), z.unknown()).optional(),
 });
 
@@ -58,7 +60,9 @@ export async function createLeadAction(
     await PlanService.assertCanAddLead(organizationId);
 
     // Validate + clean org-defined custom fields.
+    console.log(`[createLeadAction:Server] org=${organizationId} validating customData:`, parsed.data.customData);
     const customData = await CustomFieldService.validate(organizationId, parsed.data.customData ?? {});
+    console.log(`[createLeadAction:Server] validated customData:`, customData);
 
     const lead = await LeadService.createLead({ ...data, customData }, userId, organizationId);
 
@@ -67,12 +71,13 @@ export async function createLeadAction(
     revalidatePath('/leads');
     return ok(lead);
   } catch (e) {
+    console.error(`[createLeadAction:Server] failed to create lead:`, e);
     return actionFail(e);
   }
 }
 
 const updateLeadSchema = z.object({
-  id: z.string().uuid(),
+  id: uuidSchema,
   name: z.string().min(1, "Name is required").max(255).optional(),
   email: z.string().email("Invalid email").optional().or(z.literal("")),
   phone: z.string().optional().or(z.literal("")),
@@ -136,7 +141,7 @@ export async function deleteLeadAction(id: string) {
   }
 }
 
-const bulkDeleteSchema = z.object({ leadIds: z.array(z.string().uuid()).min(1) });
+const bulkDeleteSchema = z.object({ leadIds: z.array(uuidSchema).min(1) });
 
 // Soft-delete many leads to the recycle bin at once. Reports partial success —
 // one failing row never aborts the batch.
@@ -228,7 +233,7 @@ export async function changeLeadStatusAction(id: string, status: string, reason?
 }
 
 const bulkChangeStatusSchema = z.object({
-  leadIds: z.array(z.string().uuid()).min(1),
+  leadIds: z.array(uuidSchema).min(1),
   status: z.string().min(1),
 });
 
@@ -258,7 +263,7 @@ export async function bulkChangeLeadStatusAction(input: z.infer<typeof bulkChang
 }
 
 const addNoteSchema = z.object({
-  leadId: z.string().uuid(),
+  leadId: uuidSchema,
   content: z.string().trim().min(1, "Note cannot be empty").max(10000, "Note cannot exceed 10,000 characters"),
 });
 
@@ -289,8 +294,8 @@ export async function addNoteAction(input: z.infer<typeof addNoteSchema>) {
 }
 
 const deleteNoteSchema = z.object({
-  noteId: z.string().uuid(),
-  leadId: z.string().uuid(),
+  noteId: uuidSchema,
+  leadId: uuidSchema,
 });
 
 export async function deleteNoteAction(noteId: string, leadId: string) {
@@ -317,8 +322,8 @@ export async function deleteNoteAction(noteId: string, leadId: string) {
 }
 
 const updateNoteSchema = z.object({
-  noteId: z.string().uuid(),
-  leadId: z.string().uuid(),
+  noteId: uuidSchema,
+  leadId: uuidSchema,
   content: z.string().trim().min(1, "Note cannot be empty").max(10000, "Note cannot exceed 10,000 characters"),
 });
 

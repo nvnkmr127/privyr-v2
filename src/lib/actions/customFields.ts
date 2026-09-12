@@ -8,7 +8,9 @@ import { ok, fail, actionFail, zodFieldErrors } from "@/lib/actions/result";
 
 export async function listCustomFieldsAction() {
   const { organizationId } = await requireOrg();
-  return CustomFieldService.list(organizationId);
+  const fields = await CustomFieldService.list(organizationId);
+  console.log(`[CustomFields:Server] listCustomFieldsAction: org=${organizationId} count=${fields.length}`, fields.map((f) => ({ key: f.key, label: f.label, disabled: f.disabled })));
+  return fields;
 }
 
 const TYPES = ["text", "textarea", "number", "date", "datetime", "select", "multiselect", "checkbox", "url"] as const;

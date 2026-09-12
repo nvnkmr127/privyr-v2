@@ -99,6 +99,21 @@ describe("createLeadAction", () => {
     );
   });
 
+  it("accepts seed UUIDs (e.g. 00000000-0000-0000-0000-000000000001) for ownerId", async () => {
+    (LeadService.createLead as any).mockResolvedValue({
+      id: "lead-3",
+      name: "Seed Assigned Lead",
+      ownerId: "00000000-0000-0000-0000-000000000001",
+    });
+
+    const res = await createLeadAction({
+      name: "Seed Assigned Lead",
+      ownerId: "00000000-0000-0000-0000-000000000001",
+    });
+
+    expect(res.ok).toBe(true);
+  });
+
   it("fails when name is missing or only whitespace", async () => {
     const res = await createLeadAction({
       name: "   ",

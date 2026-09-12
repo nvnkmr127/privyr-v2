@@ -44,14 +44,19 @@ export function QuickAddLeadDrawer({ children }: { children?: React.ReactNode })
   const [serverError, setServerError] = React.useState<string | null>(null);
 
   const fetchCustomFields = React.useCallback(() => {
+    console.log("[QuickAddLeadDrawer:Client] Fetching custom fields...");
     listCustomFieldsAction()
       .then((r) => {
+        console.log("[QuickAddLeadDrawer:Client] Raw response from listCustomFieldsAction:", r);
         const list = Array.isArray(r) ? r : Array.isArray((r as any)?.data) ? (r as any).data : [];
         const d = (list as CustomFieldDef[]).filter((f) => !f.disabled);
+        console.log(`[QuickAddLeadDrawer:Client] Parsed ${d.length} active custom field definition(s):`, d);
         setDefs(d);
         setCustomValues((prev) => ({ ...defaultCustomValues(d), ...prev }));
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error("[QuickAddLeadDrawer:Client] Failed to load custom fields:", err);
+      });
   }, []);
 
   // Preload on mount so fields are immediately available with 0 delay when opening
@@ -82,6 +87,7 @@ export function QuickAddLeadDrawer({ children }: { children?: React.ReactNode })
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setServerError(null);
+    console.log("[QuickAddLeadDrawer:Client] Submitting lead form:", { values, customValues });
     const activeDefs = defs.filter((d) => !d.disabled);
     const missing = activeDefs.filter((d) => d.required && !(String(customValues[d.key] ?? "")).trim());
     if (missing.length) {
@@ -104,7 +110,7 @@ export function QuickAddLeadDrawer({ children }: { children?: React.ReactNode })
         customData: customValues,
       });
       if (!res.ok) {
-        setServerError(res.message);
+        let displayError = res.message;
         const lower = res.message.toLowerCase();
         if (lower.includes("duplicate") || lower.includes("email")) {
           form.setError("email", { message: res.message });
@@ -114,16 +120,22 @@ export function QuickAddLeadDrawer({ children }: { children?: React.ReactNode })
         }
         // Map server field errors back onto the matching inputs for inline display.
         if (res.fieldErrors) {
+          const detailParts: string[] = [];
           for (const [key, message] of Object.entries(res.fieldErrors)) {
-            if (key === "name" || key === "email" || key === "phone" || key === "company") {
+            if (key === "name" || key === "email" || key === "phone" || key === "company" || key === "ownerId") {
               form.setError(key as any, { message });
             }
+            detailParts.push(`${key}: ${message}`);
+          }
+          if (detailParts.length > 0) {
+            displayError = `${res.message} (${detailParts.join(", ")})`;
           }
         }
+        setServerError(displayError);
         toast({
           variant: "destructive",
           title: "Unable to create lead",
-          description: res.message,
+          description: displayError,
         });
         return;
       }
