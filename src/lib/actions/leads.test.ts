@@ -76,6 +76,29 @@ describe("createLeadAction", () => {
     );
   });
 
+  it("passes ownerId to LeadService.createLead when specified", async () => {
+    (LeadService.createLead as any).mockResolvedValue({
+      id: "lead-2",
+      name: "Assigned Lead",
+      ownerId: "11111111-1111-4111-8111-111111111111",
+    });
+
+    const res = await createLeadAction({
+      name: "Assigned Lead",
+      ownerId: "11111111-1111-4111-8111-111111111111",
+    });
+
+    expect(res.ok).toBe(true);
+    expect(LeadService.createLead).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Assigned Lead",
+        ownerId: "11111111-1111-4111-8111-111111111111",
+      }),
+      "user-1",
+      "org-1",
+    );
+  });
+
   it("fails when name is missing or only whitespace", async () => {
     const res = await createLeadAction({
       name: "   ",

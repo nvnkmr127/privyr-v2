@@ -80,6 +80,9 @@ export class LeadService {
     }
 
     eventBus.emit('lead.created', { leadId: newLead.id, userId: createdById ?? undefined });
+    if (newLead.ownerId && newLead.ownerId !== createdById) {
+      eventBus.emit('lead.assigned', { leadId: newLead.id, ownerId: newLead.ownerId, assignedById: createdById ?? undefined });
+    }
     return newLead;
   }
 

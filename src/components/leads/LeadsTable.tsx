@@ -8,8 +8,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { ChevronLeft, ChevronRight, Download, Tag, MessageCircle, Trash } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Tag, MessageCircle, Trash, Trash2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { sendCampaignAction } from "@/lib/actions/campaigns";
 import { useToast } from "@/hooks/use-toast";
 import { listUsersAction } from "@/lib/actions/users";
@@ -78,6 +86,9 @@ export function LeadsTable({
   React.useEffect(() => {
     listUsersAction().then(setUsers).catch(() => {});
   }, []);
+
+  const [leadToDelete, setLeadToDelete] = React.useState<Lead | null>(null);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
 
   const allSelected = leads.length > 0 && selected.size === leads.length;
 
@@ -270,11 +281,7 @@ export function LeadsTable({
             variant="outline"
             size="sm"
             disabled={busy}
-            onClick={() => {
-              if (confirm(`Move ${selected.size} lead${selected.size === 1 ? "" : "s"} to the recycle bin?`)) {
-                run(() => bulkDeleteLeadsAction({ leadIds: ids() }), "Leads moved to recycle bin");
-              }
-            }}
+            onClick={() => setBulkDeleteOpen(true)}
             className="h-9 gap-1.5 text-destructive hover:text-destructive"
           >
             <Trash className="h-4 w-4" />
@@ -391,11 +398,7 @@ export function LeadsTable({
                       size="icon"
                       className="text-destructive hover:text-destructive"
                       title="Move to recycle bin"
-                      onClick={() => {
-                        if (confirm(`Move ${lead.name || "this lead"} to the recycle bin?`)) {
-                          run(() => deleteLeadAction(lead.id), "Moved to recycle bin");
-                        }
-                      }}
+                      onClick={() => setLeadToDelete(lead)}
                     >
                       <Trash className="h-4 w-4" />
                     </Button>
@@ -455,6 +458,64 @@ export function LeadsTable({
           </div>
         </div>
       </div>
+
+      {/* Delete Single Lead Confirmation Dialog */}
+      <Dialog open={!!leadToDelete} onOpenChange={(open) => { if (!open) setLeadToDelete(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Move lead to recycle bin?</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete <span className="font-semibold text-foreground">{leadToDelete?.name || "this lead"}</span>? It will be moved to the recycle bin where it can be restored within 30 days.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setLeadToDelete(null)} disabled={busy}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={busy}
+              onClick={() => {
+                if (leadToDelete) {
+                  const target = leadToDelete;
+                  setLeadToDelete(null);
+                  run(() => deleteLeadAction(target.id), `"${target.name || "Lead"}" moved to recycle bin`);
+                }
+              }}
+            >
+              {busy ? "Moving..." : "Move to Recycle Bin"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <Dialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Move {selected.size} leads to recycle bin?</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete <span className="font-semibold text-foreground">{selected.size} selected lead{selected.size === 1 ? "" : "s"}</span>? They will be moved to the recycle bin where they can be restored within 30 days.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setBulkDeleteOpen(false)} disabled={busy}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={busy}
+              onClick={() => {
+                const count = selected.size;
+                setBulkDeleteOpen(false);
+                run(() => bulkDeleteLeadsAction({ leadIds: ids() }), `${count} lead${count === 1 ? "" : "s"} moved to recycle bin`);
+              }}
+            >
+              {busy ? "Moving..." : `Move ${selected.size} Leads to Recycle Bin`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

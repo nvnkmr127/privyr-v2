@@ -13,8 +13,8 @@ import {
   deleteUserAction,
 } from "@/lib/actions/users"
 import { createTeamAction } from "@/lib/actions/teams"
-import { inviteUserAction } from "@/lib/actions/invitations"
-import { UserPlus, Plus, Trash2, Mail } from "lucide-react"
+import { inviteUserAction, revokeInvitationAction } from "@/lib/actions/invitations"
+import { UserPlus, Plus, Trash2, Mail, X } from "lucide-react"
 
 type User = {
   id: string;
@@ -134,11 +134,19 @@ export function UsersManager({
   }
 
   async function create() {
-    if (!form.email.trim() || form.password.length < 6) return;
+    const trimmedEmail = form.email.trim();
+    if (!trimmedEmail) {
+      toast({ variant: "destructive", title: "Email required", description: "Please enter an email address." });
+      return;
+    }
+    if (form.password.length < 6) {
+      toast({ variant: "destructive", title: "Password too short", description: "Initial password must be at least 6 characters." });
+      return;
+    }
     setSaving(true);
     try {
       const res = await createUserAction({
-        email: form.email.trim(),
+        email: trimmedEmail,
         firstName: form.firstName.trim() || undefined,
         lastName: form.lastName.trim() || undefined,
         password: form.password,
@@ -148,13 +156,31 @@ export function UsersManager({
         toast({ variant: "destructive", title: "Could not create user", description: res.message });
         return;
       }
-      setUsers((prev) => [...prev, res.data as User]);
+      const newUser = res.data as User;
+      setUsers((prev) => [...prev.filter((u) => u.id !== newUser.id), newUser]);
       setForm({ firstName: "", lastName: "", email: "", password: "", roleId: NO_ROLE });
       toast({ title: "User created" });
     } catch {
       toast({ variant: "destructive", title: "Could not create user", description: "We couldn't reach the server. Please try again." });
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function revokeInvite(id: string) {
+    const prev = invites;
+    setInvites((p) => p.filter((i) => i.id !== id));
+    try {
+      const res = await revokeInvitationAction(id);
+      if (!res.ok) {
+        setInvites(prev);
+        toast({ variant: "destructive", title: "Could not revoke invite", description: res.message });
+        return;
+      }
+      toast({ title: "Invitation revoked" });
+    } catch {
+      setInvites(prev);
+      toast({ variant: "destructive", title: "Could not revoke invite", description: "We couldn't reach the server. Please try again." });
     }
   }
 
@@ -228,25 +254,32 @@ export function UsersManager({
 
       <div className="border rounded-2xl p-6 bg-card space-y-4">
         <h3 className="font-semibold">Or add a member directly</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Input placeholder="First name" value={form.firstName} onChange={(e) => set("firstName", e.target.value)} />
-          <Input placeholder="Last name" value={form.lastName} onChange={(e) => set("lastName", e.target.value)} />
-          <Input type="email" placeholder="Email" value={form.email} onChange={(e) => set("email", e.target.value)} />
-          <Input type="password" placeholder="Initial password (min 6)" value={form.password}
-            onChange={(e) => set("password", e.target.value)} />
-          <Select value={form.roleId} onValueChange={(v) => set("roleId", v)}>
-            <SelectTrigger><SelectValue placeholder="No role" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value={NO_ROLE}>No role</SelectItem>
-              {roles.map((r) => <SelectItem key={r.id} value={r.id} className="capitalize">{r.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex justify-end">
-          <Button onClick={create} disabled={saving || !form.email.trim() || form.password.length < 6} className="gap-2">
-            <UserPlus className="h-4 w-4" />{saving ? "Creating…" : "Create user"}
-          </Button>
-        </div>
+        <form onSubmit={(e) => { e.preventDefault(); create(); }} className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input placeholder="First name" value={form.firstName} onChange={(e) => set("firstName", e.target.value)} />
+            <Input placeholder="Last name" value={form.lastName} onChange={(e) => set("lastName", e.target.value)} />
+            <Input type="email" placeholder="Email" value={form.email} onChange={(e) => set("email", e.target.value)} />
+            <div>
+              <Input type="password" placeholder="Initial password (min 6 characters)" value={form.password}
+                onChange={(e) => set("password", e.target.value)} />
+              {form.password && form.password.length < 6 && (
+                <p className="text-xs text-destructive mt-1">Must be at least 6 characters</p>
+              )}
+            </div>
+            <Select value={form.roleId} onValueChange={(v) => set("roleId", v)}>
+              <SelectTrigger><SelectValue placeholder="No role" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_ROLE}>No role</SelectItem>
+                {roles.map((r) => <SelectItem key={r.id} value={r.id} className="capitalize">{r.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex justify-end">
+            <Button type="submit" disabled={saving || !form.email.trim()} className="gap-2">
+              <UserPlus className="h-4 w-4" />{saving ? "Creating…" : "Create user"}
+            </Button>
+          </div>
+        </form>
       </div>
 
       {invites.length > 0 && (
@@ -263,7 +296,18 @@ export function UsersManager({
                     {roleName && <Badge variant="outline" className="capitalize">{roleName}</Badge>}
                     <Badge variant="secondary">Pending</Badge>
                   </div>
-                  <span className="text-xs text-muted-foreground">Expires {new Date(inv.expiresAt).toLocaleDateString()}</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-muted-foreground">Expires {new Date(inv.expiresAt).toLocaleDateString()}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => revokeInvite(inv.id)}
+                      title="Revoke invitation"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               );
             })}

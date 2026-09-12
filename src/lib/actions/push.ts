@@ -23,3 +23,7 @@ export async function unsubscribePushAction(endpoint: string) {
     return actionFail(e);
   }
 }
+
+export async function getVapidPublicKeyAction(): Promise<string> {
+  return process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || process.env.VAPID_PUBLIC_KEY || "";
+}

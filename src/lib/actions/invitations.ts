@@ -14,7 +14,7 @@ import { z } from "zod";
 import { ok, fail, actionFail, zodFieldErrors } from "@/lib/actions/result";
 
 const inviteSchema = z.object({
-  email: z.string().email(),
+  email: z.string().trim().toLowerCase().email(),
   roleId: z.string().uuid().nullable().optional(),
 });
 
@@ -54,6 +54,18 @@ export async function inviteUserAction(input: z.infer<typeof inviteSchema>) {
 
     revalidatePath("/settings/users");
     return ok({ invite, emailed, link });
+  } catch (e) {
+    return actionFail(e);
+  }
+}
+
+export async function revokeInvitationAction(id: string) {
+  const { organizationId, userId } = await requirePermission("users.manage");
+  try {
+    await InvitationService.revoke(organizationId, id);
+    await AuditService.log({ organizationId, userId, action: "invitation.revoke", entityType: "invitation", entityId: id });
+    revalidatePath("/settings/users");
+    return ok({ id });
   } catch (e) {
     return actionFail(e);
   }

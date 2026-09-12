@@ -42,9 +42,9 @@ export async function listAllUsersAction() {
 }
 
 const createUserSchema = z.object({
-  email: z.string().email(),
-  firstName: z.string().max(255).optional(),
-  lastName: z.string().max(255).optional(),
+  email: z.string().trim().toLowerCase().email(),
+  firstName: z.string().trim().max(255).optional(),
+  lastName: z.string().trim().max(255).optional(),
   password: z.string().min(6, "Password must be at least 6 characters"),
   roleId: z.string().uuid().nullable().optional(),
 });

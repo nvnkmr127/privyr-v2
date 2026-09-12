@@ -21,14 +21,18 @@ export class InvitationService {
 
   // Creates a pending invite and returns the raw token (embed it in the accept link).
   static async create(organizationId: string, email: string, roleId: string | null, invitedById: string) {
-    const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+    const cleanEmail = email.trim().toLowerCase();
+    const [existing] = await db.select({ id: users.id }).from(users).where(and(eq(users.email, cleanEmail), isNull(users.deletedAt))).limit(1);
     if (existing) throw new Error("A user with that email already exists");
+
+    // Remove any earlier pending invitations for this email in this org to avoid duplicate seats
+    await db.delete(invitations).where(and(eq(invitations.organizationId, organizationId), eq(invitations.email, cleanEmail), isNull(invitations.acceptedAt)));
 
     const raw = crypto.randomBytes(24).toString("hex");
     const expiresAt = new Date(Date.now() + TTL_DAYS * 24 * 60 * 60 * 1000);
     const [inv] = await db
       .insert(invitations)
-      .values({ organizationId, email, roleId, invitedById, tokenHash: hash(raw), expiresAt })
+      .values({ organizationId, email: cleanEmail, roleId, invitedById, tokenHash: hash(raw), expiresAt })
       .returning({ id: invitations.id, email: invitations.email, roleId: invitations.roleId, expiresAt: invitations.expiresAt });
     return { token: raw, invite: inv };
   }
@@ -68,5 +72,11 @@ export class InvitationService {
 
     await db.update(invitations).set({ acceptedAt: new Date() }).where(eq(invitations.id, inv.id));
     return user;
+  }
+
+  static async revoke(organizationId: string, id: string) {
+    await db
+      .delete(invitations)
+      .where(and(eq(invitations.id, id), eq(invitations.organizationId, organizationId), isNull(invitations.acceptedAt)));
   }
 }

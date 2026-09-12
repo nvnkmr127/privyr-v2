@@ -3,7 +3,7 @@ import * as React from "react"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { Bell, BellOff } from "lucide-react"
-import { subscribePushAction, unsubscribePushAction } from "@/lib/actions/push"
+import { subscribePushAction, unsubscribePushAction, getVapidPublicKeyAction } from "@/lib/actions/push"
 
 // VAPID public key is base64url; PushManager wants a Uint8Array.
 function urlBase64ToUint8Array(base64: string) {
@@ -20,7 +20,7 @@ export function EnablePushButton() {
   const [busy, setBusy] = React.useState(false);
 
   React.useEffect(() => {
-    const ok = "serviceWorker" in navigator && "PushManager" in window;
+    const ok = typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window;
     setSupported(ok);
     if (ok) {
       navigator.serviceWorker.getRegistration().then((reg) =>
@@ -32,12 +32,35 @@ export function EnablePushButton() {
   async function enable() {
     setBusy(true);
     try {
-      const key = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-      if (!key) throw new Error("Push not configured");
+      if (typeof window !== "undefined" && !window.isSecureContext) {
+        throw new Error("Push notifications require a secure connection (HTTPS).");
+      }
+      if (typeof Notification !== "undefined" && Notification.permission === "denied") {
+        toast({
+          variant: "destructive",
+          title: "Notifications blocked",
+          description: "Notifications are blocked in your browser settings. Please allow notifications for this site to receive alerts.",
+        });
+        return;
+      }
+      let key = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+      if (!key) {
+        key = await getVapidPublicKeyAction();
+      }
+      key = key?.replace(/^["']|["']$/g, "").trim();
+      if (!key) throw new Error("Push notifications are not configured on this server (missing VAPID public key).");
+
       const reg = await navigator.serviceWorker.register("/sw.js");
       await navigator.serviceWorker.ready;
       const perm = await Notification.requestPermission();
-      if (perm !== "granted") { toast({ variant: "destructive", title: "Notifications blocked" }); return; }
+      if (perm !== "granted") {
+        toast({
+          variant: "destructive",
+          title: "Permission not granted",
+          description: "Notification permission was dismissed or blocked.",
+        });
+        return;
+      }
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(key),
@@ -49,10 +72,9 @@ export function EnablePushButton() {
         return;
       }
       setEnabled(true);
-      toast({ title: "Push notifications enabled" });
+      toast({ title: "Push notifications enabled", description: "You will now receive alerts for new leads." });
     } catch (e: any) {
-      // Client-side/browser errors keep their (safe) message here.
-      toast({ variant: "destructive", title: "Could not enable push", description: e?.message });
+      toast({ variant: "destructive", title: "Could not enable push", description: e?.message || "Failed to subscribe." });
     } finally {
       setBusy(false);
     }

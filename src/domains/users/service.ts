@@ -30,12 +30,40 @@ export class UserService {
     organizationId: string,
     input: { email: string; firstName?: string; lastName?: string; password: string; roleId?: string | null },
   ) {
+    const cleanEmail = input.email.trim().toLowerCase();
+    const [existing] = await db
+      .select({ id: users.id, organizationId: users.organizationId, deletedAt: users.deletedAt, firstName: users.firstName, lastName: users.lastName, roleId: users.roleId })
+      .from(users)
+      .where(eq(users.email, cleanEmail))
+      .limit(1);
+
     const passwordHash = await bcrypt.hash(input.password, 10);
+
+    if (existing) {
+      if (existing.organizationId === organizationId && existing.deletedAt) {
+        const [restored] = await db
+          .update(users)
+          .set({
+            firstName: input.firstName || existing.firstName,
+            lastName: input.lastName || existing.lastName,
+            roleId: input.roleId !== undefined ? input.roleId : existing.roleId,
+            passwordHash,
+            isActive: true,
+            deletedAt: null,
+            updatedAt: new Date(),
+          })
+          .where(eq(users.id, existing.id))
+          .returning(publicCols);
+        return restored;
+      }
+      throw new Error("A user with that email already exists");
+    }
+
     const [u] = await db
       .insert(users)
       .values({
         organizationId,
-        email: input.email,
+        email: cleanEmail,
         firstName: input.firstName,
         lastName: input.lastName,
         roleId: input.roleId ?? null,

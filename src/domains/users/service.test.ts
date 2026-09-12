@@ -6,7 +6,17 @@ vi.mock("@/db", () => ({ db: { select: vi.fn(), insert: vi.fn(), update: vi.fn()
 vi.mock("bcryptjs", () => ({ default: { hash: vi.fn().mockResolvedValue("hashed") } }));
 
 describe("UserService tenant scoping", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (db.select as any).mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          limit: vi.fn().mockResolvedValue([]),
+          orderBy: vi.fn().mockResolvedValue([]),
+        }),
+      }),
+    });
+  });
 
   it("create stamps the caller's organizationId (the orphaned-user bug)", async () => {
     const values = vi.fn().mockReturnValue({ returning: vi.fn().mockResolvedValue([{ id: "u1" }]) });

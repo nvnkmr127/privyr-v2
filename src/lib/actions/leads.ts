@@ -19,6 +19,7 @@ const createLeadSchema = z.object({
   email: z.string().trim().email("Invalid email").optional().or(z.literal("")).or(emptyStringToUndefined),
   phone: z.string().trim().max(50, "Phone number too long").optional().or(z.literal("")).or(emptyStringToUndefined),
   company: z.string().trim().max(255).optional().or(z.literal("")).or(emptyStringToUndefined),
+  ownerId: z.string().uuid("Invalid owner ID").optional().or(z.literal("")).or(emptyStringToUndefined),
   customData: z.record(z.string(), z.unknown()).optional(),
 });
 
@@ -38,6 +39,7 @@ export async function createLeadAction(
     email: parsed.data.email?.trim() || undefined,
     phone: parsed.data.phone?.trim() || undefined,
     company: parsed.data.company?.trim() || undefined,
+    ownerId: parsed.data.ownerId || undefined,
   };
 
   try {

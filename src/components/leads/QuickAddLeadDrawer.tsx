@@ -18,9 +18,11 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { createLeadAction } from "@/lib/actions/leads"
 import { listCustomFieldsAction } from "@/lib/actions/customFields"
+import { listUsersAction } from "@/lib/actions/users"
 import { CustomFieldInputs, defaultCustomValues, type CustomFieldDef } from "@/components/leads/CustomFieldInputs"
 import { useToast } from "@/hooks/use-toast"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 const emptyStringToUndefined = z.string().regex(/^\s*$/).transform(() => "");
 
@@ -29,6 +31,7 @@ const formSchema = z.object({
   email: z.string().trim().email("Invalid email address").optional().or(z.literal("")).or(emptyStringToUndefined),
   phone: z.string().trim().max(50, "Phone number too long").optional().or(z.literal("")).or(emptyStringToUndefined),
   company: z.string().trim().max(255, "Company name cannot exceed 255 characters").optional().or(z.literal("")).or(emptyStringToUndefined),
+  ownerId: z.string().optional().or(z.literal("")).or(emptyStringToUndefined),
 });
 
 export function QuickAddLeadDrawer({ children }: { children?: React.ReactNode }) {
@@ -37,11 +40,13 @@ export function QuickAddLeadDrawer({ children }: { children?: React.ReactNode })
   const { toast } = useToast();
   const [defs, setDefs] = React.useState<CustomFieldDef[]>([]);
   const [customValues, setCustomValues] = React.useState<Record<string, string>>({});
+  const [users, setUsers] = React.useState<Array<{ id: string; name: string }>>([]);
   const [serverError, setServerError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (open) {
       setServerError(null);
+      listUsersAction().then(setUsers).catch(() => {});
       listCustomFieldsAction()
         .then((r) => {
           const d = r as CustomFieldDef[];
@@ -65,6 +70,7 @@ export function QuickAddLeadDrawer({ children }: { children?: React.ReactNode })
       email: "",
       phone: "",
       company: "",
+      ownerId: "",
     },
   });
 
@@ -87,6 +93,7 @@ export function QuickAddLeadDrawer({ children }: { children?: React.ReactNode })
         email: values.email || undefined,
         phone: values.phone || undefined,
         company: values.company || undefined,
+        ownerId: values.ownerId || undefined,
         customData: customValues,
       });
       if (!res.ok) {
@@ -206,6 +213,35 @@ export function QuickAddLeadDrawer({ children }: { children?: React.ReactNode })
                     <FormControl>
                       <Input placeholder="Acme Inc" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="ownerId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Assign to</FormLabel>
+                    <Select
+                      value={field.value || "unassigned"}
+                      onValueChange={(val) => field.onChange(val === "unassigned" ? "" : val)}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select team member (optional)" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="unassigned">Unassigned (or me)</SelectItem>
+                        {users.map((u) => (
+                          <SelectItem key={u.id} value={u.id}>
+                            {u.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

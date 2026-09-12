@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { users, leads, invitations, organizations } from "@/db/schema";
-import { and, count, eq, isNull } from "drizzle-orm";
+import { and, count, eq, gt, isNull } from "drizzle-orm";
 
 // Per-plan ceilings. Infinity = unlimited. Enforcement lives here; charging (Stripe) is separate
 // and needs external keys — the plan column is set by that flow, which isn't wired yet.
@@ -25,7 +25,7 @@ export class PlanService {
     const { seats } = limitsFor(await this.plan(organizationId));
     if (seats === Infinity) return;
     const [u] = await db.select({ n: count() }).from(users).where(and(eq(users.organizationId, organizationId), isNull(users.deletedAt)));
-    const [i] = await db.select({ n: count() }).from(invitations).where(and(eq(invitations.organizationId, organizationId), isNull(invitations.acceptedAt)));
+    const [i] = await db.select({ n: count() }).from(invitations).where(and(eq(invitations.organizationId, organizationId), isNull(invitations.acceptedAt), gt(invitations.expiresAt, new Date())));
     if (Number(u.n) + Number(i.n) >= seats) {
       throw new Error(`Your plan allows ${seats} seats. Upgrade to add more.`);
     }
