@@ -6,7 +6,8 @@ import { LeadService } from "@/domains/leads/service";
 import { NextBestActionService } from "@/domains/leads/nextBestActionService";
 import { ShareContentCard } from "@/components/leads/ShareContentCard";
 import { ReengagementPlanCard } from "@/components/leads/ReengagementPlanCard";
-import { listSharesAction } from "@/lib/actions/sharedContent";
+import { ContentSharingService } from "@/domains/leads/contentSharingService";
+import { OrgService } from "@/domains/organizations/service";
 import { requireOrg } from "@/lib/rbac";
 import { ActivityService } from "@/domains/activities/service";
 import { notFound } from "next/navigation";
@@ -25,21 +26,16 @@ import { LeadDuplicateBanner } from "@/components/leads/LeadDuplicateBanner";
 import { LeadFollowUpControl } from "@/components/leads/LeadFollowUpControl";
 import { LeadStageAndValueControl } from "@/components/leads/LeadStageAndValueControl";
 import { LeadSequencesCard } from "@/components/leads/LeadSequencesCard";
-import { checkLeadDuplicatesAction } from "@/lib/actions/leads";
-import { getAttachmentsAction } from "@/lib/actions/attachments";
-import { getLeadRemindersAction } from "@/lib/actions/reminders";
-import { getOrganizationAction } from "@/lib/actions/organizations";
 import { LeadAiRecap } from "@/components/leads/LeadAiRecap";
 import { LeadInsightsCard } from "@/components/leads/LeadInsightsCard";
-import { listSequencesAction } from "@/lib/actions/sequences";
 import { SequenceService } from "@/domains/leads/sequenceService";
 import { LeadHeaderQuickActions } from "@/components/leads/LeadHeaderQuickActions";
 import { LeadRemindersTab } from "@/components/leads/LeadRemindersTab";
 import { LeadAttachmentsTab } from "@/components/leads/LeadAttachmentsTab";
 import { LocalTime } from "@/components/LocalTime";
 import { db } from "@/db";
-import { leadPipelineStages, automations } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { leads, leadAttachments, followUps, leadPipelineStages, automations } from "@/db/schema";
+import { eq, and, ne, isNull, or, desc } from "drizzle-orm";
 
 export default async function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -50,14 +46,23 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
 
   const { organizationId } = await requireOrg();
 
-  // These reads are independent — fan them out in one round trip instead of a serial waterfall
-  // (11 sequential DB calls × cross-region RTT was several seconds of avoidable latency).
+  // 1. Fetch lead first — if missing, 404 immediately and skip all child queries.
+  const lead = await LeadService.getLead(id, organizationId);
+  if (!lead) {
+    notFound();
+  }
+
+  const cleanEmail = lead.email?.trim() || undefined;
+  const cleanPhone = lead.phone?.trim() || undefined;
+  const dupConditions = [];
+  if (cleanEmail) dupConditions.push(eq(leads.email, cleanEmail));
+  if (cleanPhone) dupConditions.push(eq(leads.phone, cleanPhone));
+
+  // 2. Fan out independent child reads directly without redundant auth/middleware wrappers.
   const [
-    lead,
     activities,
     waMessages,
     leadTags,
-    dup,
     attachments,
     reminders,
     shares,
@@ -66,17 +71,26 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
     enrolledSequences,
     stagesList,
     automationsList,
+    duplicateRows,
   ] = await Promise.all([
-    LeadService.getLead(id, organizationId),
     ActivityService.getLeadActivities(id),
     WhatsAppService.listForLead(id),
     TagService.getForLead(id),
-    checkLeadDuplicatesAction(id),
-    getAttachmentsAction(id).catch(() => []),
-    getLeadRemindersAction(id).catch(() => []),
-    listSharesAction(id).catch(() => []),
-    getOrganizationAction().catch(() => null),
-    listSequencesAction().catch(() => []),
+    db
+      .select()
+      .from(leadAttachments)
+      .where(and(eq(leadAttachments.leadId, id), eq(leadAttachments.organizationId, organizationId)))
+      .orderBy(desc(leadAttachments.createdAt))
+      .catch(() => []),
+    db
+      .select()
+      .from(followUps)
+      .where(eq(followUps.leadId, id))
+      .orderBy(desc(followUps.dueAt))
+      .catch(() => []),
+    ContentSharingService.listForLead(id).catch(() => []),
+    OrgService.getOrganization(organizationId).catch(() => null),
+    SequenceService.list(organizationId).catch(() => []),
     SequenceService.listForLead(id).catch(() => []),
     db.select({ id: leadPipelineStages.id, name: leadPipelineStages.name }).from(leadPipelineStages).catch(() => []),
     db
@@ -84,13 +98,24 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
       .from(automations)
       .where(eq(automations.organizationId, organizationId))
       .catch(() => []),
+    dupConditions.length > 0
+      ? db
+          .select({ id: leads.id })
+          .from(leads)
+          .where(
+            and(
+              eq(leads.organizationId, organizationId),
+              ne(leads.id, id),
+              isNull(leads.deletedAt),
+              or(...dupConditions),
+            ),
+          )
+          .catch(() => [])
+      : Promise.resolve([]),
   ]);
-  const dupCount = dup.count;
-  const whatsappMode: "personal" | "bsp" = org?.whatsappMode === "bsp" ? "bsp" : "personal";
 
-  if (!lead) {
-    notFound();
-  }
+  const dupCount = duplicateRows.length;
+  const whatsappMode: "personal" | "bsp" = org?.whatsappMode === "bsp" ? "bsp" : "personal";
 
   // A content open in the last 3 days is a hot buying signal — surface it to the coach.
   const RECENT_OPEN_MS = 3 * 24 * 60 * 60 * 1000;

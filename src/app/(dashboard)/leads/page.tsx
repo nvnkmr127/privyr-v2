@@ -12,9 +12,9 @@ import { LeadImportWizard } from "@/components/leads/LeadImportWizard";
 import { LeadsFilterBar } from "@/components/leads/LeadsFilterBar";
 import { LeadsTable } from "@/components/leads/LeadsTable";
 import { listUsersAction } from "@/lib/actions/users";
-import { listSourcesAction } from "@/lib/actions/sources";
-import { listTagsAction } from "@/lib/actions/tags";
-import { listCustomFieldsAction } from "@/lib/actions/customFields";
+import { LeadSourceService } from "@/domains/leads/sourceService";
+import { TagService } from "@/domains/tags/service";
+import { CustomFieldService } from "@/domains/customFields/service";
 
 export default async function LeadsPage({
   searchParams,
@@ -46,9 +46,9 @@ export default async function LeadsPage({
   const [views, usersList, sourcesList, tagsList, customFieldDefs, leadResult] = await Promise.all([
     SavedViewService.listViews(organizationId, userId),
     listUsersAction().catch(() => []),
-    listSourcesAction().catch(() => []),
-    listTagsAction().catch(() => []),
-    listCustomFieldsAction().catch(() => []),
+    LeadSourceService.getSources(organizationId).catch(() => []),
+    TagService.listAll().catch(() => []),
+    CustomFieldService.list(organizationId).catch(() => []),
     LeadService.listLeads({
       organizationId,
       search,
