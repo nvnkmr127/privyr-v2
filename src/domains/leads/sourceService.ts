@@ -44,7 +44,7 @@ export class LeadSourceService {
   // access token in `config`. Called from the OAuth callback after a successful connection.
   static async upsertFacebookPageSource(
     organizationId: string,
-    page: { pageId: string; pageAccessToken: string; expiresAt?: Date | null },
+    page: { pageId: string; pageAccessToken: string; expiresAt?: Date | null; name?: string },
   ) {
     const rows = await db
       .select()
@@ -59,12 +59,12 @@ export class LeadSourceService {
     if (existing) {
       const [updated] = await db
         .update(leadSources)
-        .set({ config, isActive: 1 })
+        .set({ config, isActive: 1, ...(page.name ? { name: page.name } : {}) })
         .where(eq(leadSources.id, existing.id))
         .returning();
       return updated;
     }
-    return this.createSource({ name: `Facebook Page ${page.pageId}`, type: "facebook_lead_ads", organizationId, config });
+    return this.createSource({ name: page.name || `Facebook Page ${page.pageId}`, type: "facebook_lead_ads", organizationId, config });
   }
 
   static async updateSource(

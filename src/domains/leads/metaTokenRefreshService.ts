@@ -108,4 +108,15 @@ export class MetaTokenRefreshService {
     const bufferMs = bufferDays * 24 * 60 * 60 * 1000;
     return expiresAt.getTime() - Date.now() <= bufferMs;
   }
+
+  /**
+   * Fetches lead details (field_data, campaign info) for a leadgen_id via Meta Graph API using the Page access token.
+   */
+  static async fetchLeadgenData(leadgenId: string, pageAccessToken: string): Promise<any> {
+    if (!leadgenId || !pageAccessToken) {
+      throw new Error("leadgenId and pageAccessToken are required to fetch lead details");
+    }
+    const url = `${GRAPH}/${encodeURIComponent(leadgenId)}?access_token=${encodeURIComponent(pageAccessToken)}`;
+    return graphGet(url);
+  }
 }

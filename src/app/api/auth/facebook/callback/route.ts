@@ -68,18 +68,43 @@ export async function GET(req: NextRequest) {
 
     const session = await getServerSession(authOptions);
     const organizationId = session?.user?.organizationId;
-    if (!organizationId) return respond({ error: "server_error" }, false);
     if (pages.length === 0) return respond({ error: "no_pages" }, false);
 
-    for (const p of pages) {
-      await LeadSourceService.upsertFacebookPageSource(organizationId, {
-        pageId: p.pageId,
-        pageAccessToken: p.pageAccessToken,
-        expiresAt: longLivedResult.expiresAt,
-      });
+    // In popup mode, send the discovered pages to the opener so the user can choose which page to connect
+    if (isPopup) {
+      const payload = {
+        type: "OAUTH_RESPONSE",
+        provider: "facebook",
+        status: "pages_ready",
+        pages: pages.map((p) => ({
+          pageId: p.pageId,
+          name: p.name,
+          pageAccessToken: p.pageAccessToken,
+        })),
+        expiresAt: longLivedResult.expiresAt.toISOString(),
+      };
+      const json = JSON.stringify(payload).replace(/</g, "\\u003c");
+      const html = `<!DOCTYPE html><html><head><title>Facebook</title></head><body style="font-family:system-ui;padding:24px;text-align:center">
+<p>Connected. Please select your Page in the main window.</p>
+<script>
+  if (window.opener) { window.opener.postMessage(${json}, window.location.origin); window.close(); }
+  else { window.location.href = "/settings/sources"; }
+</script></body></html>`;
+      return new NextResponse(html, { headers: { "Content-Type": "text/html" } });
     }
 
-    console.log(`[META_OAUTH_CALLBACK_SUCCESS] Connected ${pages.length} Page(s) (Org: ${organizationId})`);
+    // Non-popup fallback
+    if (organizationId) {
+      for (const p of pages) {
+        await LeadSourceService.upsertFacebookPageSource(organizationId, {
+          pageId: p.pageId,
+          pageAccessToken: p.pageAccessToken,
+          expiresAt: longLivedResult.expiresAt,
+        });
+      }
+    }
+
+    console.log(`[META_OAUTH_CALLBACK_SUCCESS] Discovered ${pages.length} Page(s)`);
 
     return respond(
       {

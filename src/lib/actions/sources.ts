@@ -80,3 +80,35 @@ export async function deleteSourceAction(id: string) {
     return actionFail(e);
   }
 }
+
+const facebookPagesSchema = z.array(
+  z.object({
+    pageId: z.string().min(1),
+    name: z.string().min(1),
+    pageAccessToken: z.string().min(1),
+    expiresAt: z.string().optional().nullable(),
+  })
+).min(1);
+
+export async function connectFacebookPagesAction(pages: z.infer<typeof facebookPagesSchema>) {
+  const { organizationId } = await requirePermission("sources.manage");
+  const parsed = facebookPagesSchema.safeParse(pages);
+  if (!parsed.success) return fail("VALIDATION", "Please select at least one valid Facebook Page.");
+
+  try {
+    const connected = [];
+    for (const p of parsed.data) {
+      const source = await LeadSourceService.upsertFacebookPageSource(organizationId, {
+        pageId: p.pageId,
+        name: p.name,
+        pageAccessToken: p.pageAccessToken,
+        expiresAt: p.expiresAt ? new Date(p.expiresAt) : null,
+      });
+      connected.push(source);
+    }
+    revalidatePath("/settings/sources");
+    return ok({ connected });
+  } catch (e) {
+    return actionFail(e);
+  }
+}

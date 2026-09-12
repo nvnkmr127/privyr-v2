@@ -4,9 +4,17 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { createSourceAction, toggleSourceAction, renameSourceAction, deleteSourceAction } from "@/lib/actions/sources";
+import { createSourceAction, toggleSourceAction, renameSourceAction, deleteSourceAction, connectFacebookPagesAction } from "@/lib/actions/sources";
 import { Copy, Globe, MessageSquare, ExternalLink, CheckCircle2, Sparkles, ShieldCheck, Pencil, Trash2, FileText, Plus, SlidersHorizontal } from "lucide-react";
 import { FormFieldsEditor } from "./FormFieldsEditor";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 function FacebookIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -228,6 +236,13 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
   const [editingFormId, setEditingFormId] = React.useState<string | null>(null);
   const [origin, setOrigin] = React.useState("");
 
+  // Facebook Page Selection modal state
+  const [pageSelectorOpen, setPageSelectorOpen] = React.useState(false);
+  const [discoveredPages, setDiscoveredPages] = React.useState<Array<{ pageId: string; name: string; pageAccessToken: string }>>([]);
+  const [discoveredExpiresAt, setDiscoveredExpiresAt] = React.useState<string | null>(null);
+  const [selectedPageIds, setSelectedPageIds] = React.useState<string[]>([]);
+  const [isSubmittingPages, setIsSubmittingPages] = React.useState(false);
+
   React.useEffect(() => setOrigin(window.location.origin), []);
 
   // Handshake listener for OAuth popup window postMessage callbacks
@@ -245,12 +260,33 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
       if (event.origin !== window.location.origin) return;
       if (event.data?.type !== "OAUTH_RESPONSE") return;
 
+      setConnectingId(null);
+
       if (event.data.status === "error") {
         toast({
           variant: "destructive",
           title: "Facebook connection failed",
           description: FB_ERROR[event.data.reason as string] ?? "The connection didn't complete. Please try again.",
         });
+        return;
+      }
+
+      if (event.data.status === "pages_ready") {
+        const pages: Array<{ pageId: string; name: string; pageAccessToken: string }> = event.data.pages || [];
+        const expiresAt: string | null = event.data.expiresAt || null;
+        if (pages.length === 0) {
+          toast({
+            variant: "destructive",
+            title: "No Facebook Pages found",
+            description: FB_ERROR.no_pages,
+          });
+          return;
+        }
+        setDiscoveredPages(pages);
+        setDiscoveredExpiresAt(expiresAt);
+        // Default select first page
+        setSelectedPageIds([pages[0].pageId]);
+        setPageSelectorOpen(true);
         return;
       }
 
@@ -277,6 +313,69 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
     window.addEventListener("message", handleOAuthMessage);
     return () => window.removeEventListener("message", handleOAuthMessage);
   }, [toast]);
+
+  const handleConfirmConnectPages = async () => {
+    if (selectedPageIds.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "No page selected",
+        description: "Please select at least one Facebook Page to connect.",
+      });
+      return;
+    }
+
+    const toConnect = discoveredPages
+      .filter((p) => selectedPageIds.includes(p.pageId))
+      .map((p) => ({
+        pageId: p.pageId,
+        name: p.name,
+        pageAccessToken: p.pageAccessToken,
+        expiresAt: discoveredExpiresAt,
+      }));
+
+    setIsSubmittingPages(true);
+    try {
+      const res = await connectFacebookPagesAction(toConnect);
+      if (!res.ok) {
+        toast({
+          variant: "destructive",
+          title: "Connection failed",
+          description: res.message,
+        });
+        return;
+      }
+
+      toast({
+        title: "Facebook Page Connected",
+        description: `Successfully connected ${toConnect.length} Page(s) for lead capture.`,
+      });
+
+      const newlyAdded: Source[] = (res.data?.connected || []).map((s: any) => ({
+        id: s.id,
+        name: s.name,
+        type: s.type,
+        isActive: s.isActive,
+        webhookSecret: s.webhookSecret,
+        config: s.config,
+      }));
+
+      setSources((prev) => {
+        const existingIds = new Set(prev.map((x) => x.id));
+        const filtered = newlyAdded.filter((x) => !existingIds.has(x.id));
+        return [...prev, ...filtered];
+      });
+
+      setPageSelectorOpen(false);
+    } catch (e: any) {
+      toast({
+        variant: "destructive",
+        title: "Error connecting page",
+        description: e.message || "Something went wrong.",
+      });
+    } finally {
+      setIsSubmittingPages(false);
+    }
+  };
 
   const copy = React.useCallback((text: string, what: string) => {
     navigator.clipboard.writeText(text).then(
@@ -546,6 +645,64 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
           </div>
         )}
       </div>
+
+      {/* Select Facebook Page Modal */}
+      <Dialog open={pageSelectorOpen} onOpenChange={setPageSelectorOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Select Facebook Page to Connect</DialogTitle>
+            <DialogDescription>
+              Choose which Facebook Page you want to capture leads from. Only selected pages will be connected to your pipeline.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="max-h-72 overflow-y-auto space-y-2 py-2">
+            {discoveredPages.map((page) => {
+              const isSelected = selectedPageIds.includes(page.pageId);
+              return (
+                <div
+                  key={page.pageId}
+                  onClick={() => {
+                    setSelectedPageIds((prev) =>
+                      prev.includes(page.pageId) ? prev.filter((id) => id !== page.pageId) : [...prev, page.pageId]
+                    );
+                  }}
+                  className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-colors ${
+                    isSelected ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"
+                  }`}
+                >
+                  <div className="space-y-1">
+                    <p className="font-medium text-sm text-foreground">{page.name}</p>
+                    <p className="text-xs text-muted-foreground font-mono">Page ID: {page.pageId}</p>
+                  </div>
+                  <div
+                    className={`h-5 w-5 rounded-md border flex items-center justify-center transition-colors ${
+                      isSelected ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground/40"
+                    }`}
+                  >
+                    {isSelected && <CheckCircle2 className="h-4 w-4" />}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setPageSelectorOpen(false)} disabled={isSubmittingPages}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmConnectPages}
+              disabled={isSubmittingPages || selectedPageIds.length === 0}
+              className="rounded-2xl"
+            >
+              {isSubmittingPages
+                ? "Connecting..."
+                : `Connect ${selectedPageIds.length} Selected Page${selectedPageIds.length === 1 ? "" : "s"}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

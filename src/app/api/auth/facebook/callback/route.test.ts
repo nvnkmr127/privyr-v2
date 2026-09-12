@@ -25,6 +25,13 @@ vi.mock("@/domains/leads/metaTokenRefreshService", () => {
         pageId: "page_100200300",
         pageAccessToken: "page_access_token_abc",
       }),
+      listPages: vi.fn().mockResolvedValue([
+        {
+          pageId: "page_100200300",
+          name: "Acme Corp",
+          pageAccessToken: "page_access_token_abc",
+        },
+      ]),
     },
   };
 });
@@ -52,12 +59,24 @@ describe("Meta OAuth Callback Endpoint", () => {
     expect(res.headers.get("location")).toContain("error=facebook_not_configured");
   });
 
-  it("should process a valid code and redirect with success when configured", async () => {
+  it("should process a valid code and redirect with success when configured (non-popup)", async () => {
     process.env.FACEBOOK_APP_ID = "real_app_id";
     process.env.FACEBOOK_APP_SECRET = "real_app_secret";
     const req = new NextRequest("http://localhost:3000/api/auth/facebook/callback?code=auth_code_123&state=org-999&pageId=page_100200300");
     const res = await GET(req);
     expect(res.headers.get("location")).toContain("/settings/integrations?status=facebook_connected");
     expect(res.headers.get("location")).toContain("pageId=page_100200300");
+  });
+
+  it("should return HTML postMessage with pages_ready in popup mode", async () => {
+    process.env.FACEBOOK_APP_ID = "real_app_id";
+    process.env.FACEBOOK_APP_SECRET = "real_app_secret";
+    const req = new NextRequest("http://localhost:3000/api/auth/facebook/callback?code=auth_code_123&state=tenant_oauth_popup");
+    const res = await GET(req);
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain("pages_ready");
+    expect(html).toContain("page_100200300");
+    expect(html).toContain("Acme Corp");
   });
 });
