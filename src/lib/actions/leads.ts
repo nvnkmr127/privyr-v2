@@ -1,6 +1,6 @@
 "use server";
 
-import { requireOrg, requirePermission } from "@/lib/rbac";
+import { requireOrg, requirePermission, hasPermission } from "@/lib/rbac";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { LeadService } from "@/domains/leads/service";
@@ -126,7 +126,14 @@ export async function updateCustomDataAction(leadId: string, data: Record<string
 }
 
 export async function deleteLeadAction(id: string) {
-  const { userId, organizationId } = await requirePermission("leads.delete");
+  const { userId, organizationId } = await requireOrg();
+  const allowed = await hasPermission("leads.delete");
+  if (!allowed) {
+    const lead = await LeadService.getLead(id, organizationId);
+    if (!lead || lead.ownerId !== userId) {
+      return fail("FORBIDDEN", "You don't have permission to delete this lead. Contact an admin.");
+    }
+  }
   try {
     const deleted = await LeadService.deleteLead(id, userId, organizationId);
     if (!deleted) return fail("NOT_FOUND", "This lead no longer exists or was already deleted.");

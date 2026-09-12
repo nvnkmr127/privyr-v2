@@ -44,7 +44,7 @@ export class LeadService {
     data: { name: string; email?: string; phone?: string; company?: string; ownerId?: string; teamId?: string; customData?: Record<string, unknown> },
     createdById: string | null,
     organizationId: string,
-  ) {
+  ): Promise<typeof leads.$inferSelect> {
     // Dedup within THIS org only — same email/phone in another tenant is a different lead.
     const cleanEmail = data.email?.trim() || undefined;
     const cleanPhone = data.phone?.trim() || undefined;
@@ -53,34 +53,53 @@ export class LeadService {
       if (cleanEmail) orConds.push(eq(leads.email, cleanEmail));
       if (cleanPhone) orConds.push(eq(leads.phone, cleanPhone));
       const existing = await db
-        .select({ email: leads.email, phone: leads.phone })
+        .select({ id: leads.id, name: leads.name, email: leads.email, phone: leads.phone, deletedAt: leads.deletedAt })
         .from(leads)
-        .where(and(eq(leads.organizationId, organizationId), isNull(leads.deletedAt), or(...orConds)));
+        .where(and(eq(leads.organizationId, organizationId), or(...orConds)));
 
-      const dupEmail = cleanEmail && existing.some((r) => r.email?.toLowerCase() === cleanEmail.toLowerCase());
-      const dupPhone = cleanPhone && existing.some((r) => r.phone === cleanPhone);
+      const active = existing.filter((r) => !r.deletedAt);
+      const inRecycleBin = existing.filter((r) => r.deletedAt);
 
-      if (dupEmail && dupPhone) {
-        const err = new Error("Duplicate email and phone number: a lead with this email and phone already exists");
+      const dupActiveEmail = cleanEmail && active.find((r) => r.email?.toLowerCase() === cleanEmail.toLowerCase());
+      const dupActivePhone = cleanPhone && active.find((r) => r.phone === cleanPhone);
+
+      if (dupActiveEmail && dupActivePhone) {
+        const err = new Error(`A lead with this email and phone already exists ("${dupActivePhone.name}")`);
         (err as any).fieldErrors = {
-          email: "A lead with this email already exists.",
-          phone: "A lead with this phone number already exists.",
+          email: `Already used by active lead "${dupActiveEmail.name}".`,
+          phone: `Already used by active lead "${dupActivePhone.name}".`,
         };
         throw err;
       }
-      if (dupEmail) {
-        const err = new Error("Duplicate email: a lead with this email already exists");
+      if (dupActiveEmail) {
+        const err = new Error(`Duplicate email: already used by lead "${dupActiveEmail.name}"`);
         (err as any).fieldErrors = {
-          email: "A lead with this email already exists.",
+          email: `Already used by active lead "${dupActiveEmail.name}".`,
         };
         throw err;
       }
-      if (dupPhone) {
-        const err = new Error("Duplicate phone number: a lead with this phone number already exists");
+      if (dupActivePhone) {
+        const err = new Error(`Duplicate phone number: already used by lead "${dupActivePhone.name}"`);
         (err as any).fieldErrors = {
-          phone: "A lead with this phone number already exists.",
+          phone: `Already used by active lead "${dupActivePhone.name}".`,
         };
         throw err;
+      }
+
+      // If soft-deleted leads in the recycle bin hold the email or phone, clear them so they never block new leads
+      if (inRecycleBin.length > 0) {
+        for (const trashed of inRecycleBin) {
+          const updates: Record<string, unknown> = {};
+          if (cleanEmail && trashed.email?.toLowerCase() === cleanEmail.toLowerCase()) {
+            updates.email = null;
+          }
+          if (cleanPhone && trashed.phone === cleanPhone) {
+            updates.phone = null;
+          }
+          if (Object.keys(updates).length > 0) {
+            await db.update(leads).set(updates).where(eq(leads.id, trashed.id));
+          }
+        }
       }
     }
 
@@ -98,17 +117,37 @@ export class LeadService {
         status: "new",
       }).returning();
     } catch (e: any) {
-      // The pre-check above is racy; the partial unique indexes (leads_org_email_unique /
-      // leads_org_phone_unique) are the real guard. Translate the constraint violation
-      // into exact duplicate messages so concurrent inserts fail cleanly.
+      // If constraint violation occurs due to a soft-deleted lead, clear it and retry once
       if (e?.code === "23505") {
         const constraint = String(e?.constraint || e?.detail || e?.message || "");
         if (constraint.includes("email")) {
+          if (cleanEmail) {
+            const [trashed] = await db
+              .select({ id: leads.id })
+              .from(leads)
+              .where(and(eq(leads.organizationId, organizationId), isNotNull(leads.deletedAt), eq(leads.email, cleanEmail)))
+              .limit(1);
+            if (trashed) {
+              await db.update(leads).set({ email: null }).where(eq(leads.id, trashed.id));
+              return this.createLead(data, createdById, organizationId);
+            }
+          }
           const err = new Error("Duplicate email: a lead with this email already exists");
           (err as any).fieldErrors = { email: "A lead with this email already exists." };
           throw err;
         }
         if (constraint.includes("phone")) {
+          if (cleanPhone) {
+            const [trashed] = await db
+              .select({ id: leads.id })
+              .from(leads)
+              .where(and(eq(leads.organizationId, organizationId), isNotNull(leads.deletedAt), eq(leads.phone, cleanPhone)))
+              .limit(1);
+            if (trashed) {
+              await db.update(leads).set({ phone: null }).where(eq(leads.id, trashed.id));
+              return this.createLead(data, createdById, organizationId);
+            }
+          }
           const err = new Error("Duplicate phone number: a lead with this phone number already exists");
           (err as any).fieldErrors = { phone: "A lead with this phone number already exists." };
           throw err;
