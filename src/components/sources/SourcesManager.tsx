@@ -4,8 +4,32 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { createSourceAction, toggleSourceAction, renameSourceAction, deleteSourceAction, connectFacebookPagesAction } from "@/lib/actions/sources";
-import { Copy, Globe, MessageSquare, ExternalLink, CheckCircle2, Sparkles, ShieldCheck, Pencil, Trash2, FileText, Plus, SlidersHorizontal } from "lucide-react";
+import {
+  createSourceAction,
+  toggleSourceAction,
+  renameSourceAction,
+  deleteSourceAction,
+  connectFacebookPagesAction,
+  updateSourceFilterAction,
+  syncPastFacebookLeadsAction,
+} from "@/lib/actions/sources";
+import {
+  Copy,
+  Globe,
+  MessageSquare,
+  ExternalLink,
+  CheckCircle2,
+  Sparkles,
+  ShieldCheck,
+  Pencil,
+  Trash2,
+  FileText,
+  Plus,
+  SlidersHorizontal,
+  Filter,
+  DownloadCloud,
+  Loader2,
+} from "lucide-react";
 import { FormFieldsEditor } from "./FormFieldsEditor";
 import {
   Dialog,
@@ -135,14 +159,32 @@ type SourceCardProps = {
   onRemove: (s: Source) => void;
   onCopy: (text: string, what: string) => void;
   onToggleEdit: (id: string) => void;
+  onSyncPastLeads?: (s: Source) => void;
+  isSyncing?: boolean;
+  onOpenFilter?: (s: Source) => void;
 };
 
-const SourceCard = React.memo(function SourceCard({ s, origin, isEditing, onToggle, onRename, onRemove, onCopy, onToggleEdit }: SourceCardProps) {
+const SourceCard = React.memo(function SourceCard({
+  s,
+  origin,
+  isEditing,
+  onToggle,
+  onRename,
+  onRemove,
+  onCopy,
+  onToggleEdit,
+  onSyncPastLeads,
+  isSyncing,
+  onOpenFilter,
+}: SourceCardProps) {
   const webhookUrl = `${origin}/api/webhooks/${s.type}?sourceId=${s.id}`;
+  const campaignFilter = (s.config as any)?.campaignFilter;
+  const hasCampaignFilter = Array.isArray(campaignFilter) && campaignFilter.length > 0;
+
   return (
     <div className="border rounded-2xl p-5 bg-card space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-3 flex-wrap">
           <span className="font-bold text-foreground">{s.name}</span>
           <Badge variant="secondary" className="capitalize">
             {s.type?.replace(/_/g, " ")}
@@ -150,8 +192,38 @@ const SourceCard = React.memo(function SourceCard({ s, origin, isEditing, onTogg
           <Badge variant={s.isActive ? "default" : "secondary"}>
             {s.isActive ? "Active" : "Inactive"}
           </Badge>
+          {s.type === "facebook_lead_ads" && hasCampaignFilter && (
+            <Badge variant="outline" className="text-xs text-primary border-primary/30">
+              Filtered: {campaignFilter.length} campaign{campaignFilter.length === 1 ? "" : "s"}
+            </Badge>
+          )}
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {s.type === "facebook_lead_ads" && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 rounded-2xl text-xs"
+                onClick={() => onOpenFilter?.(s)}
+                title="Filter which campaigns pull leads"
+              >
+                <Filter className="h-3.5 w-3.5" />
+                Campaign Filter
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 rounded-2xl text-xs text-primary font-medium"
+                onClick={() => onSyncPastLeads?.(s)}
+                disabled={isSyncing}
+                title="Fetch past leads from Meta Graph API for this page"
+              >
+                {isSyncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <DownloadCloud className="h-3.5 w-3.5" />}
+                {isSyncing ? "Syncing..." : "Sync Past Leads"}
+              </Button>
+            </>
+          )}
           <Button variant="outline" size="sm" onClick={() => onToggle(s)} className="rounded-2xl">
             {s.isActive ? "Deactivate" : "Activate"}
           </Button>
@@ -221,6 +293,27 @@ const SourceCard = React.memo(function SourceCard({ s, origin, isEditing, onTogg
               </Button>
             </div>
             {isEditing && <FormFieldsEditor sourceId={s.id} initialConfig={s.config} />}
+          </div>
+        )}
+
+        {s.type === "facebook_lead_ads" && (
+          <div className="pt-1 border-t border-border/50">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-semibold text-muted-foreground">Allowed Campaigns:</span>
+              {hasCampaignFilter ? (
+                <div className="flex flex-wrap gap-1">
+                  {campaignFilter.map((c: string) => (
+                    <Badge key={c} variant="secondary" className="text-xs font-mono">
+                      {c}
+                    </Badge>
+                  ))}
+                </div>
+              ) : (
+                <span className="text-xs text-muted-foreground italic">
+                  Capturing from all campaigns on this Page (No filter set)
+                </span>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -376,6 +469,120 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
       setIsSubmittingPages(false);
     }
   };
+
+  // Facebook Campaign Filter state
+  const [filterSource, setFilterSource] = React.useState<Source | null>(null);
+  const [filterInput, setFilterInput] = React.useState("");
+  const [isSavingFilter, setIsSavingFilter] = React.useState(false);
+
+  // Facebook Past Leads Sync state
+  const [syncingSourceId, setSyncingSourceId] = React.useState<string | null>(null);
+
+  const handleOpenFilter = React.useCallback((s: Source) => {
+    setFilterSource(s);
+    const existing = (s.config as any)?.campaignFilter;
+    if (Array.isArray(existing)) {
+      setFilterInput(existing.join(", "));
+    } else if (typeof existing === "string") {
+      setFilterInput(existing);
+    } else {
+      setFilterInput("");
+    }
+  }, []);
+
+  const handleSaveCampaignFilter = async () => {
+    if (!filterSource) return;
+    setIsSavingFilter(true);
+    try {
+      const items = filterInput
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      const res = await updateSourceFilterAction({
+        sourceId: filterSource.id,
+        campaignFilter: items,
+      });
+
+      if (!res.ok) {
+        toast({
+          variant: "destructive",
+          title: "Failed to save filter",
+          description: res.message,
+        });
+        return;
+      }
+
+      setSources((prev) =>
+        prev.map((s) =>
+          s.id === filterSource.id
+            ? { ...s, config: { ...((s.config as any) || {}), campaignFilter: items } }
+            : s
+        )
+      );
+
+      toast({
+        title: "Campaign Filter Saved",
+        description:
+          items.length > 0
+            ? `Capturing leads from ${items.length} specified campaign(s).`
+            : "Filter removed. Capturing leads from all campaigns on this Page.",
+      });
+
+      setFilterSource(null);
+    } catch (e: any) {
+      toast({
+        variant: "destructive",
+        title: "Error saving filter",
+        description: e.message || "Failed to update filter",
+      });
+    } finally {
+      setIsSavingFilter(false);
+    }
+  };
+
+  const handleSyncPastLeads = React.useCallback(
+    async (s: Source) => {
+      setSyncingSourceId(s.id);
+      try {
+        toast({
+          title: "Syncing Past Leads...",
+          description: `Querying Meta Graph API for historical leads on "${s.name}".`,
+        });
+
+        const res = await syncPastFacebookLeadsAction(s.id);
+        if (!res.ok) {
+          toast({
+            variant: "destructive",
+            title: "Sync Failed",
+            description: res.message,
+          });
+          return;
+        }
+
+        const { totalFetched, importedCount, deduplicatedCount, formsProcessed, message } = res.data as any;
+
+        if (message) {
+          toast({ title: "Past Leads Sync", description: message });
+          return;
+        }
+
+        toast({
+          title: "Past Leads Sync Complete",
+          description: `Processed ${formsProcessed || 0} form(s). Found ${totalFetched || 0} lead(s): ${importedCount || 0} new imported, ${deduplicatedCount || 0} updated.`,
+        });
+      } catch (e: any) {
+        toast({
+          variant: "destructive",
+          title: "Sync Error",
+          description: e.message || "An error occurred while syncing past leads.",
+        });
+      } finally {
+        setSyncingSourceId(null);
+      }
+    },
+    [toast]
+  );
 
   const copy = React.useCallback((text: string, what: string) => {
     navigator.clipboard.writeText(text).then(
@@ -640,6 +847,9 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
                 onRemove={remove}
                 onCopy={copy}
                 onToggleEdit={toggleEdit}
+                onOpenFilter={handleOpenFilter}
+                onSyncPastLeads={handleSyncPastLeads}
+                isSyncing={syncingSourceId === s.id}
               />
             ))}
           </div>
@@ -699,6 +909,45 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
               {isSubmittingPages
                 ? "Connecting..."
                 : `Connect ${selectedPageIds.length} Selected Page${selectedPageIds.length === 1 ? "" : "s"}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Filter Facebook Campaigns Dialog */}
+      <Dialog open={Boolean(filterSource)} onOpenChange={(open) => !open && setFilterSource(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Filter Facebook Campaigns</DialogTitle>
+            <DialogDescription>
+              Enter the specific campaign names or campaign IDs you want to pull leads from (separated by commas). Leads from other campaigns on this Page will be ignored.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground">
+                Target Campaigns (Names or IDs, comma-separated)
+              </label>
+              <input
+                type="text"
+                value={filterInput}
+                onChange={(e) => setFilterInput(e.target.value)}
+                placeholder="e.g. Summer Promo 2026, Luxury Villas, 1202100456"
+                className="w-full bg-background border border-input rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              💡 <strong>Tip:</strong> Leave empty to capture leads from <strong>all</strong> campaigns on this Page.
+            </p>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setFilterSource(null)} disabled={isSavingFilter}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveCampaignFilter} disabled={isSavingFilter} className="rounded-2xl">
+              {isSavingFilter ? "Saving..." : "Save Filter"}
             </Button>
           </DialogFooter>
         </DialogContent>

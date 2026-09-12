@@ -68,4 +68,30 @@ describe("FacebookLeadMappingService", () => {
     expect(mapped.name).toBe("Bob Marley");
     expect(mapped.email).toBe("bob@example.com");
   });
+
+  it("should attribute source to campaign name and retain unique form questions", () => {
+    const rawFbLead: FacebookLeadDetails = {
+      id: "leadgen_camp_1",
+      created_time: "2026-09-12T10:00:00Z",
+      form_id: "form_summer_1",
+      campaign_id: "camp_100",
+      campaign_name: "Summer Promo 2026",
+      field_data: [
+        { name: "full_name", values: ["Charlie Brown"] },
+        { name: "email", values: ["charlie@example.com"] },
+        { name: "phone_number", values: ["+15551234567"] },
+        { name: "property_type", values: ["3BHK Apartment"] },
+        { name: "loan_needed", values: ["Yes"] },
+      ],
+    };
+
+    const mapped = FacebookLeadMappingService.mapFacebookLeadToStandardLead(rawFbLead);
+
+    expect(mapped.name).toBe("Charlie Brown");
+    expect(mapped.source).toBe("Facebook Ads (Summer Promo 2026)");
+    expect(mapped.customData["meta_campaign_name"]).toBe("Summer Promo 2026");
+    expect(mapped.customData["meta_campaign_id"]).toBe("camp_100");
+    expect(mapped.customData["property_type"]).toBe("3BHK Apartment");
+    expect(mapped.customData["loan_needed"]).toBe("Yes");
+  });
 });

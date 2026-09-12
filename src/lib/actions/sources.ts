@@ -112,3 +112,131 @@ export async function connectFacebookPagesAction(pages: z.infer<typeof facebookP
     return actionFail(e);
   }
 }
+
+const filterSchema = z.object({
+  sourceId: z.string().uuid(),
+  campaignFilter: z.array(z.string()).optional(),
+});
+
+export async function updateSourceFilterAction(input: z.infer<typeof filterSchema>) {
+  const { organizationId } = await requirePermission("sources.manage");
+  const parsed = filterSchema.safeParse(input);
+  if (!parsed.success) return fail("VALIDATION", "Invalid filter data");
+
+  try {
+    const source = await LeadSourceService.getSource(parsed.data.sourceId);
+    if (!source || source.organizationId !== organizationId) {
+      return fail("NOT_FOUND", "Source not found");
+    }
+
+    const currentConfig = (source.config as Record<string, unknown>) ?? {};
+    const newConfig = {
+      ...currentConfig,
+      campaignFilter: parsed.data.campaignFilter || [],
+    };
+
+    const updated = await LeadSourceService.updateSource(source.id, { config: newConfig }, organizationId);
+    revalidatePath("/settings/sources");
+    return ok(updated);
+  } catch (e) {
+    return actionFail(e);
+  }
+}
+
+export async function syncPastFacebookLeadsAction(sourceId: string) {
+  const { organizationId } = await requirePermission("sources.manage");
+  try {
+    const source = await LeadSourceService.getSource(sourceId);
+    if (!source || source.organizationId !== organizationId) {
+      return fail("NOT_FOUND", "Source not found");
+    }
+
+    if (source.type !== "facebook_lead_ads") {
+      return fail("VALIDATION", "Past lead sync is only supported for Facebook Lead Ads.");
+    }
+
+    const config = (source.config as Record<string, any>) ?? {};
+    const pageId = config.pageId;
+    const pageAccessToken = config.pageAccessToken;
+
+    if (!pageId || !pageAccessToken) {
+      return fail("VALIDATION", "Missing Facebook Page ID or Access Token in source configuration.");
+    }
+
+    const { MetaTokenRefreshService } = await import("@/domains/leads/metaTokenRefreshService");
+    const { FacebookLeadMappingService } = await import("@/domains/leads/facebookLeadMappingService");
+    const { IngestionService } = await import("@/lib/leads/ingestion");
+
+    // 1. Fetch active lead forms on this Page
+    const forms = await MetaTokenRefreshService.listPageLeadForms(pageId, pageAccessToken);
+    if (forms.length === 0) {
+      return ok({ totalFetched: 0, importedCount: 0, deduplicatedCount: 0, message: "No lead forms found on this Page." });
+    }
+
+    // 2. Prepare campaign filter if configured
+    const rawFilter = config.campaignFilter;
+    const campaignFilter: string[] = Array.isArray(rawFilter)
+      ? rawFilter.map((s) => String(s).trim().toLowerCase())
+      : typeof rawFilter === "string" && rawFilter.trim()
+      ? rawFilter.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean)
+      : [];
+
+    let totalFetched = 0;
+    let importedCount = 0;
+    let deduplicatedCount = 0;
+
+    for (const form of forms) {
+      const rawLeads = await MetaTokenRefreshService.fetchFormLeads(form.id, pageAccessToken, 100);
+      totalFetched += rawLeads.length;
+
+      for (const fbLead of rawLeads) {
+        // Apply campaign filter if set
+        if (campaignFilter.length > 0) {
+          const leadCampaignId = String(fbLead.campaign_id || "").toLowerCase();
+          const leadCampaignName = String(fbLead.campaign_name || "").toLowerCase();
+          const matches = campaignFilter.some(
+            (f) =>
+              (leadCampaignId && leadCampaignId === f) ||
+              (leadCampaignName && leadCampaignName.includes(f)) ||
+              (f.includes(leadCampaignName) && leadCampaignName.length > 0)
+          );
+          if (!matches) continue;
+        }
+
+        const mapped = FacebookLeadMappingService.mapFacebookLeadToStandardLead(fbLead);
+        if (!mapped.email && !mapped.phone) continue;
+
+        const normalized = {
+          name: mapped.name,
+          email: mapped.email || undefined,
+          phone: mapped.phone || undefined,
+          sourceId: source.id,
+          organizationId,
+          externalId: mapped.facebookLeadgenId || fbLead.id,
+          customData: {
+            ...mapped.customData,
+            expectedValue: mapped.expectedValue,
+            leadSource: mapped.source,
+            _syncedFromMetaGraph: true,
+          },
+        };
+
+        const res = await IngestionService.processLead(normalized);
+        if (res.status === "created") importedCount++;
+        else if (res.status === "deduplicated") deduplicatedCount++;
+      }
+    }
+
+    revalidatePath("/leads");
+    revalidatePath("/settings/sources");
+
+    return ok({
+      totalFetched,
+      importedCount,
+      deduplicatedCount,
+      formsProcessed: forms.length,
+    });
+  } catch (e) {
+    return actionFail(e);
+  }
+}

@@ -63,6 +63,37 @@ export const ingestionWorker = new Worker<IngestionJobData>(
           fbLeadData = await MetaTokenRefreshService.fetchLeadgenData(leadgenId, pageAccessToken);
         }
 
+        // Campaign filter check: If user configured specific campaigns to pull from, skip non-matching campaigns
+        const sourceConfig = (matchedSource.config as any) || {};
+        const rawCampaignFilter = sourceConfig.campaignFilter;
+        const campaignFilter: string[] = Array.isArray(rawCampaignFilter)
+          ? rawCampaignFilter.map((s) => String(s).trim().toLowerCase())
+          : typeof rawCampaignFilter === "string" && rawCampaignFilter.trim()
+          ? rawCampaignFilter.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean)
+          : [];
+
+        if (campaignFilter.length > 0) {
+          const leadCampaignId = String(fbLeadData.campaign_id || "").toLowerCase();
+          const leadCampaignName = String(fbLeadData.campaign_name || "").toLowerCase();
+          const matches = campaignFilter.some(
+            (f) =>
+              (leadCampaignId && leadCampaignId === f) ||
+              (leadCampaignName && leadCampaignName.includes(f)) ||
+              (f.includes(leadCampaignName) && leadCampaignName.length > 0)
+          );
+
+          if (!matches) {
+            console.log(
+              `[FACEBOOK_INGESTION_SKIPPED] Lead from campaign "${fbLeadData.campaign_name || leadCampaignId}" skipped by campaign filter.`
+            );
+            await db
+              .update(webhookEvents)
+              .set({ status: "processed", processedAt: new Date(), errorLog: { reason: "filtered_by_campaign_filter" } })
+              .where(eq(webhookEvents.id, event.id));
+            return { status: "skipped", reason: "filtered_campaign" };
+          }
+        }
+
         const { FacebookLeadMappingService } = await import("@/domains/leads/facebookLeadMappingService");
         const mapped = FacebookLeadMappingService.mapFacebookLeadToStandardLead(fbLeadData);
 

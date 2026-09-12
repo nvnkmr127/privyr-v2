@@ -119,4 +119,37 @@ export class MetaTokenRefreshService {
     const url = `${GRAPH}/${encodeURIComponent(leadgenId)}?access_token=${encodeURIComponent(pageAccessToken)}`;
     return graphGet(url);
   }
+
+  /**
+   * Lists active lead forms on a Facebook Page.
+   */
+  static async listPageLeadForms(
+    pageId: string,
+    pageAccessToken: string
+  ): Promise<Array<{ id: string; name: string; status?: string }>> {
+    if (!pageId || !pageAccessToken) {
+      throw new Error("pageId and pageAccessToken are required to list lead forms");
+    }
+    const url = `${GRAPH}/${encodeURIComponent(pageId)}/leadgen_forms?fields=id,name,status&access_token=${encodeURIComponent(pageAccessToken)}`;
+    const json = await graphGet(url);
+    const data: any[] = Array.isArray(json?.data) ? json.data : [];
+    return data.map((f) => ({ id: String(f.id), name: String(f.name ?? f.id), status: f.status }));
+  }
+
+  /**
+   * Fetches historical leads submitted to a specific lead form from Meta Graph API.
+   */
+  static async fetchFormLeads(
+    formId: string,
+    pageAccessToken: string,
+    limit: number = 100
+  ): Promise<any[]> {
+    if (!formId || !pageAccessToken) {
+      throw new Error("formId and pageAccessToken are required to fetch form leads");
+    }
+    const fields = "id,created_time,field_data,form_id,ad_id,ad_name,adset_id,adset_name,campaign_id,campaign_name,page_id";
+    const url = `${GRAPH}/${encodeURIComponent(formId)}/leads?fields=${fields}&limit=${limit}&access_token=${encodeURIComponent(pageAccessToken)}`;
+    const json = await graphGet(url);
+    return Array.isArray(json?.data) ? json.data : [];
+  }
 }
