@@ -10,7 +10,8 @@ import {
   renameSourceAction,
   deleteSourceAction,
   connectFacebookPagesAction,
-  updateSourceFilterAction,
+  updateSourceFormFilterAction,
+  listFacebookFormsAction,
   syncPastFacebookLeadsAction,
 } from "@/lib/actions/sources";
 import {
@@ -178,8 +179,8 @@ const SourceCard = React.memo(function SourceCard({
   onOpenFilter,
 }: SourceCardProps) {
   const webhookUrl = `${origin}/api/webhooks/${s.type}?sourceId=${s.id}`;
-  const campaignFilter = (s.config as any)?.campaignFilter;
-  const hasCampaignFilter = Array.isArray(campaignFilter) && campaignFilter.length > 0;
+  const formFilter = (s.config as any)?.formFilter;
+  const hasFormFilter = Array.isArray(formFilter) && formFilter.length > 0;
 
   return (
     <div className="border rounded-2xl p-5 bg-card space-y-3">
@@ -192,9 +193,9 @@ const SourceCard = React.memo(function SourceCard({
           <Badge variant={s.isActive ? "default" : "secondary"}>
             {s.isActive ? "Active" : "Inactive"}
           </Badge>
-          {s.type === "facebook_lead_ads" && hasCampaignFilter && (
+          {s.type === "facebook_lead_ads" && hasFormFilter && (
             <Badge variant="outline" className="text-xs text-primary border-primary/30">
-              Filtered: {campaignFilter.length} campaign{campaignFilter.length === 1 ? "" : "s"}
+              {formFilter.length} form{formFilter.length === 1 ? "" : "s"} selected
             </Badge>
           )}
         </div>
@@ -206,10 +207,10 @@ const SourceCard = React.memo(function SourceCard({
                 size="sm"
                 className="gap-1.5 rounded-2xl text-xs"
                 onClick={() => onOpenFilter?.(s)}
-                title="Filter which campaigns pull leads"
+                title="Choose which lead forms to capture"
               >
                 <Filter className="h-3.5 w-3.5" />
-                Campaign Filter
+                Select Forms
               </Button>
               <Button
                 variant="outline"
@@ -299,18 +300,14 @@ const SourceCard = React.memo(function SourceCard({
         {s.type === "facebook_lead_ads" && (
           <div className="pt-1 border-t border-border/50">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-semibold text-muted-foreground">Allowed Campaigns:</span>
-              {hasCampaignFilter ? (
-                <div className="flex flex-wrap gap-1">
-                  {campaignFilter.map((c: string) => (
-                    <Badge key={c} variant="secondary" className="text-xs font-mono">
-                      {c}
-                    </Badge>
-                  ))}
-                </div>
+              <span className="text-xs font-semibold text-muted-foreground">Lead forms:</span>
+              {hasFormFilter ? (
+                <span className="text-xs text-foreground">
+                  Capturing from {formFilter.length} selected form{formFilter.length === 1 ? "" : "s"}.
+                </span>
               ) : (
                 <span className="text-xs text-muted-foreground italic">
-                  Capturing from all campaigns on this Page (No filter set)
+                  Capturing from all forms on this Page (no selection set)
                 </span>
               )}
             </div>
@@ -470,72 +467,74 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
     }
   };
 
-  // Facebook Campaign Filter state
+  // Facebook Form Selection state
   const [filterSource, setFilterSource] = React.useState<Source | null>(null);
-  const [filterInput, setFilterInput] = React.useState("");
+  const [availableForms, setAvailableForms] = React.useState<Array<{ id: string; name: string; status?: string }>>([]);
+  const [selectedFormIds, setSelectedFormIds] = React.useState<string[]>([]);
+  const [isLoadingForms, setIsLoadingForms] = React.useState(false);
+  const [formsError, setFormsError] = React.useState<string | null>(null);
   const [isSavingFilter, setIsSavingFilter] = React.useState(false);
 
   // Facebook Past Leads Sync state
   const [syncingSourceId, setSyncingSourceId] = React.useState<string | null>(null);
 
-  const handleOpenFilter = React.useCallback((s: Source) => {
-    setFilterSource(s);
-    const existing = (s.config as any)?.campaignFilter;
-    if (Array.isArray(existing)) {
-      setFilterInput(existing.join(", "));
-    } else if (typeof existing === "string") {
-      setFilterInput(existing);
-    } else {
-      setFilterInput("");
-    }
-  }, []);
+  const handleOpenFilter = React.useCallback(
+    async (s: Source) => {
+      setFilterSource(s);
+      const existing = (s.config as any)?.formFilter;
+      setSelectedFormIds(Array.isArray(existing) ? existing.map(String) : []);
+      setAvailableForms([]);
+      setFormsError(null);
+      setIsLoadingForms(true);
+      try {
+        const res = await listFacebookFormsAction(s.id);
+        if (!res.ok) {
+          setFormsError(res.message);
+          return;
+        }
+        setAvailableForms(res.data?.forms ?? []);
+      } catch (e: any) {
+        setFormsError(e.message || "Could not load lead forms from Facebook.");
+      } finally {
+        setIsLoadingForms(false);
+      }
+    },
+    []
+  );
 
-  const handleSaveCampaignFilter = async () => {
+  const handleSaveFormFilter = async () => {
     if (!filterSource) return;
     setIsSavingFilter(true);
     try {
-      const items = filterInput
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
-
-      const res = await updateSourceFilterAction({
+      const res = await updateSourceFormFilterAction({
         sourceId: filterSource.id,
-        campaignFilter: items,
+        formFilter: selectedFormIds,
       });
 
       if (!res.ok) {
-        toast({
-          variant: "destructive",
-          title: "Failed to save filter",
-          description: res.message,
-        });
+        toast({ variant: "destructive", title: "Failed to save form selection", description: res.message });
         return;
       }
 
       setSources((prev) =>
         prev.map((s) =>
           s.id === filterSource.id
-            ? { ...s, config: { ...((s.config as any) || {}), campaignFilter: items } }
+            ? { ...s, config: { ...((s.config as any) || {}), formFilter: selectedFormIds } }
             : s
         )
       );
 
       toast({
-        title: "Campaign Filter Saved",
+        title: "Lead Forms Saved",
         description:
-          items.length > 0
-            ? `Capturing leads from ${items.length} specified campaign(s).`
-            : "Filter removed. Capturing leads from all campaigns on this Page.",
+          selectedFormIds.length > 0
+            ? `Capturing leads from ${selectedFormIds.length} selected form(s).`
+            : "Selection cleared. Capturing leads from all forms on this Page.",
       });
 
       setFilterSource(null);
     } catch (e: any) {
-      toast({
-        variant: "destructive",
-        title: "Error saving filter",
-        description: e.message || "Failed to update filter",
-      });
+      toast({ variant: "destructive", title: "Error saving selection", description: e.message || "Failed to update form selection" });
     } finally {
       setIsSavingFilter(false);
     }
@@ -914,40 +913,69 @@ export function SourcesManager({ initialSources }: { initialSources: Source[] })
         </DialogContent>
       </Dialog>
 
-      {/* Filter Facebook Campaigns Dialog */}
+      {/* Select Facebook Lead Forms Dialog */}
       <Dialog open={Boolean(filterSource)} onOpenChange={(open) => !open && setFilterSource(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Filter Facebook Campaigns</DialogTitle>
+            <DialogTitle>Select Lead Forms</DialogTitle>
             <DialogDescription>
-              Enter the specific campaign names or campaign IDs you want to pull leads from (separated by commas). Leads from other campaigns on this Page will be ignored.
+              Choose which lead forms on this Page should flow into your pipeline. Leads from unselected forms are ignored. Leave everything unchecked to capture all forms.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3 py-2">
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">
-                Target Campaigns (Names or IDs, comma-separated)
-              </label>
-              <input
-                type="text"
-                value={filterInput}
-                onChange={(e) => setFilterInput(e.target.value)}
-                placeholder="e.g. Summer Promo 2026, Luxury Villas, 1202100456"
-                className="w-full bg-background border border-input rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              💡 <strong>Tip:</strong> Leave empty to capture leads from <strong>all</strong> campaigns on this Page.
-            </p>
+          <div className="py-2">
+            {isLoadingForms ? (
+              <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Loading forms from Facebook…
+              </div>
+            ) : formsError ? (
+              <p className="text-sm text-destructive py-4">{formsError}</p>
+            ) : availableForms.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 italic">No live lead forms found on this Page.</p>
+            ) : (
+              <div className="max-h-72 overflow-y-auto space-y-2">
+                {availableForms.map((form) => {
+                  const isSelected = selectedFormIds.includes(form.id);
+                  return (
+                    <div
+                      key={form.id}
+                      onClick={() =>
+                        setSelectedFormIds((prev) =>
+                          prev.includes(form.id) ? prev.filter((id) => id !== form.id) : [...prev, form.id]
+                        )
+                      }
+                      className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-colors ${
+                        isSelected ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"
+                      }`}
+                    >
+                      <div className="space-y-1 min-w-0">
+                        <p className="font-medium text-sm text-foreground truncate">{form.name}</p>
+                        <p className="text-xs text-muted-foreground font-mono truncate">ID: {form.id}</p>
+                      </div>
+                      <div
+                        className={`h-5 w-5 rounded-md border flex items-center justify-center shrink-0 transition-colors ${
+                          isSelected ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground/40"
+                        }`}
+                      >
+                        {isSelected && <CheckCircle2 className="h-4 w-4" />}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setFilterSource(null)} disabled={isSavingFilter}>
               Cancel
             </Button>
-            <Button onClick={handleSaveCampaignFilter} disabled={isSavingFilter} className="rounded-2xl">
-              {isSavingFilter ? "Saving..." : "Save Filter"}
+            <Button onClick={handleSaveFormFilter} disabled={isSavingFilter || isLoadingForms} className="rounded-2xl">
+              {isSavingFilter
+                ? "Saving..."
+                : selectedFormIds.length > 0
+                ? `Save ${selectedFormIds.length} form${selectedFormIds.length === 1 ? "" : "s"}`
+                : "Save (all forms)"}
             </Button>
           </DialogFooter>
         </DialogContent>

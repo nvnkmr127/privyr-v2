@@ -109,6 +109,11 @@ export class MetaTokenRefreshService {
     return expiresAt.getTime() - Date.now() <= bufferMs;
   }
 
+  // Explicit field list for lead (leadgen) nodes. Graph's defaults don't reliably include
+  // field_data / campaign info, and the webhook path needs both — so always request them.
+  private static readonly LEAD_FIELDS =
+    "id,created_time,field_data,form_id,ad_id,ad_name,adset_id,adset_name,campaign_id,campaign_name,page_id";
+
   /**
    * Fetches lead details (field_data, campaign info) for a leadgen_id via Meta Graph API using the Page access token.
    */
@@ -116,12 +121,13 @@ export class MetaTokenRefreshService {
     if (!leadgenId || !pageAccessToken) {
       throw new Error("leadgenId and pageAccessToken are required to fetch lead details");
     }
-    const url = `${GRAPH}/${encodeURIComponent(leadgenId)}?access_token=${encodeURIComponent(pageAccessToken)}`;
+    const url = `${GRAPH}/${encodeURIComponent(leadgenId)}?fields=${this.LEAD_FIELDS}&access_token=${encodeURIComponent(pageAccessToken)}`;
     return graphGet(url);
   }
 
   /**
-   * Lists active lead forms on a Facebook Page.
+   * Lists lead forms on a Facebook Page. Archived/deleted forms are dropped so the picker and
+   * historical sync only deal with live forms.
    */
   static async listPageLeadForms(
     pageId: string,
@@ -130,26 +136,41 @@ export class MetaTokenRefreshService {
     if (!pageId || !pageAccessToken) {
       throw new Error("pageId and pageAccessToken are required to list lead forms");
     }
-    const url = `${GRAPH}/${encodeURIComponent(pageId)}/leadgen_forms?fields=id,name,status&access_token=${encodeURIComponent(pageAccessToken)}`;
+    const url = `${GRAPH}/${encodeURIComponent(pageId)}/leadgen_forms?fields=id,name,status&limit=200&access_token=${encodeURIComponent(pageAccessToken)}`;
     const json = await graphGet(url);
     const data: any[] = Array.isArray(json?.data) ? json.data : [];
-    return data.map((f) => ({ id: String(f.id), name: String(f.name ?? f.id), status: f.status }));
+    const dead = new Set(["DELETED", "ARCHIVED"]);
+    return data
+      .filter((f) => !dead.has(String(f.status ?? "").toUpperCase()))
+      .map((f) => ({ id: String(f.id), name: String(f.name ?? f.id), status: f.status }));
   }
 
   /**
-   * Fetches historical leads submitted to a specific lead form from Meta Graph API.
+   * Fetches historical leads submitted to a specific lead form, following Graph API cursor
+   * pagination until the form is exhausted or `maxTotal` is reached. `pageSize` is the per-request
+   * page; Meta caps it around a few hundred.
    */
   static async fetchFormLeads(
     formId: string,
     pageAccessToken: string,
-    limit: number = 100
+    pageSize: number = 100,
+    maxTotal: number = 1000
   ): Promise<any[]> {
     if (!formId || !pageAccessToken) {
       throw new Error("formId and pageAccessToken are required to fetch form leads");
     }
-    const fields = "id,created_time,field_data,form_id,ad_id,ad_name,adset_id,adset_name,campaign_id,campaign_name,page_id";
-    const url = `${GRAPH}/${encodeURIComponent(formId)}/leads?fields=${fields}&limit=${limit}&access_token=${encodeURIComponent(pageAccessToken)}`;
-    const json = await graphGet(url);
-    return Array.isArray(json?.data) ? json.data : [];
+    const out: any[] = [];
+    let url: string | null =
+      `${GRAPH}/${encodeURIComponent(formId)}/leads?fields=${this.LEAD_FIELDS}` +
+      `&limit=${pageSize}&access_token=${encodeURIComponent(pageAccessToken)}`;
+
+    while (url && out.length < maxTotal) {
+      const json: any = await graphGet(url);
+      const batch: any[] = Array.isArray(json?.data) ? json.data : [];
+      out.push(...batch);
+      // `paging.next` already carries the cursor + access_token; stop when absent or batch empty.
+      url = batch.length > 0 ? (json?.paging?.next ?? null) : null;
+    }
+    return out.slice(0, maxTotal);
   }
 }

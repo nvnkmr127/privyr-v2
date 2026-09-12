@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { FacebookLeadMappingService } from "@/domains/leads/facebookLeadMappingService";
 import { db } from "@/db";
 import { webhookEvents } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { ingestionQueue } from "@/lib/jobs/workers/ingestionWorker";
 import { verifyMetaSignature } from "@/lib/webhooks/signature";
 
@@ -64,6 +65,20 @@ export async function POST(req: NextRequest) {
           const leadgenValue = change.value;
           const leadgenId = leadgenValue.leadgen_id;
           const formId = leadgenValue.form_id;
+          const idempotencyKey = `fb_${leadgenId}`;
+
+          // Meta retries deliveries; dedupe on the leadgen id so we don't store duplicate events or
+          // make duplicate Graph calls. ponytail: app-level check (no unique index / prod migration);
+          // a rare concurrent double-delivery still gets caught by lead-level dedup downstream.
+          const existing = await db
+            .select({ id: webhookEvents.id })
+            .from(webhookEvents)
+            .where(eq(webhookEvents.idempotencyKey, idempotencyKey))
+            .limit(1);
+          if (existing.length > 0) {
+            processedEvents.push(existing[0].id);
+            continue;
+          }
 
           // Store event in database
           const [event] = await db
@@ -77,7 +92,7 @@ export async function POST(req: NextRequest) {
                 ad_id: leadgenValue.ad_id,
                 raw: leadgenValue,
               },
-              idempotencyKey: `fb_${leadgenId}`,
+              idempotencyKey,
             })
             .returning();
 

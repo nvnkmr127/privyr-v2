@@ -33,6 +33,38 @@ describe("MetaTokenRefreshService", () => {
     expect(MetaTokenRefreshService.isConfigured()).toBe(false);
   });
 
+  describe("fetchFormLeads pagination", () => {
+    const realFetch = globalThis.fetch;
+    afterEach(() => {
+      globalThis.fetch = realFetch;
+    });
+
+    it("follows paging.next until exhausted and stops (no infinite loop)", async () => {
+      const pages: Record<string, any> = {
+        page1: { data: [{ id: "l1" }, { id: "l2" }], paging: { next: "https://graph.facebook.com/next?cursor=2" } },
+        page2: { data: [{ id: "l3" }], paging: {} }, // no next → stop
+      };
+      let call = 0;
+      globalThis.fetch = (async (url: string) => {
+        const body = call === 0 ? pages.page1 : pages.page2;
+        call++;
+        return { ok: true, json: async () => body } as Response;
+      }) as typeof fetch;
+
+      const leads = await MetaTokenRefreshService.fetchFormLeads("form_1", "tok");
+      expect(call).toBe(2);
+      expect(leads.map((l) => l.id)).toEqual(["l1", "l2", "l3"]);
+    });
+
+    it("respects maxTotal so a huge form can't run away", async () => {
+      globalThis.fetch = (async () =>
+        ({ ok: true, json: async () => ({ data: [{ id: "x" }, { id: "y" }], paging: { next: "https://graph.facebook.com/next" } }) } as Response)) as typeof fetch;
+
+      const leads = await MetaTokenRefreshService.fetchFormLeads("form_1", "tok", 2, 3);
+      expect(leads.length).toBe(3);
+    });
+  });
+
   it("should correctly detect if a Meta OAuth access token is expiring within buffer threshold", () => {
     const expiringAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000); // 3 days remaining
     expect(MetaTokenRefreshService.isTokenExpiringSoon(expiringAt, 7)).toBe(true);

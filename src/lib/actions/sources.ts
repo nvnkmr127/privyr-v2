@@ -113,14 +113,15 @@ export async function connectFacebookPagesAction(pages: z.infer<typeof facebookP
   }
 }
 
-const filterSchema = z.object({
+const formFilterSchema = z.object({
   sourceId: z.string().uuid(),
-  campaignFilter: z.array(z.string()).optional(),
+  formFilter: z.array(z.string()).optional(),
 });
 
-export async function updateSourceFilterAction(input: z.infer<typeof filterSchema>) {
+/** Saves the whitelist of Facebook lead-form IDs this source should capture. Empty = all forms. */
+export async function updateSourceFormFilterAction(input: z.infer<typeof formFilterSchema>) {
   const { organizationId } = await requirePermission("sources.manage");
-  const parsed = filterSchema.safeParse(input);
+  const parsed = formFilterSchema.safeParse(input);
   if (!parsed.success) return fail("VALIDATION", "Invalid filter data");
 
   try {
@@ -132,12 +133,33 @@ export async function updateSourceFilterAction(input: z.infer<typeof filterSchem
     const currentConfig = (source.config as Record<string, unknown>) ?? {};
     const newConfig = {
       ...currentConfig,
-      campaignFilter: parsed.data.campaignFilter || [],
+      formFilter: parsed.data.formFilter || [],
     };
 
     const updated = await LeadSourceService.updateSource(source.id, { config: newConfig }, organizationId);
     revalidatePath("/settings/sources");
     return ok(updated);
+  } catch (e) {
+    return actionFail(e);
+  }
+}
+
+/** Lists the live lead forms on a connected Facebook Page so the user can pick which to capture. */
+export async function listFacebookFormsAction(sourceId: string) {
+  const { organizationId } = await requirePermission("sources.manage");
+  try {
+    const source = await LeadSourceService.getSource(sourceId);
+    if (!source || source.organizationId !== organizationId) return fail("NOT_FOUND", "Source not found");
+    if (source.type !== "facebook_lead_ads") return fail("VALIDATION", "Not a Facebook Lead Ads source.");
+
+    const config = (source.config as Record<string, any>) ?? {};
+    if (!config.pageId || !config.pageAccessToken) {
+      return fail("VALIDATION", "Missing Facebook Page ID or Access Token in source configuration.");
+    }
+
+    const { MetaTokenRefreshService } = await import("@/domains/leads/metaTokenRefreshService");
+    const forms = await MetaTokenRefreshService.listPageLeadForms(config.pageId, config.pageAccessToken);
+    return ok({ forms });
   } catch (e) {
     return actionFail(e);
   }
@@ -167,19 +189,19 @@ export async function syncPastFacebookLeadsAction(sourceId: string) {
     const { FacebookLeadMappingService } = await import("@/domains/leads/facebookLeadMappingService");
     const { IngestionService } = await import("@/lib/leads/ingestion");
 
-    // 1. Fetch active lead forms on this Page
-    const forms = await MetaTokenRefreshService.listPageLeadForms(pageId, pageAccessToken);
-    if (forms.length === 0) {
+    // 1. Fetch live lead forms on this Page
+    const allForms = await MetaTokenRefreshService.listPageLeadForms(pageId, pageAccessToken);
+    if (allForms.length === 0) {
       return ok({ totalFetched: 0, importedCount: 0, deduplicatedCount: 0, message: "No lead forms found on this Page." });
     }
 
-    // 2. Prepare campaign filter if configured
-    const rawFilter = config.campaignFilter;
-    const campaignFilter: string[] = Array.isArray(rawFilter)
-      ? rawFilter.map((s) => String(s).trim().toLowerCase())
-      : typeof rawFilter === "string" && rawFilter.trim()
-      ? rawFilter.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean)
-      : [];
+    // 2. Restrict to the user-selected forms (empty = every form on the Page).
+    const rawFilter = config.formFilter;
+    const formFilter: string[] = Array.isArray(rawFilter) ? rawFilter.map((s) => String(s)) : [];
+    const forms = formFilter.length > 0 ? allForms.filter((f) => formFilter.includes(f.id)) : allForms;
+    if (forms.length === 0) {
+      return ok({ totalFetched: 0, importedCount: 0, deduplicatedCount: 0, message: "None of the selected forms exist on this Page." });
+    }
 
     let totalFetched = 0;
     let importedCount = 0;
@@ -190,19 +212,6 @@ export async function syncPastFacebookLeadsAction(sourceId: string) {
       totalFetched += rawLeads.length;
 
       for (const fbLead of rawLeads) {
-        // Apply campaign filter if set
-        if (campaignFilter.length > 0) {
-          const leadCampaignId = String(fbLead.campaign_id || "").toLowerCase();
-          const leadCampaignName = String(fbLead.campaign_name || "").toLowerCase();
-          const matches = campaignFilter.some(
-            (f) =>
-              (leadCampaignId && leadCampaignId === f) ||
-              (leadCampaignName && leadCampaignName.includes(f)) ||
-              (f.includes(leadCampaignName) && leadCampaignName.length > 0)
-          );
-          if (!matches) continue;
-        }
-
         const mapped = FacebookLeadMappingService.mapFacebookLeadToStandardLead(fbLead);
         if (!mapped.email && !mapped.phone) continue;
 
@@ -222,7 +231,8 @@ export async function syncPastFacebookLeadsAction(sourceId: string) {
         };
 
         const res = await IngestionService.processLead(normalized);
-        if (res.status === "created") importedCount++;
+        // processLead returns "success" for a new lead, "deduplicated" for an existing match.
+        if (res.status === "success") importedCount++;
         else if (res.status === "deduplicated") deduplicatedCount++;
       }
     }

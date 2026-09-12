@@ -8,7 +8,17 @@ import { IngestionService } from "@/lib/leads/ingestion";
 const connection = createRedis({ maxRetriesPerRequest: null });
 
 export const INGESTION_QUEUE_NAME = "lead-ingestion";
-export const ingestionQueue = new Queue(INGESTION_QUEUE_NAME, { connection });
+export const ingestionQueue = new Queue(INGESTION_QUEUE_NAME, {
+  connection,
+  // A Graph fetch inside the worker can fail transiently (rate limits, blips); without retries a
+  // single hiccup would lose the lead. Retry with exponential backoff before giving up.
+  defaultJobOptions: {
+    attempts: 5,
+    backoff: { type: "exponential", delay: 5000 },
+    removeOnComplete: 1000,
+    removeOnFail: 5000,
+  },
+});
 
 export interface IngestionJobData {
   webhookEventId: string;
@@ -55,6 +65,22 @@ export const ingestionWorker = new Worker<IngestionJobData>(
         const sourceId = matchedSource.id;
         const organizationId = matchedSource.organizationId;
         const pageAccessToken = (matchedSource.config as any)?.pageAccessToken;
+        const sourceConfig = (matchedSource.config as any) || {};
+        const formId = rawPayload.form_id || rawPayload.raw?.form_id;
+
+        // Form filter: the webhook payload carries form_id, so we can drop leads from unselected
+        // forms BEFORE spending a Graph API call. Empty filter = capture every form on the Page.
+        const rawFormFilter = sourceConfig.formFilter;
+        const formFilter: string[] = Array.isArray(rawFormFilter) ? rawFormFilter.map((s) => String(s)) : [];
+
+        if (formFilter.length > 0 && !formFilter.includes(String(formId))) {
+          console.log(`[FACEBOOK_INGESTION_SKIPPED] Lead from form "${formId}" skipped by form filter.`);
+          await db
+            .update(webhookEvents)
+            .set({ status: "processed", processedAt: new Date(), errorLog: { reason: "filtered_by_form_filter" } })
+            .where(eq(webhookEvents.id, event.id));
+          return { status: "skipped", reason: "filtered_form" };
+        }
 
         let fbLeadData = rawPayload;
         // If the payload only has the leadgen_id (standard Meta webhook), fetch actual lead answers from Graph API
@@ -63,39 +89,18 @@ export const ingestionWorker = new Worker<IngestionJobData>(
           fbLeadData = await MetaTokenRefreshService.fetchLeadgenData(leadgenId, pageAccessToken);
         }
 
-        // Campaign filter check: If user configured specific campaigns to pull from, skip non-matching campaigns
-        const sourceConfig = (matchedSource.config as any) || {};
-        const rawCampaignFilter = sourceConfig.campaignFilter;
-        const campaignFilter: string[] = Array.isArray(rawCampaignFilter)
-          ? rawCampaignFilter.map((s) => String(s).trim().toLowerCase())
-          : typeof rawCampaignFilter === "string" && rawCampaignFilter.trim()
-          ? rawCampaignFilter.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean)
-          : [];
-
-        if (campaignFilter.length > 0) {
-          const leadCampaignId = String(fbLeadData.campaign_id || "").toLowerCase();
-          const leadCampaignName = String(fbLeadData.campaign_name || "").toLowerCase();
-          const matches = campaignFilter.some(
-            (f) =>
-              (leadCampaignId && leadCampaignId === f) ||
-              (leadCampaignName && leadCampaignName.includes(f)) ||
-              (f.includes(leadCampaignName) && leadCampaignName.length > 0)
-          );
-
-          if (!matches) {
-            console.log(
-              `[FACEBOOK_INGESTION_SKIPPED] Lead from campaign "${fbLeadData.campaign_name || leadCampaignId}" skipped by campaign filter.`
-            );
-            await db
-              .update(webhookEvents)
-              .set({ status: "processed", processedAt: new Date(), errorLog: { reason: "filtered_by_campaign_filter" } })
-              .where(eq(webhookEvents.id, event.id));
-            return { status: "skipped", reason: "filtered_campaign" };
-          }
-        }
-
         const { FacebookLeadMappingService } = await import("@/domains/leads/facebookLeadMappingService");
         const mapped = FacebookLeadMappingService.mapFacebookLeadToStandardLead(fbLeadData);
+
+        // A lead with neither email nor phone can't be deduped/contacted — skip cleanly instead of
+        // letting processLead throw (which would burn all retry attempts on an unfixable lead).
+        if (!mapped.email && !mapped.phone) {
+          await db
+            .update(webhookEvents)
+            .set({ status: "processed", processedAt: new Date(), errorLog: { reason: "no_contact_info" } })
+            .where(eq(webhookEvents.id, event.id));
+          return { status: "skipped", reason: "no_contact_info" };
+        }
 
         normalized = {
           name: mapped.name,

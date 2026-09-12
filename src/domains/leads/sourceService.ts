@@ -51,7 +51,10 @@ export class LeadSourceService {
       .from(leadSources)
       .where(and(eq(leadSources.organizationId, organizationId), eq(leadSources.type, "facebook_lead_ads")));
     const existing = rows.find((s) => (s.config as any)?.pageId === page.pageId);
+    // Merge onto any existing config so reconnecting (token refresh / re-auth) preserves the
+    // user's formFilter and other settings instead of wiping them.
     const config = {
+      ...((existing?.config as Record<string, unknown>) ?? {}),
       pageId: page.pageId,
       pageAccessToken: page.pageAccessToken,
       expiresAt: page.expiresAt ? page.expiresAt.toISOString() : null,

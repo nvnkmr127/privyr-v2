@@ -69,14 +69,16 @@ export class FacebookLeadMappingService {
     let expectedValue: number | null = null;
     const customData: Record<string, any> = {};
 
-    const firstNameVal = facebookLead.field_data.find((f) => f.name === "first_name")?.values[0];
-    const lastNameVal = facebookLead.field_data.find((f) => f.name === "last_name")?.values[0];
+    // Graph can return a lead node without field_data (deleted lead, restricted fields); never crash.
+    const fieldData = Array.isArray(facebookLead.field_data) ? facebookLead.field_data : [];
+    const firstNameVal = fieldData.find((f) => f.name === "first_name")?.values[0];
+    const lastNameVal = fieldData.find((f) => f.name === "last_name")?.values[0];
 
     if (firstNameVal || lastNameVal) {
       name = [firstNameVal, lastNameVal].filter(Boolean).join(" ").trim();
     }
 
-    for (const field of facebookLead.field_data) {
+    for (const field of fieldData) {
       const val = field.values && field.values.length > 0 ? field.values[0] : "";
       if (!val) continue;
 
