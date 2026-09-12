@@ -22,11 +22,13 @@ import { CustomFieldInputs, defaultCustomValues, type CustomFieldDef } from "@/c
 import { useToast } from "@/hooks/use-toast"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 
+const emptyStringToUndefined = z.string().regex(/^\s*$/).transform(() => "");
+
 const formSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(255, "Name cannot exceed 255 characters"),
-  email: z.string().trim().email("Invalid email address").optional().or(z.literal("")),
-  phone: z.string().trim().max(50, "Phone number too long").optional().or(z.literal("")),
-  company: z.string().trim().max(255, "Company name cannot exceed 255 characters").optional().or(z.literal("")),
+  email: z.string().trim().email("Invalid email address").optional().or(z.literal("")).or(emptyStringToUndefined),
+  phone: z.string().trim().max(50, "Phone number too long").optional().or(z.literal("")).or(emptyStringToUndefined),
+  company: z.string().trim().max(255, "Company name cannot exceed 255 characters").optional().or(z.literal("")).or(emptyStringToUndefined),
 });
 
 export function QuickAddLeadDrawer({ children }: { children?: React.ReactNode }) {
@@ -35,9 +37,11 @@ export function QuickAddLeadDrawer({ children }: { children?: React.ReactNode })
   const { toast } = useToast();
   const [defs, setDefs] = React.useState<CustomFieldDef[]>([]);
   const [customValues, setCustomValues] = React.useState<Record<string, string>>({});
+  const [serverError, setServerError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (open) {
+      setServerError(null);
       listCustomFieldsAction()
         .then((r) => {
           const d = r as CustomFieldDef[];
@@ -65,12 +69,15 @@ export function QuickAddLeadDrawer({ children }: { children?: React.ReactNode })
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    setServerError(null);
     const missing = defs.filter((d) => d.required && !(customValues[d.key] ?? "").trim());
     if (missing.length) {
+      const msg = `Please fill in required custom field: ${missing.map((m) => m.label).join(", ")}`;
+      setServerError(msg);
       toast({
         variant: "destructive",
         title: "Required field missing",
-        description: `Please fill in: ${missing.map((m) => m.label).join(", ")}`,
+        description: msg,
       });
       return;
     }
@@ -83,6 +90,14 @@ export function QuickAddLeadDrawer({ children }: { children?: React.ReactNode })
         customData: customValues,
       });
       if (!res.ok) {
+        setServerError(res.message);
+        const lower = res.message.toLowerCase();
+        if (lower.includes("duplicate") || lower.includes("email")) {
+          form.setError("email", { message: res.message });
+        }
+        if (lower.includes("duplicate") || lower.includes("phone")) {
+          form.setError("phone", { message: res.message });
+        }
         // Map server field errors back onto the matching inputs for inline display.
         if (res.fieldErrors) {
           for (const [key, message] of Object.entries(res.fieldErrors)) {
@@ -105,19 +120,22 @@ export function QuickAddLeadDrawer({ children }: { children?: React.ReactNode })
       setOpen(false);
       form.reset();
       setCustomValues({});
+      setServerError(null);
       router.refresh();
-    } catch {
+    } catch (err: any) {
       // Transport-level failure (network offline, action unreachable).
+      const msg = err?.message || "We couldn't reach the server. Check your connection and try again.";
+      setServerError(msg);
       toast({
         variant: "destructive",
         title: "Connection problem",
-        description: "We couldn't reach the server. Check your connection and try again.",
+        description: msg,
       });
     }
   }
 
   return (
-    <Drawer open={open} onOpenChange={setOpen}>
+    <Drawer open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setServerError(null); form.reset(); } }}>
       <DrawerTrigger asChild>
         {children || <Button variant="outline">Quick Add</Button>}
       </DrawerTrigger>
@@ -130,10 +148,12 @@ export function QuickAddLeadDrawer({ children }: { children?: React.ReactNode })
           <Form {...form}>
             <form
               onSubmit={form.handleSubmit(onSubmit, (errors) => {
+                const firstErr = Object.values(errors)[0]?.message as string || "Please check the form fields and try again.";
+                setServerError(firstErr);
                 toast({
                   variant: "destructive",
                   title: "Validation error",
-                  description: Object.values(errors)[0]?.message as string || "Please check the form fields and try again.",
+                  description: firstErr,
                 });
               })}
               className="p-4 pb-0 space-y-4"
@@ -197,12 +217,18 @@ export function QuickAddLeadDrawer({ children }: { children?: React.ReactNode })
                 </div>
               )}
 
+              {serverError && (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive font-medium">
+                  {serverError}
+                </div>
+              )}
+
               <DrawerFooter className="px-0">
                 <Button type="submit" disabled={form.formState.isSubmitting}>
                   {form.formState.isSubmitting ? "Saving..." : "Save Lead"}
                 </Button>
                 <DrawerClose asChild>
-                  <Button variant="outline" type="button" onClick={() => form.reset()}>Cancel</Button>
+                  <Button variant="outline" type="button" onClick={() => { setServerError(null); form.reset(); }}>Cancel</Button>
                 </DrawerClose>
               </DrawerFooter>
             </form>

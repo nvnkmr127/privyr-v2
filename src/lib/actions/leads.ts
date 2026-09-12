@@ -12,11 +12,13 @@ import { PlanService } from "@/domains/billing/planService";
 import { ActivityService } from "@/domains/activities/service";
 import { ok, fail, actionFail, zodFieldErrors, type ActionResult } from "@/lib/actions/result";
 
+const emptyStringToUndefined = z.string().regex(/^\s*$/).transform(() => "");
+
 const createLeadSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(255),
-  email: z.string().trim().email("Invalid email").optional().or(z.literal("")),
-  phone: z.string().trim().max(50, "Phone number too long").optional().or(z.literal("")),
-  company: z.string().trim().max(255).optional().or(z.literal("")),
+  email: z.string().trim().email("Invalid email").optional().or(z.literal("")).or(emptyStringToUndefined),
+  phone: z.string().trim().max(50, "Phone number too long").optional().or(z.literal("")).or(emptyStringToUndefined),
+  company: z.string().trim().max(255).optional().or(z.literal("")).or(emptyStringToUndefined),
   customData: z.record(z.string(), z.unknown()).optional(),
 });
 

@@ -22,7 +22,7 @@ export class CapacityAssignmentService {
       .from(users)
       .where(and(eq(users.organizationId, organizationId), eq(users.isActive, true)));
 
-    if (orgUsers.length === 0) return [];
+    if (!Array.isArray(orgUsers) || orgUsers.length === 0) return [];
 
     const userIds = orgUsers.map((u) => u.id);
 
